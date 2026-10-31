@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Mirror the exact embedded OpenEcho UI into its own Edge/Chrome extension.
+"""Mirror the exact embedded Reverfolio UI into its own Edge/Chrome extension.
 
 Use the same app logic/CSS, not a separately implemented launcher UI.
 Static resources come from this repository; no external CDN dependency.
@@ -23,9 +23,9 @@ for src, dest in (
         raise SystemExit(f"Required UI resource is missing: {src}")
     html = html.replace(src, dest)
 html = html.replace(
-    '<title>OpenEcho',
-    '<meta name="openecho-api-origin" content="http://127.0.0.1:19452">\n'
-    '<title>OpenEcho',
+    '<title>Reverfolio',
+    '<meta name="reverfolio-api-origin" content="http://127.0.0.1:19452">\n'
+    '<title>Reverfolio',
     1,
 )
 html = html.replace(
@@ -37,4 +37,4 @@ html = html.replace(
 (DEST / "index.html").write_text(html, encoding="utf-8")
 for name in ("app.css", "app.js", "settings.js", "favicon.svg"):
     (DEST / name).write_bytes((SOURCE / name).read_bytes())
-print("OpenEcho extension UI synchronized with main embedded Web UI")
+print("Reverfolio extension UI synchronized with main embedded Web UI")

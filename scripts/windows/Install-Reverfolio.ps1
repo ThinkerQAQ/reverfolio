@@ -15,13 +15,13 @@ if (!(Test-Path -LiteralPath $ConfigPath)) {
   $Bytes = $Encoding.GetBytes($Text)
   $Stream = New-Object System.IO.FileStream($ConfigPath,[System.IO.FileMode]::CreateNew,[System.IO.FileAccess]::Write)
   try { $Stream.Write($Bytes,0,$Bytes.Length) } finally { $Stream.Dispose() }
-  Write-Output 'OpenEcho created local config.toml.'
+  Write-Output 'Reverfolio created local config.toml.'
 } else {
-  Write-Output 'OpenEcho retained existing config.toml.'
+  Write-Output 'Reverfolio retained existing config.toml.'
 }
-$Initializer = Join-Path $Root 'Initialize-OpenEchoExtension.ps1'
+$Initializer = Join-Path $Root 'Initialize-ReverfolioExtension.ps1'
 if (Test-Path -LiteralPath (Join-Path $Root 'extension\manifest.json')) {
   if (!(Test-Path -LiteralPath $Initializer)) { throw 'Extension initializer missing' }
   & $Initializer
 }
-Write-Output 'OpenEcho portable Windows installation ready.'
+Write-Output 'Reverfolio portable Windows installation ready.'

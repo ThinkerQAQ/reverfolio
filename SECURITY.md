@@ -1,6 +1,6 @@
-# OpenEcho Security
+# Reverfolio Security
 
-OpenEcho is a loopback-only, personal-use influence-monitoring service. Keep the database, screenshots, imported reports, browser profiles, and credential files private. Report issues privately to contact@mail.thinkerqaq.com.
+Reverfolio is a loopback-only, personal-use influence-monitoring service. Keep the database, screenshots, imported reports, browser profiles, and credential files private. Report issues privately to contact@mail.thinkerqaq.com.
 
 ## Local web app
 

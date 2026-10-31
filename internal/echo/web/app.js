@@ -42,7 +42,7 @@ const LANG = {
   "运行中":"Running","部分完成":"Partial","已完成":"Completed","失败":"Failed",
   "认领任务":"Claim task","记录搜索结果":"Record search result","搜索引擎":"Search engine",
   "实际搜索范围":"Actual search scope","结果数量":"Result count","备注":"Notes","完成状态":"Completion state",
-  "AI 客户端负责搜索；OpenEcho 记录证据与审计，不会自行声称搜索了全网":"The AI client searches; OpenEcho records evidence and audit, never claims to have searched the entire web.",
+  "AI 客户端负责搜索；Reverfolio 记录证据与审计，不会自行声称搜索了全网":"The AI client searches; Reverfolio records evidence and audit, never claims to have searched the entire web.",
   "历史观测记录":"Historical observations","指标":"Metric","值":"Value","统计周期":"Period",
   "导入 JSON 数据":"Import JSON observations","验证 / 预览":"Validate / preview","确认导入":"Import validated",
   "备份完整数据库":"Download SQLite backup","私有数据库备份不会上传 GitHub":"Private database backups are never committed to GitHub",
@@ -60,7 +60,7 @@ const LANG = {
   "筛选":"Filter","所有状态":"All statuses","仅显示":"Only",
   "直接进入":"Open","仅本机访问":"Only available on this device","数据时间":"Data time",
   "无可用数据":"No data available","至少输入一个链接":"A URL is required",
-  "在标签页中打开":"Open as tab","服务尚未启动":"Start the local OpenEcho service"
+  "在标签页中打开":"Open as tab","服务尚未启动":"Start the local Reverfolio service"
 };
 const nav = [
   ["overview","◫","影响力总览","统一查看项目、文章与真实传播证据"],
@@ -71,7 +71,7 @@ const nav = [
   ["history","▤","历史统计","查看统计来源与导入历史数据"],
   ["settings","⚙","设置","查看本地连接、权限与语言偏好"]
 ];
-const state = {lang:localStorage.getItem("openecho.lang")==="en"?"en":"zh",view:"overview",data:null,leases:new Map(),preview:null,importInput:"",busy:false,settingsQuery:"",settingsSelected:"",settingsExpanded:new Set(),settingsDraft:{},evidenceFilter:null};
+const state = {lang:(localStorage.getItem("reverfolio.lang") || localStorage.getItem("openecho.lang"))==="en"?"en":"zh",view:"overview",data:null,leases:new Map(),preview:null,importInput:"",busy:false,settingsQuery:"",settingsSelected:"",settingsExpanded:new Set(),settingsDraft:{},evidenceFilter:null};
 const $ = id => document.getElementById(id);
 const T = key => state.lang==="en" ? (LANG[key] || key) : key;
 const E = value => String(value ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -87,15 +87,15 @@ const selectWorks = () => state.data.works.map(w=>'<option value="'+w.id+'">'+E(
 // The trusted extension bundle supplies a fixed localhost origin in a meta tag.
 // Regular web pages use their own origin, retaining HttpOnly same-site sessions.
 const extensionMode = location.protocol==="chrome-extension:";
-const apiOrigin = document.querySelector('meta[name="openecho-api-origin"]')?.content || location.origin;
+const apiOrigin = document.querySelector('meta[name="reverfolio-api-origin"]')?.content || location.origin;
 const apiURL = path => new URL(path,apiOrigin).href;
-if(extensionMode)document.documentElement.classList.add("openecho-extension");
+if(extensionMode)document.documentElement.classList.add("reverfolio-extension");
 async function api(url,opts={}) {
-  const extensionHeader = extensionMode ? {"X-OpenEcho-Extension-Access":String(window.OPEN_ECHO_EXTENSION_ACCESS||"")} : {};
-  const headers = {"Content-Type":"application/json",...extensionHeader,...(opts.method && opts.method!=="GET" ? {"X-OpenEcho-UI":"1"} : {}),...(opts.headers||{})};
+  const extensionHeader = extensionMode ? {"X-Reverfolio-Extension-Access":String(window.REVERFOLIO_EXTENSION_ACCESS||"")} : {};
+  const headers = {"Content-Type":"application/json",...extensionHeader,...(opts.method && opts.method!=="GET" ? {"X-Reverfolio-UI":"1"} : {}),...(opts.headers||{})};
   const response=await fetch(apiURL(url),{credentials:extensionMode?"omit":"same-origin",...opts,headers});
   if(!response.ok) {
-    if(response.status===401) throw Error(extensionMode ? "OpenEcho 扩展未获授权：运行 Start-OpenEcho.cmd 初始化本地访问，然后在 Edge 扩展管理页面重新加载扩展。" : T("请刷新页面重新建立本地会话"));
+    if(response.status===401) throw Error(extensionMode ? "Reverfolio 扩展未获授权：运行 Start-Reverfolio.cmd 初始化本地访问，然后在 Edge 扩展管理页面重新加载扩展。" : T("请刷新页面重新建立本地会话"));
     throw Error((await response.text()).trim().slice(0,240)+" (HTTP "+response.status+")");
   }
   return response.json();
@@ -132,7 +132,7 @@ function shellRender(){
   $("locale-button").textContent=state.lang==="zh"?"EN":"中文";
   const newTab=$("open-browser-tab");
   if(newTab)newTab.hidden=!extensionMode;
-  document.title="OpenEcho · "+T(current[2]);
+  document.title="Reverfolio · "+T(current[2]);
   document.querySelectorAll("[data-i18n]").forEach(node=>node.textContent=T(node.dataset.i18n));
   navRender();
 }
@@ -289,7 +289,7 @@ function tasksView(){
     '<div class="form-actions"><button class="btn btn-primary">'+T("记录搜索结果")+'</button></div></form>' : '')+
    '</article>';
  }).join("");
- return '<p class="desc">'+T("AI 客户端负责搜索；OpenEcho 记录证据与审计，不会自行声称搜索了全网")+'</p>'+
+ return '<p class="desc">'+T("AI 客户端负责搜索；Reverfolio 记录证据与审计，不会自行声称搜索了全网")+'</p>'+
  '<div class="toolbar"><input class="search" data-filter placeholder="'+T("输入关键词筛选")+'"><span class="muted">'+fmt(state.data.tasks.length)+'</span></div>'+
  '<div class="grid-cards">'+(items||'<div class="empty">'+T("当前无数据")+'</div>')+'</div>'+
  heading("新建搜索任务")+
@@ -349,7 +349,7 @@ async function runClick(button){
  }
  if(action==="collect"){await act(async()=>{await api("/api/works/"+id+"/collect",{method:"POST",headers:{"Idempotency-Key":uuid()}});});return;}
  if(action==="claim"){await act(async()=>{
-  const result=await send("claim_discovery_task",{task_id:id,worker:pref("discovery.worker","OpenEcho web UI")});
+  const result=await send("claim_discovery_task",{task_id:id,worker:pref("discovery.worker","Reverfolio web UI")});
   if(result.lease_token)state.leases.set(id,result.lease_token);
  });return;}
  if(action==="review"){const m=state.data.mentions.find(x=>x.id===id),reason=document.querySelector('[data-reason="'+id+'"]')?.value?.trim();
@@ -372,15 +372,15 @@ async function runClick(button){
  if(action==="export-md"||action==="export-json"){
   const report=state.data.report;
   const markdown=action==="export-md";
-  blobSave(new Blob([markdown?report.markdown:JSON.stringify(report.report,null,2)],{type:markdown?"text/markdown":"application/json"}),markdown?"openecho-report.md":"openecho-report.json");
+  blobSave(new Blob([markdown?report.markdown:JSON.stringify(report.report,null,2)],{type:markdown?"text/markdown":"application/json"}),markdown?"reverfolio-report.md":"reverfolio-report.json");
   return;
  }
  if(action==="backup"){
   try{
-   const auth=extensionMode?{"X-OpenEcho-Extension-Access":String(window.OPEN_ECHO_EXTENSION_ACCESS||"")}:{};
-   const r=await fetch(apiURL("/api/backup"),{method:"POST",credentials:extensionMode?"omit":"same-origin",headers:{"X-OpenEcho-UI":"1",...auth}});
+   const auth=extensionMode?{"X-Reverfolio-Extension-Access":String(window.REVERFOLIO_EXTENSION_ACCESS||"")}:{};
+   const r=await fetch(apiURL("/api/backup"),{method:"POST",credentials:extensionMode?"omit":"same-origin",headers:{"X-Reverfolio-UI":"1",...auth}});
    if(!r.ok)throw Error("Backup failed (HTTP "+r.status+")");
-   blobSave(await r.blob(),"openecho-backup-"+new Date().toISOString().slice(0,10)+".sqlite");
+   blobSave(await r.blob(),"reverfolio-backup-"+new Date().toISOString().slice(0,10)+".sqlite");
   }catch(e){notification(e.message,true);}return;
  }
 }
@@ -430,4 +430,4 @@ document.addEventListener("change",e=>{
 const hash=location.hash.replace(/^#/,"");
 if(nav.some(x=>x[0]===hash))state.view=hash;
 shellRender();
-refresh(false).catch(err=>notification(extensionMode?"本地服务连接失败：请启动 C:\\software\\Coding\\opencho\\Start-OpenEcho.cmd。"+(err.message||""):err.message,true));
+refresh(false).catch(err=>notification(extensionMode?"本地服务连接失败：请启动 C:\\software\\Coding\\reverfolio\\Start-Reverfolio.cmd。"+(err.message||""):err.message,true));

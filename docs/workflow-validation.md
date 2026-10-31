@@ -1,4 +1,4 @@
-# OpenEcho workflow acceptance and limitations
+# Reverfolio workflow acceptance and limitations
 
 Date: 2026-10-31. Branch: `feat/evidence-mcp-workflow` (stacked on `feat/github-foundation`).
 

@@ -18,14 +18,14 @@ func TestTrustedExtensionLocalUIAccess(t *testing.T) {
 			t.Fatal(err)
 		}
 		req.Header.Set("Origin", origin)
-		if origin == TrustedOpenEchoExtensionOrigin {
-			req.Header.Set("X-OpenEcho-Extension-Access", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+		if origin == TrustedReverfolioExtensionOrigin {
+			req.Header.Set("X-Reverfolio-Extension-Access", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 		}
 		if mode != "" {
 			req.Header.Set("Sec-Fetch-Mode", mode)
 		}
 		if header != "" {
-			req.Header.Set("X-OpenEcho-UI", header)
+			req.Header.Set("X-Reverfolio-UI", header)
 		}
 		if method == http.MethodPost {
 			req.Header.Set("Content-Type", "application/json")
@@ -37,10 +37,10 @@ func TestTrustedExtensionLocalUIAccess(t *testing.T) {
 		defer res.Body.Close()
 		return res.StatusCode, res.Header
 	}
-	if code, h := call("OPTIONS", "/api/settings", TrustedOpenEchoExtensionOrigin, "cors", ""); code != 204 || h.Get("Access-Control-Allow-Origin") != TrustedOpenEchoExtensionOrigin {
+	if code, h := call("OPTIONS", "/api/settings", TrustedReverfolioExtensionOrigin, "cors", ""); code != 204 || h.Get("Access-Control-Allow-Origin") != TrustedReverfolioExtensionOrigin {
 		t.Fatalf("extension preflight %d, origin=%q", code, h.Get("Access-Control-Allow-Origin"))
 	}
-	if code, h := call("GET", "/api/works", TrustedOpenEchoExtensionOrigin, "cors", ""); code != 200 || h.Get("Access-Control-Allow-Origin") != TrustedOpenEchoExtensionOrigin {
+	if code, h := call("GET", "/api/works", TrustedReverfolioExtensionOrigin, "cors", ""); code != 200 || h.Get("Access-Control-Allow-Origin") != TrustedReverfolioExtensionOrigin {
 		t.Fatalf("extension dashboard API %d", code)
 	}
 	for _, method := range []string{"GET", "OPTIONS", "POST"} {
@@ -49,7 +49,7 @@ func TestTrustedExtensionLocalUIAccess(t *testing.T) {
 			t.Fatalf("unknown extension %s authorized: %d", method, code)
 		}
 	}
-	if code, _ := call("GET", "/api/works", TrustedOpenEchoExtensionOrigin, "no-cors", ""); code != 401 {
+	if code, _ := call("GET", "/api/works", TrustedReverfolioExtensionOrigin, "no-cors", ""); code != 401 {
 		t.Fatalf("invalid fetch mode authorized %d", code)
 	}
 	// Chromium host-permission fetches can omit Origin; require the separate
@@ -60,7 +60,7 @@ func TestTrustedExtensionLocalUIAccess(t *testing.T) {
 	}
 	r.Header.Set("Sec-Fetch-Mode", "cors")
 	r.Header.Set("Sec-Fetch-Site", "none")
-	r.Header.Set("X-OpenEcho-Extension-Access", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+	r.Header.Set("X-Reverfolio-Extension-Access", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
 	res, err := client.Do(r)
 	if err != nil {
 		t.Fatal(err)
@@ -83,13 +83,13 @@ func TestTrustedExtensionLocalUIAccess(t *testing.T) {
 	if res2.StatusCode != 401 {
 		t.Fatalf("Origin-less request without capability authorized %d", res2.StatusCode)
 	}
-	if code, _ := call("GET", "/api/works", TrustedOpenEchoExtensionOrigin, "", ""); code != 401 {
+	if code, _ := call("GET", "/api/works", TrustedReverfolioExtensionOrigin, "", ""); code != 401 {
 		t.Fatalf("nonbrowser spoof authorized %d", code)
 	}
-	if code, _ := call("POST", "/api/actions/upsert_work", TrustedOpenEchoExtensionOrigin, "cors", ""); code != 401 {
+	if code, _ := call("POST", "/api/actions/upsert_work", TrustedReverfolioExtensionOrigin, "cors", ""); code != 401 {
 		t.Fatalf("missing UI mutation header authorized %d", code)
 	}
-	if code, _ := call("POST", "/mcp", TrustedOpenEchoExtensionOrigin, "cors", "1"); code != 401 {
+	if code, _ := call("POST", "/mcp", TrustedReverfolioExtensionOrigin, "cors", "1"); code != 401 {
 		t.Fatalf("MCP must require bearer %d", code)
 	}
 	if code, _ := call("GET", "/api/works", "https://malicious.example", "cors", ""); code != 401 {

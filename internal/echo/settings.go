@@ -87,7 +87,7 @@ func DefaultConfig() ConfigFile {
 	c.Overview.EvidenceLimit = "4"
 	c.Evidence.DefaultFilter = "all"
 	c.Evidence.Reviewer = "local-ui"
-	c.Discovery.Worker = "OpenEcho web UI"
+	c.Discovery.Worker = "Reverfolio web UI"
 	c.Display.Timezone = "local"
 	return c
 }
@@ -207,7 +207,7 @@ func LoadConfig(path string) (ConfigFile, error) {
 	}
 	meta, err := toml.Decode(string(data), &c)
 	if err != nil {
-		return c, fmt.Errorf("invalid OpenEcho TOML: %w", err)
+		return c, fmt.Errorf("invalid Reverfolio TOML: %w", err)
 	}
 	if len(meta.Undecoded()) > 0 {
 		return c, fmt.Errorf("%w: unknown TOML keys", ErrInvalid)
@@ -262,7 +262,7 @@ func saveConfig(path string, c ConfigFile) error {
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return err
 	}
-	f, err := os.CreateTemp(dir, ".openecho-config-*.tmp")
+	f, err := os.CreateTemp(dir, ".reverfolio-config-*.tmp")
 	if err != nil {
 		return err
 	}

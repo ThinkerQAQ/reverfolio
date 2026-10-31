@@ -15,7 +15,7 @@ import (
 // Backup creates a consistent standalone database, including when writers are active.
 // Paths are chosen by the service, never supplied by an HTTP/MCP client.
 func (s *Store) Backup(ctx context.Context) (string, error) {
-	f, err := os.CreateTemp("", "openecho-backup-*.sqlite")
+	f, err := os.CreateTemp("", "reverfolio-backup-*.sqlite")
 	if err != nil {
 		return "", err
 	}
@@ -135,7 +135,7 @@ func (s Service) registerOperations(mux *http.ServeMux) {
 		}
 		defer f.Close()
 		w.Header().Set("Content-Type", "application/vnd.sqlite3")
-		w.Header().Set("Content-Disposition", `attachment; filename="openecho-backup.sqlite"`)
+		w.Header().Set("Content-Disposition", `attachment; filename="reverfolio-backup.sqlite"`)
 		io.Copy(w, f)
 	})
 }
@@ -197,7 +197,7 @@ func RestoreDatabase(ctx context.Context, source, destination string) error {
 		return err
 	}
 	defer in.Close()
-	tmp, err := os.CreateTemp(filepath.Dir(destination), ".openecho-restore-*.sqlite")
+	tmp, err := os.CreateTemp(filepath.Dir(destination), ".reverfolio-restore-*.sqlite")
 	if err != nil {
 		return err
 	}
