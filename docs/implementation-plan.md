@@ -1,7 +1,7 @@
 # Reverfolio implementation plan
 
 Date: 2026-10-31 (Asia/Shanghai)
-Status: foundation implementation in progress on a feature branch; no release yet.
+Status: v0.2.1 released; v0.3.0 collection and download analysis improvements in progress. Earlier checkpoints below are retained as historical context.
 
 ## Delivery approach
 
@@ -83,3 +83,11 @@ The implementation PR is stacked on the repository-bootstrap PR until that PR is
 The development branch extends the GitHub foundation with article/site registry, channel pages, reviewed mentions and auditable grouping, lease-based AI discovery tasks, historical numerical metric import, GitHub endpoint retry and filtered raw-response archival, streamable HTTP/stdio MCP, standalone bilingual sidebar UI with local browser session, scheduled collection, SQLite backup/restore, and Markdown/JSON report exports.
 
 Outstanding: independent external-provider adapters (Umami, GSC, Bing Webmaster), actual automatic AI search, definitive independent usage attribution, full user-configurable source/accounts, packaged releases, and tested Windows/macOS runtime behavior. These are **not** represented as completed. CI remains blocked by GitHub account billing/spending settings. For detailed acceptance evidence see [workflow-validation.md](workflow-validation.md).
+
+## Current implementation — 2026-10-31
+
+P1–P5 are implemented and released as v0.2.1. Windows is the only database authority; the former WSL application is inactive. WSL currently carries only the MCP tunnel transport. Cross-platform archives exist; native macOS/Linux acceptance remains pending.
+
+The next release adds shared backend release-asset classification, interval download coverage, live collection schedule controls, safe credential-presence status and an MCP collection-status tool. Windows GitHub authorization has been restored using the existing account.
+
+Remaining: independent Umami/GSC/Bing adapters, identity grouping, further AI discovery execution, Windows-native tunnel migration, and GitHub-hosted CI billing. Actual autonomous AI search is not implemented; connected AI clients execute search tasks and retain evidence.

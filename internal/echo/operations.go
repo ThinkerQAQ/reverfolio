@@ -142,32 +142,53 @@ func (s Service) registerOperations(mux *http.ServeMux) {
 
 // Scheduler uses a stable UTC interval key, so restarting the process does not
 // duplicate an already persisted observation in the same interval.
-func (s Service) RunScheduler(ctx context.Context, interval time.Duration, onError func(error)) {
-	if interval < time.Minute {
-		return
-	}
-	tick := func() {
-		works, err := s.Store.Works(ctx)
+func (s Service) runScheduledCollection(ctx context.Context, fallback time.Duration, followConfig bool, at time.Time, onError func(error)) {
+	interval := fallback
+	if followConfig && s.Config != nil && s.Config.Path != "" {
+		config, err := s.Config.Read()
 		if err != nil {
-			onError(err)
+			onError(fmt.Errorf("could not read collection schedule"))
 			return
 		}
-		bucket := time.Now().UTC().Unix() / int64(interval/time.Second)
-		for _, work := range works {
-			if ctx.Err() != nil {
-				return
-			}
-			if work.Kind != "project" {
-				continue
-			}
-			child, cancel := context.WithTimeout(ctx, 90*time.Second)
-			_, err = s.Collect(child, work.ID, fmt.Sprintf("scheduled:%d:%d", int64(interval/time.Second), bucket))
-			cancel()
-			if err != nil && ctx.Err() == nil {
-				onError(fmt.Errorf("scheduled collection failed for work %d", work.ID))
-			}
+		interval, err = time.ParseDuration(config.Collection.Interval)
+		if err != nil {
+			onError(fmt.Errorf("invalid collection interval"))
+			return
 		}
 	}
+	if interval == 0 {
+		return
+	}
+	if interval < time.Minute {
+		onError(fmt.Errorf("invalid collection interval"))
+		return
+	}
+	works, err := s.Store.Works(ctx)
+	if err != nil {
+		onError(err)
+		return
+	}
+	bucket := at.UTC().Unix() / int64(interval/time.Second)
+	for _, work := range works {
+		if ctx.Err() != nil {
+			return
+		}
+		if work.Kind != "project" {
+			continue
+		}
+		child, cancel := context.WithTimeout(ctx, 90*time.Second)
+		_, err = s.Collect(child, work.ID, fmt.Sprintf("scheduled:%d:%d", int64(interval/time.Second), bucket))
+		cancel()
+		if err != nil && ctx.Err() == nil {
+			onError(fmt.Errorf("scheduled collection failed for work %d", work.ID))
+		}
+	}
+}
+
+// Re-read the nonsecret schedule every minute, including while disabled.
+// Explicit CLI interval overrides remain fixed; stdio MCP never starts this loop.
+func (s Service) RunScheduler(ctx context.Context, interval time.Duration, followConfig bool, onError func(error)) {
+	tick := func() { s.runScheduledCollection(ctx, interval, followConfig, time.Now(), onError) }
 	tick()
 	timer := time.NewTicker(time.Minute)
 	defer timer.Stop()

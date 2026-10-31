@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/BurntSushi/toml"
 )
@@ -95,11 +96,16 @@ func DefaultConfig() ConfigFile {
 var preferenceKeys = []string{
 	"overview.show_github", "overview.show_evidence", "overview.show_history", "overview.evidence_limit",
 	"interface.language", "appearance.compact", "github.download_scope", "evidence.default_filter", "evidence.reviewer",
-	"discovery.worker", "display.timezone",
+	"discovery.worker", "display.timezone", "collection.interval",
 }
 
 func validateSetting(key, value string) error {
 	switch key {
+	case "collection.interval":
+		duration, err := time.ParseDuration(value)
+		if err == nil && (duration == 0 || (duration >= time.Minute && duration <= 30*24*time.Hour)) {
+			return nil
+		}
 	case "overview.show_github", "overview.show_evidence", "overview.show_history", "appearance.compact":
 		if value == "true" || value == "false" {
 			return nil
@@ -141,6 +147,8 @@ func b(v bool) string {
 }
 func (c ConfigFile) get(key string) string {
 	switch key {
+	case "collection.interval":
+		return c.Collection.Interval
 	case "overview.show_github":
 		return b(c.Overview.ShowGitHub)
 	case "overview.show_evidence":
@@ -168,6 +176,8 @@ func (c ConfigFile) get(key string) string {
 }
 func (c *ConfigFile) set(key, v string) {
 	switch key {
+	case "collection.interval":
+		c.Collection.Interval = v
 	case "overview.show_github":
 		c.Overview.ShowGitHub = v == "true"
 	case "overview.show_evidence":
@@ -335,6 +345,8 @@ func (m *ConfigManager) UpdateSettings(_ context.Context, in UpdateSettingsInput
 
 // RuntimeConfigStatus exposes safe startup configuration, never credentials.
 type RuntimeConfigStatus struct {
+	Version                 string `json:"version"`
+	GitHubCredentialLoaded  bool   `json:"github_credential_loaded"`
 	Listen                  string `json:"listen"`
 	Database                string `json:"database"`
 	CollectionInterval      string `json:"collection_interval"`
@@ -350,9 +362,16 @@ func (m *ConfigManager) RuntimeStatus(_ context.Context) (RuntimeConfigStatus, e
 	}
 	hasConfig := m != nil && m.Path != ""
 	return RuntimeConfigStatus{
-		Listen: c.Server.Listen, Database: c.Storage.Database,
+		Version: "0.3.0", Listen: c.Server.Listen, Database: c.Storage.Database,
 		CollectionInterval: c.Collection.Interval, GitHubAuthMode: c.GitHub.Auth,
 		GitHubCollectionEnabled: c.Collection.Interval != "0" && c.Collection.Interval != "0s",
 		ConfigFileAvailable:     hasConfig,
 	}, nil
+}
+
+// RuntimeStatus reports credential presence only; snapshot errors determine API permissions.
+func (s Service) RuntimeStatus(ctx context.Context) (RuntimeConfigStatus, error) {
+	status, err := s.Config.RuntimeStatus(ctx)
+	status.GitHubCredentialLoaded = s.GitHub.Token != ""
+	return status, err
 }

@@ -81,3 +81,9 @@ Formerly OpenEcho. Existing Windows data and configuration are preserved; the pr
 Web UI, MCP and exported reports share the backend `filename-v1` classification: packages, source archives, auxiliary files (checksums/signatures/licenses/SBOM), and other or ambiguous files. Every asset exposes its category and classification reason. Ambiguous archives stay unclassified; package downloads are not verified installations or users. Historical snapshots are classified on read without rewriting their original observations.
 
 Interval totals include only known asset deltas and separately count unknown deltas (late baselines, missing assets or decreased counters). They refer to the two observation timestamps, not calendar-day growth. Missing release permissions show unavailable rather than zero.
+
+## Automatic collection
+
+Settings → Data sources → GitHub → Automatic collection controls the collection interval, saved in `config.toml`. The running HTTP service reloads the schedule within one minute; disabling it retains existing data. The computer and service must be running. Explicit `-collect-interval` CLI overrides remain fixed until restart. Stdio MCP does not run a duplicate scheduler.
+
+Configure `github.auth = "gh"` to use a valid native GitHub CLI login, or provide `GITHUB_TOKEN` in the service environment. Secrets are never edited in the UI. Runtime/MCP status indicates whether a credential was loaded; snapshots show actual permissions and errors.

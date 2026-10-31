@@ -27,6 +27,9 @@ const settingTree = [
      {id:"github-downloads",name:["Release 下载统计","Release downloads"],desc:["切换全部资产或可安装程序包","Count all assets or installable packages"],fields:[
        {key:"github.download_scope",name:["统计口径","Download scope"],help:["「安装包」仅筛选常见二进制发布包，仍无法去除机器人或重复下载","Installables exclude common checksums/sources, but cannot identify real users"],type:"select",options:[["all",["全部 Release 资产","All release assets"]],["installers",["安装包（过滤辅助文件）","Installables (exclude auxiliary files)"]]]}
      ]},
+     {id:"github-schedule",name:["自动采集计划","Automatic collection"],desc:["设置采集间隔，无需重启","Set the interval without restarting"],fields:[
+       {key:"collection.interval",name:["采集频率","Collection interval"],help:["一分钟内生效；电脑和本地服务须保持运行。关闭计划不会删除已采集数据。","Applied within one minute while the computer and local service are running. Disabling preserves observations."],type:"select",options:[["0",["关闭","Disabled"]],["1h",["每小时","Hourly"]],["6h",["每 6 小时","Every 6 hours"]],["24h",["每天","Daily"]],["168h",["每周","Weekly"]]]}
+     ]},
      {id:"github-runtime",name:["采集运行状态","Collection runtime"],desc:["定时采集与账号授权","Scheduling and authorization"],kind:"github-runtime"}
    ]},
    {id:"search-sources",name:["搜索与站点统计","Search and site analytics"],desc:["GSC、Bing、Umami 当前支持情况","Current GSC, Bing and Umami coverage"],children:[
@@ -141,7 +144,7 @@ function settingsFieldInput(field){
    E(settingsLabel(["开启","On"]))+'</option><option value="false" '+(value==="false"?"selected":"")+'>'+
    E(settingsLabel(["关闭","Off"]))+'</option></select>' :
   field.type==="select"?
-   '<select data-setting-key="'+E(field.key)+'">'+field.options.map(opt=>
+   '<select data-setting-key="'+E(field.key)+'">'+(!field.options.some(o=>o[0]===value)?'<option value="'+E(value)+'" selected>'+E(value)+'</option>':'')+field.options.map(opt=>
      '<option value="'+E(opt[0])+'" '+(value===opt[0]?"selected":"")+'>'+E(settingsLabel(opt[1]))+'</option>').join("")+'</select>' :
   '<input data-setting-key="'+E(field.key)+'" maxlength="'+(field.max||80)+'" value="'+E(value)+'" required>';
  return '<div class="settings-field"><label><strong>'+E(settingsLabel(field.name))+'</strong><small>'+E(settingsLabel(field.help))+'</small>'+control+'</label></div>';
@@ -158,9 +161,9 @@ function settingsReadOnly(node){
   const runtime=state.data.runtime||{};
   const active=runtime.github_collection_enabled;
   return status("GitHub",active?"Active":"Disabled",settingsLabel([
-   active?"当前定时采集间隔："+runtime.collection_interval+"；凭据方式："+runtime.github_auth_mode+"。成功率需查看快照。":"当前 TOML 已关闭自动采集；凭据方式："+runtime.github_auth_mode+"，可以配置 GitHub 授权后重启。",
-   active?"Collection interval: "+runtime.collection_interval+"; auth mode: "+runtime.github_auth_mode+". Check snapshots for actual success.":"Automatic collection is disabled in TOML. Auth mode: "+runtime.github_auth_mode+". Configure authorization and restart."
-  ]));
+   active?"当前定时采集间隔："+runtime.collection_interval+"；凭据方式："+runtime.github_auth_mode+"。成功率需查看快照。":"当前已关闭自动采集；凭据方式："+runtime.github_auth_mode+"。可在自动采集计划中开启。",
+   active?"Collection interval: "+runtime.collection_interval+"; auth mode: "+runtime.github_auth_mode+". Check snapshots for actual success.":"Automatic collection is disabled in TOML. Auth mode: "+runtime.github_auth_mode+". Enable it in Automatic collection after configuring authorization."
+  ])) + '<p>'+E(settingsLabel([runtime.github_credential_loaded?"已加载 GitHub 凭据；实际权限与采集结果请查看快照。":"未加载 GitHub 凭据，流量统计可能不可用。",runtime.github_credential_loaded?"GitHub credential loaded; inspect snapshots for permissions and actual results.":"No GitHub credential loaded; traffic metrics may be unavailable."]))+'</p>';
  }
  if(kind==="gsc"||kind==="bing"||kind==="umami"){
   const title=kind==="gsc"?"Google Search Console":kind==="bing"?"Bing Webmaster":"Umami";
@@ -176,7 +179,7 @@ function settingsReadOnly(node){
   '<button type="button" class="btn btn-primary" data-action="backup">'+E(settingsLabel(["下载数据库备份","Download SQLite backup"]))+'</button>';
  if(kind==="security")return status("Local UI","Active",settingsLabel(["浏览器通过 HttpOnly 本地会话使用，MCP 和程序 API 保持 Bearer 授权，服务监听本地回环地址。","Browser uses an HttpOnly local session; MCP and API require Bearer authentication on a loopback listener."]))+
   '<div class="settings-info"><code>'+E(apiOrigin)+'</code></div>';
- if(kind==="about")return '<p><strong>Reverfolio · 0.1 preview</strong></p><p>'+E(settingsLabel(["Go + SQLite + 原生嵌入式 Web UI + MCP。没有 BlogCTL 运行依赖；界面设计借鉴分层分类交互。","Go + SQLite + embedded Web UI + MCP. No BlogCTL dependency; only hierarchical navigation is an interaction reference."]))+'</p>';
+ if(kind==="about")return '<p><strong>Reverfolio · '+E(state.data.runtime?.version||'unknown')+'</strong></p><p>'+E(settingsLabel(["Go + SQLite + 原生嵌入式 Web UI + MCP。没有 BlogCTL 运行依赖；界面设计借鉴分层分类交互。","Go + SQLite + embedded Web UI + MCP. No BlogCTL dependency; only hierarchical navigation is an interaction reference."]))+'</p>';
  return '<div class="settings-empty">'+E(settingsLabel(["请选择一项设置","Choose a setting"]))+'</div>';
 }
 function settingsDetail(){

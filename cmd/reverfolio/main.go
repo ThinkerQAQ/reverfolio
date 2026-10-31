@@ -70,6 +70,12 @@ func main() {
 	interval := flag.Duration("collect-interval", 24*time.Hour, "scheduled GitHub interval; 0 disables scheduling; minimum 1 minute")
 	configPath := flag.String("config", "", "path to private TOML configuration (auto-detect next to bin directory)")
 	flag.Parse()
+	followCollectionConfig := true
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "collect-interval" {
+			followCollectionConfig = false
+		}
+	})
 	visitedDB := false
 	flag.Visit(func(f *flag.Flag) {
 		if f.Name == "db" {
@@ -150,8 +156,8 @@ func main() {
 		ghToken = strings.TrimSpace(string(out))
 	}
 	service := echo.Service{Store: store, GitHub: echo.GitHub{Token: ghToken}, Config: settings}
-	if *interval > 0 {
-		go service.RunScheduler(ctx, *interval, func(err error) { log.Print(err) })
+	if !*stdio {
+		go service.RunScheduler(ctx, *interval, followCollectionConfig, func(err error) { log.Print(err) })
 	}
 	if *stdio {
 		if err = service.MCPServer().Run(ctx, &mcp.StdioTransport{}); err != nil && ctx.Err() == nil {
