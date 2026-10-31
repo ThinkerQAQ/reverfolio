@@ -1,5 +1,5 @@
 {
-  "extensionName": {"message": "OpenEcho"},
-  "extensionDescription": {"message": "独立的 OpenEcho 本地影响力工作台入口。"},
-  "actionTitle": {"message": "OpenEcho · 本地影响力工作台"}
+  "extensionName": {"message": "Reverfolio"},
+  "extensionDescription": {"message": "独立的 Reverfolio 本地影响力工作台入口。"},
+  "actionTitle": {"message": "Reverfolio · 本地影响力工作台"}
 }

@@ -101,7 +101,7 @@ func (s *Store) GenerateReport(ctx context.Context, id int64) (ReportOutput, err
 	if err != nil {
 		return ReportOutput{}, err
 	}
-	text := fmt.Sprintf("# OpenEcho impact report\n\nGenerated: %s\n\nVerified pages: %d\n\nVerified third-party propagation groups: %d\n\nVerified identity URLs: %d\n\nPending evidence pages: %d\n\nHistorical observations: %d\n\n", r.GeneratedAt, r.VerifiedPages, r.ThirdPartyEvents, r.VerifiedActors, r.Pending, r.HistoricalObservations)
+	text := fmt.Sprintf("# Reverfolio impact report\n\nGenerated: %s\n\nVerified pages: %d\n\nVerified third-party propagation groups: %d\n\nVerified identity URLs: %d\n\nPending evidence pages: %d\n\nHistorical observations: %d\n\n", r.GeneratedAt, r.VerifiedPages, r.ThirdPartyEvents, r.VerifiedActors, r.Pending, r.HistoricalObservations)
 	text += "## GitHub observations\n\n"
 	for _, source := range r.Sources {
 		text += "- " + source.Repository + ": "
@@ -180,7 +180,7 @@ func addTool[In any](server *mcp.Server, name, description string, readonly bool
 	})
 }
 func (s Service) MCPServer() *mcp.Server {
-	server := mcp.NewServer(&mcp.Implementation{Name: "OpenEcho", Version: "0.1.0-dev"}, nil)
+	server := mcp.NewServer(&mcp.Implementation{Name: "Reverfolio", Version: "0.2.1"}, nil)
 	addTool(server, "list_works", "Read registered repositories and articles.", true, func(ctx context.Context, _ EmptyInput) (any, error) { return s.Store.Works(ctx) })
 	addTool(server, "get_work", "Read one work, channel pages, recent snapshots and interval changes.", true, func(ctx context.Context, in WorkIDInput) (any, error) { return s.Store.Overview(ctx, in.WorkID) })
 	addTool(server, "upsert_work", "Register a project or article. Requires request_id; duplicate identity returns the existing work without changing its title.", false, func(ctx context.Context, in WorkInput) (any, error) { return s.Store.RegisterWork(ctx, in) })
@@ -201,11 +201,11 @@ func (s Service) MCPServer() *mcp.Server {
 	addTool(server, "complete_discovery_task", "Record actual search engine, scope, results and completion status with a valid lease token.", false, func(ctx context.Context, in CompleteInput) (any, error) { return s.Store.CompleteTask(ctx, in) })
 	addTool(server, "import_history", "Validate or atomically import schema_version=1 historical observations. Dry run never writes; conflicts do not overwrite prior observations.", false, func(ctx context.Context, in ImportInput) (any, error) { return s.Store.ImportHistory(ctx, in) })
 	addTool(server, "generate_report", "Read evidence-backed counts and a Markdown report. work_id=0 includes all works. No files are written.", true, func(ctx context.Context, in WorkIDInput) (any, error) { return s.Store.GenerateReport(ctx, in.WorkID) })
-	addTool(server, "list_settings", "Read nonsecret OpenEcho presentation settings and their versions.", true, func(ctx context.Context, _ EmptyInput) (any, error) { return s.Config.Settings(ctx) })
+	addTool(server, "list_settings", "Read nonsecret Reverfolio presentation settings and their versions.", true, func(ctx context.Context, _ EmptyInput) (any, error) { return s.Config.Settings(ctx) })
 	addTool(server, "update_settings", "Atomically save allowlisted nonsecret preferences with expected versions and audit request ID.", false, func(ctx context.Context, in UpdateSettingsInput) (any, error) {
 		return s.Config.UpdateSettings(ctx, in)
 	})
-	addTool(server, "update_setting", "Change an allowlisted nonsecret OpenEcho preference with optimistic version and request ID.", false, func(ctx context.Context, in UpdateSettingInput) (any, error) {
+	addTool(server, "update_setting", "Change an allowlisted nonsecret Reverfolio preference with optimistic version and request ID.", false, func(ctx context.Context, in UpdateSettingInput) (any, error) {
 		return s.Config.UpdateSettings(ctx, UpdateSettingsInput{RequestID: in.RequestID, Updates: []SettingChange{{Key: in.Key, Value: in.Value, ExpectedVersion: in.ExpectedVersion}}})
 	})
 	addTool(server, "get_audit", "Read historical observations, review transitions and recorded search scopes. Lease secrets are omitted.", true, func(ctx context.Context, _ EmptyInput) (any, error) { return s.Store.Audit(ctx) })

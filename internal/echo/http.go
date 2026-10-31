@@ -55,7 +55,7 @@ func Handler(service Service, token string) http.Handler {
 	}
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { write(w, map[string]string{"status": "ok"}) })
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
-		http.SetCookie(w, &http.Cookie{Name: "openecho_ui", Value: uiSession, Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode})
+		http.SetCookie(w, &http.Cookie{Name: "reverfolio_ui", Value: uiSession, Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode})
 		data, _ := web.ReadFile("web/app.html")
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Write(data)
@@ -184,7 +184,7 @@ func Handler(service Service, token string) http.Handler {
 			return
 		}
 		apiRoute := strings.HasPrefix(r.URL.Path, "/api/")
-		// Pin browser-extension access to OpenEcho's own signed manifest origin.
+		// Pin browser-extension access to Reverfolio's own signed manifest origin.
 		// The extension is another local control surface, NOT a source of MCP tokens.
 		// Chromium sets the Origin and Fetch Metadata headers; arbitrary website
 		// scripts cannot impersonate the pinned chrome-extension:// origin.
@@ -193,16 +193,16 @@ func Handler(service Service, token string) http.Handler {
 		// GET (Sec-Fetch-Site=none). Origin alone is not authentication.
 		extensionUI := apiRoute &&
 			r.Header.Get("Sec-Fetch-Mode") == "cors" &&
-			(extensionOrigin == TrustedOpenEchoExtensionOrigin ||
+			(extensionOrigin == TrustedReverfolioExtensionOrigin ||
 				(extensionOrigin == "" && r.Header.Get("Sec-Fetch-Site") == "none"))
-		presented := r.Header.Get("X-OpenEcho-Extension-Access")
+		presented := r.Header.Get("X-Reverfolio-Extension-Access")
 		extensionCapabilityOK := extensionUI && service.ExtensionToken != "" &&
 			subtle.ConstantTimeCompare([]byte(presented), []byte(service.ExtensionToken)) == 1
 		if extensionUI {
 			w.Header().Set("Vary", "Origin")
-			w.Header().Set("Access-Control-Allow-Origin", TrustedOpenEchoExtensionOrigin)
+			w.Header().Set("Access-Control-Allow-Origin", TrustedReverfolioExtensionOrigin)
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-OpenEcho-UI, Idempotency-Key, X-OpenEcho-Extension-Access")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Reverfolio-UI, Idempotency-Key, X-Reverfolio-Extension-Access")
 			w.Header().Set("Access-Control-Max-Age", "300")
 			if r.Method == http.MethodOptions {
 				w.WriteHeader(http.StatusNoContent)
@@ -214,14 +214,14 @@ func Handler(service Service, token string) http.Handler {
 			provided := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 			bearerOK := strings.HasPrefix(r.Header.Get("Authorization"), "Bearer ") &&
 				token != "" && subtle.ConstantTimeCompare([]byte(provided), []byte(token)) == 1
-			cookie, cookieErr := r.Cookie("openecho_ui")
+			cookie, cookieErr := r.Cookie("reverfolio_ui")
 			cookieOK := cookieErr == nil && subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(uiSession)) == 1
 			// A cookie is only accepted for the browser UI's same-origin fetches;
 			// no cookie access to MCP, and unsafe requests require an explicit UI header.
 			if cookieOK {
 				site := r.Header.Get("Sec-Fetch-Site")
 				if r.URL.Path == "/mcp" || site == "cross-site" || site == "same-site" ||
-					(r.Method != http.MethodGet && r.Header.Get("X-OpenEcho-UI") != "1") {
+					(r.Method != http.MethodGet && r.Header.Get("X-Reverfolio-UI") != "1") {
 					cookieOK = false
 				}
 			}
@@ -229,7 +229,7 @@ func Handler(service Service, token string) http.Handler {
 			// mutations. It cannot access /mcp and never receives a bearer key.
 			extensionAuthorized := extensionCapabilityOK &&
 				(r.Method == http.MethodGet ||
-					(r.Method == http.MethodPost && r.Header.Get("X-OpenEcho-UI") == "1"))
+					(r.Method == http.MethodPost && r.Header.Get("X-Reverfolio-UI") == "1"))
 			if !bearerOK && !cookieOK && !extensionAuthorized {
 				http.Error(w, "unauthorized", http.StatusUnauthorized)
 				return

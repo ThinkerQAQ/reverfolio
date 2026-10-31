@@ -1,4 +1,4 @@
-# OpenEcho configuration. Copy to config.toml beside bin/.
+# Reverfolio configuration. Copy to config.toml beside bin/.
 # Private SQLite, tokens and observations stay in Data/ and must not be committed.
 version = 1
 
@@ -30,7 +30,7 @@ default_filter = "all"
 reviewer = "local-ui"
 
 [discovery]
-worker = "OpenEcho web UI"
+worker = "Reverfolio web UI"
 
 [display]
 timezone = "local"

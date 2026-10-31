@@ -74,16 +74,16 @@ func TestLocalUIAutomaticSessionAndAPIProtection(t *testing.T) {
 	if r := request("POST", "/api/actions/upsert_work", body, map[string]string{"Content-Type": "application/json"}); r.StatusCode != 401 {
 		t.Fatalf("cookie POST without header %d", r.StatusCode)
 	}
-	if r := request("POST", "/api/actions/upsert_work", body, map[string]string{"Content-Type": "application/json", "X-OpenEcho-UI": "1", "Sec-Fetch-Site": "cross-site"}); r.StatusCode != 401 {
+	if r := request("POST", "/api/actions/upsert_work", body, map[string]string{"Content-Type": "application/json", "X-Reverfolio-UI": "1", "Sec-Fetch-Site": "cross-site"}); r.StatusCode != 401 {
 		t.Fatalf("cross-site cookie POST %d", r.StatusCode)
 	}
-	if r := request("POST", "/api/actions/upsert_work", body, map[string]string{"Content-Type": "application/json", "X-OpenEcho-UI": "1", "Origin": "https://hostile.example"}); r.StatusCode != 403 {
+	if r := request("POST", "/api/actions/upsert_work", body, map[string]string{"Content-Type": "application/json", "X-Reverfolio-UI": "1", "Origin": "https://hostile.example"}); r.StatusCode != 403 {
 		t.Fatalf("cross-origin cookie POST %d", r.StatusCode)
 	}
-	if r := request("POST", "/api/actions/upsert_work", body, map[string]string{"Content-Type": "application/json", "X-OpenEcho-UI": "1", "Origin": server.URL, "Sec-Fetch-Site": "same-origin"}); r.StatusCode != 200 {
+	if r := request("POST", "/api/actions/upsert_work", body, map[string]string{"Content-Type": "application/json", "X-Reverfolio-UI": "1", "Origin": server.URL, "Sec-Fetch-Site": "same-origin"}); r.StatusCode != 200 {
 		t.Fatalf("same-origin UI mutation %d", r.StatusCode)
 	}
-	if r := request("POST", "/mcp", "{}", map[string]string{"X-OpenEcho-UI": "1"}); r.StatusCode != 401 {
+	if r := request("POST", "/mcp", "{}", map[string]string{"X-Reverfolio-UI": "1"}); r.StatusCode != 401 {
 		t.Fatalf("MCP must not accept UI cookie: %d", r.StatusCode)
 	}
 	requestWithBearer, err := http.NewRequest("GET", server.URL+"/api/works", nil)

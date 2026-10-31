@@ -1,6 +1,6 @@
 # Third-party dependencies
 
-OpenEcho's business-domain source is independently implemented. No source from git-stats or Mentions United is copied or vendored.
+Reverfolio's business-domain source is independently implemented. No source from git-stats or Mentions United is copied or vendored.
 
 One direct runtime dependency is modernc.org/sqlite v1.61.0 (BSD-3-Clause), a CGo-free SQLite driver. Source and license: https://pkg.go.dev/modernc.org/sqlite@v1.61.0 and https://gitlab.com/cznic/sqlite . SQLite itself is public domain; its Go port and supporting modules retain their individual licenses.
 

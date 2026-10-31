@@ -1,4 +1,4 @@
-module github.com/ThinkerQAQ/openecho
+module github.com/ThinkerQAQ/reverfolio
 
 go 1.26.0
 

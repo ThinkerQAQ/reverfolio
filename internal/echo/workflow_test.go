@@ -48,7 +48,7 @@ func TestMCPWorkflowAndSharedHTTPState(t *testing.T) {
 	store := openTest(t)
 	server := httptest.NewServer(Handler(Service{Store: store}, "fixture-token-for-mcp"))
 	defer server.Close()
-	client := mcp.NewClient(&mcp.Implementation{Name: "OpenEcho-integration", Version: "test"}, nil)
+	client := mcp.NewClient(&mcp.Implementation{Name: "Reverfolio-integration", Version: "test"}, nil)
 	session, err := client.Connect(context.Background(), &mcp.StreamableClientTransport{Endpoint: server.URL + "/mcp", HTTPClient: &http.Client{Transport: authTransport{"fixture-token-for-mcp"}}}, nil)
 	if err != nil {
 		t.Fatal(err)

@@ -2,8 +2,8 @@
 
 /*
  * Recursive standalone settings navigator.  Presentation pattern inspired by
- * familiar desktop setting panels, implemented independently for OpenEcho.
- * Leaf controls are bound only to OpenEcho's allowlisted settings API.
+ * familiar desktop setting panels, implemented independently for Reverfolio.
+ * Leaf controls are bound only to Reverfolio's allowlisted settings API.
  */
 const settingTree = [
  {id:"interface",name:["界面与语言","Interface & language"],desc:["界面语言、首页、布局","Language, dashboard and layout"],children:[
@@ -49,7 +49,7 @@ const settingTree = [
    {id:"discovery-worker",name:["默认任务认领者","Default task worker"],desc:["UI 认领任务时使用的名称","Name used when claiming a task"],fields:[
      {key:"discovery.worker",name:["任务认领名称","Worker name"],help:["记录到任务审计，不会自动执行 AI 搜索","Recorded in task audit; does not run AI searches automatically"],type:"text",max:80}
    ]},
-   {id:"discovery-runtime",name:["执行方式","Execution mode"],desc:["了解 AI 搜索和 OpenEcho 的职责","What AI clients and OpenEcho do"],kind:"search-runtime"}
+   {id:"discovery-runtime",name:["执行方式","Execution mode"],desc:["了解 AI 搜索和 Reverfolio 的职责","What AI clients and Reverfolio do"],kind:"search-runtime"}
  ]},
  {id:"history-settings",name:["统计和备份","Statistics & backup"],desc:["时间展示及本地数据备份","Time display and private data"],children:[
    {id:"display-time",name:["日期与时区","Dates & timezone"],desc:["统计时间的显示时区","Displayed time zone"],fields:[
@@ -59,7 +59,7 @@ const settingTree = [
  ]},
  {id:"system-settings",name:["运行环境","Runtime"],desc:["本地访问与独立部署","Local access and standalone deployment"],children:[
    {id:"local-security",name:["本地访问与安全","Local access & security"],desc:["本地网页会话与 MCP 鉴权","Browser session and MCP authentication"],kind:"security"},
-   {id:"about-openecho",name:["关于 OpenEcho","About OpenEcho"],desc:["版本、架构及独立性","Version, architecture and independence"],kind:"about"}
+   {id:"about-reverfolio",name:["关于 Reverfolio","About Reverfolio"],desc:["版本、架构及独立性","Version, architecture and independence"],kind:"about"}
  ]}
 ];
 const settingsLabel = pair => Array.isArray(pair) ? pair[state.lang==="en"?1:0] : pair;
@@ -171,12 +171,12 @@ function settingsReadOnly(node){
     settingsLabel(["已保存 "+history.length+" 条历史观测，当前尚无自动 API 采集。","Stored "+history.length+" historical observations. Live API collection is not connected."]):
     settingsLabel(["当前没有已连接的实时采集。未来独立实现数据适配器，不依赖 BlogCTL。","No live connector. Future provider adapters will be independent of any publishing tool."]));
  }
- if(kind==="search-runtime")return '<p>'+E(settingsLabel(["OpenEcho 保存检索任务、任务认领和证据审核；实际搜索由已授权的 AI 客户端执行，系统不会自动声称搜索了全网。","OpenEcho stores tasks, leases and evidence review. Actual search happens through an authorized AI client; no fake autonomous crawl."]))+'</p>';
+ if(kind==="search-runtime")return '<p>'+E(settingsLabel(["Reverfolio 保存检索任务、任务认领和证据审核；实际搜索由已授权的 AI 客户端执行，系统不会自动声称搜索了全网。","Reverfolio stores tasks, leases and evidence review. Actual search happens through an authorized AI client; no fake autonomous crawl."]))+'</p>';
  if(kind==="backup")return '<p class="desc">'+E(settingsLabel(["数据库备份是私有的 SQLite 文件。恢复需要在服务离线时使用新的文件路径，不会覆盖现有数据库。","Backups are private SQLite files. Restore only to a new destination while offline."]))+'</p>'+
   '<button type="button" class="btn btn-primary" data-action="backup">'+E(settingsLabel(["下载数据库备份","Download SQLite backup"]))+'</button>';
  if(kind==="security")return status("Local UI","Active",settingsLabel(["浏览器通过 HttpOnly 本地会话使用，MCP 和程序 API 保持 Bearer 授权，服务监听本地回环地址。","Browser uses an HttpOnly local session; MCP and API require Bearer authentication on a loopback listener."]))+
   '<div class="settings-info"><code>'+E(apiOrigin)+'</code></div>';
- if(kind==="about")return '<p><strong>OpenEcho · 0.1 preview</strong></p><p>'+E(settingsLabel(["Go + SQLite + 原生嵌入式 Web UI + MCP。没有 BlogCTL 运行依赖；界面设计借鉴分层分类交互。","Go + SQLite + embedded Web UI + MCP. No BlogCTL dependency; only hierarchical navigation is an interaction reference."]))+'</p>';
+ if(kind==="about")return '<p><strong>Reverfolio · 0.1 preview</strong></p><p>'+E(settingsLabel(["Go + SQLite + 原生嵌入式 Web UI + MCP。没有 BlogCTL 运行依赖；界面设计借鉴分层分类交互。","Go + SQLite + embedded Web UI + MCP. No BlogCTL dependency; only hierarchical navigation is an interaction reference."]))+'</p>';
  return '<div class="settings-empty">'+E(settingsLabel(["请选择一项设置","Choose a setting"]))+'</div>';
 }
 function settingsDetail(){

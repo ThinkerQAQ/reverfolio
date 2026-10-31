@@ -28,7 +28,7 @@ func (g GitHub) getOnce(ctx context.Context, path string, out any) error {
 	}
 	req.Header.Set("Accept", "application/vnd.github+json")
 	req.Header.Set("X-GitHub-Api-Version", "2026-03-10")
-	req.Header.Set("User-Agent", "OpenEcho")
+	req.Header.Set("User-Agent", "Reverfolio")
 	if g.Token != "" {
 		req.Header.Set("Authorization", "Bearer "+g.Token)
 	}

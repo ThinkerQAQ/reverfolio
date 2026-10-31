@@ -1,16 +1,16 @@
-# OpenEcho
+# Reverfolio
 
 [中文](README.zh-CN.md) · [Architecture](docs/architecture.zh-CN.md) · [Roadmap](docs/implementation-plan.md)
 
 Local-first observability for open-source and content impact.
 
-OpenEcho will connect projects, multilingual articles, distribution channels, metric history, and evidence of external citations or adoption. AI clients can discover evidence through their search tools and submit it through MCP.
+Reverfolio will connect projects, multilingual articles, distribution channels, metric history, and evidence of external citations or adoption. AI clients can discover evidence through their search tools and submit it through MCP.
 
 **Status: v0.1 development preview on a feature branch; no release published.** GitHub snapshots, article/site registry, bilingual channel links, candidate evidence and review, search tasks, historical numeric observations, MCP, standalone bilingual Web UI, scheduled snapshots, raw-response archiving and backup/restore are implemented. Additional provider connectors and AI search execution are not included.
 
 ## Architecture and data policy
 
-One local Go service, SQLite, embedded Web UI and an MCP endpoint share the same business operations. An AI client performs searches using its own authorized tools; OpenEcho records the task, candidate link and review decision. A `secondary_report` mention cannot be verified without original `web` or `api` evidence and explicit review. Reference pages, verified identity URLs, grouped propagation events, GitHub downloads, visitors and actual software users are different metrics.
+One local Go service, SQLite, embedded Web UI and an MCP endpoint share the same business operations. An AI client performs searches using its own authorized tools; Reverfolio records the task, candidate link and review decision. A `secondary_report` mention cannot be verified without original `web` or `api` evidence and explicit review. Reference pages, verified identity URLs, grouped propagation events, GitHub downloads, visitors and actual software users are different metrics.
 
 All live observations and credentials belong in a private runtime directory, not git. Do not commit imported reports, browsing data, access tokens, databases, or personal metrics. See [architecture](docs/architecture.zh-CN.md) and [implementation plan](docs/implementation-plan.md).
 
@@ -24,34 +24,34 @@ Use feature branches and pull requests. Squash merge only; delete merged branche
 
 ## Windows is the single data source
 
-The Windows instance is the sole data authority for this personal deployment. The Edge/Chrome extension and ChatGPT MCP both run native Windows OpenEcho processes reading Data/state.sqlite. WSL retains only the tunnel transport process and does not run a second OpenEcho data service. The former WSL and Windows database rows matched exactly. See [Windows authority and MCP connection](docs/windows-authority.md).
+The Windows instance is the sole data authority for this personal deployment. The Edge/Chrome extension and ChatGPT MCP both run native Windows Reverfolio processes reading Data/state.sqlite. WSL retains only the tunnel transport process and does not run a second Reverfolio data service. The former WSL and Windows database rows matched exactly. See [Windows authority and MCP connection](docs/windows-authority.md).
 
 ## Browser extension (optional)
 
-The optional OpenEcho browser extension is in extension/. It loads the FULL native dashboard and its controls in an Edge/Chrome side panel or a browser tab, using exactly the same app source and styles as the local Web UI. It connects to the single Windows local origin 127.0.0.1:19452; there is no service-priority selection or launcher popup. Windows files go in C:\software\Coding\opencho\extension. To upgrade from v0.1 unpacked, remove the old extension and load the directory again using Edge edge://extensions > Developer mode > Load unpacked. See [installation steps](extension/README.md). It is independent of BlogCTL and does not read or store GitHub/MCP credentials.
+The optional Reverfolio browser extension is in extension/. It loads the FULL native dashboard and its controls in an Edge/Chrome side panel or a browser tab, using exactly the same app source and styles as the local Web UI. It connects to the single Windows local origin 127.0.0.1:19452; there is no service-priority selection or launcher popup. Windows files go in C:\software\Coding\reverfolio\extension. To upgrade from v0.1 unpacked, remove the old extension and load the directory again using Edge edge://extensions > Developer mode > Load unpacked. See [installation steps](extension/README.md). It is independent of BlogCTL and does not read or store GitHub/MCP credentials.
 
 ## Configuration and Windows layout
 
-Windows: C:\software\Coding\opencho\. The executable is in bin/opencho.exe, SQLite state in Data/state.sqlite and local settings in config.toml. See [Windows layout](docs/windows-layout.md). The former WSL copy is backed up and inactive; only Windows receives new data.
+Windows: C:\software\Coding\reverfolio\. The executable is in bin/reverfolio.exe, SQLite state in Data/state.sqlite and local settings in config.toml. See [Windows layout](docs/windows-layout.md). The former WSL copy is backed up and inactive; only Windows receives new data.
 
 ## Run locally
 
 Requires Go >= 1.26. From the repository checkout:
 
 ```bash
-go run ./cmd/openecho -db data/openecho.sqlite
+go run ./cmd/reverfolio -db data/reverfolio.sqlite
 ```
 
-Open <http://127.0.0.1:18440> in a browser. **No manual token entry is required for the local UI.** It receives a process-scoped, HttpOnly, SameSite=Strict session cookie; unsafe requests require a same-origin UI header and cross-origin/cross-site access is rejected. The programmatic HTTP API and `/mcp` still accept the private `Authorization: Bearer <token>` credential from `data/api-token` (never exposed to page JavaScript). Alternatively set a 32+ character `OPENECHO_API_TOKEN` server-side. The HTTP server binds loopback only.
+Open <http://127.0.0.1:18440> in a browser. **No manual token entry is required for the local UI.** It receives a process-scoped, HttpOnly, SameSite=Strict session cookie; unsafe requests require a same-origin UI header and cross-origin/cross-site access is rejected. The programmatic HTTP API and `/mcp` still accept the private `Authorization: Bearer <token>` credential from `data/api-token` (never exposed to page JavaScript). Alternatively set a 32+ character `REVERFOLIO_API_TOKEN` server-side. The HTTP server binds loopback only.
 
 Supply `GITHUB_TOKEN` to collect repository traffic with appropriate GitHub permissions. When explicitly authorized to use the signed-in CLI, run with `-github-auth gh` instead. A missing permission or endpoint is recorded as partial/unavailable, not zero. Public release downloads are cumulative asset counters; the first observation is a baseline, not an interval increment.
 
-The standalone bilingual UI defaults to Simplified Chinese; language and other editable preferences persist in machine-local TOML. Its sidebar provides overview, projects, channels, evidence review, discovery tasks, historical metrics and settings. It supports registering repositories/articles/sites, language/channel pages, submitting candidate mentions, human review and grouping, discovery/search run tracking, numeric history dry-run import and SQLite backup. **OpenEcho has no runtime dependency on BlogCTL, any browser extension or other publishing application.** All write commands require unique request IDs. The MCP tools expose the same operations, and `-mcp-stdio` provides a local stdio transport. The default `-collect-interval 24h` runs idempotent GitHub snapshots; set `-collect-interval 0` to disable scheduling.
+The standalone bilingual UI defaults to Simplified Chinese; language and other editable preferences persist in machine-local TOML. Its sidebar provides overview, projects, channels, evidence review, discovery tasks, historical metrics and settings. It supports registering repositories/articles/sites, language/channel pages, submitting candidate mentions, human review and grouping, discovery/search run tracking, numeric history dry-run import and SQLite backup. **Reverfolio has no runtime dependency on BlogCTL, any browser extension or other publishing application.** All write commands require unique request IDs. The MCP tools expose the same operations, and `-mcp-stdio` provides a local stdio transport. The default `-collect-interval 24h` runs idempotent GitHub snapshots; set `-collect-interval 0` to disable scheduling.
 
 Restore **only to a new database path**, never over the current database:
 
 ```bash
-go run ./cmd/openecho -restore /private/backup.sqlite -db /private/new-state.sqlite
+go run ./cmd/reverfolio -restore /private/backup.sqlite -db /private/new-state.sqlite
 ```
 
 Historical numeric observations use `schema_version: 1`, each with source, unit, scope, timezone, start/end time and observation time. Dry-run validation precedes import. Source URLs for translations and distribution must be linked to the correct work; unknown distribution links should be left missing, not guessed. Backups contain private data and must not be committed.
@@ -71,3 +71,7 @@ python3 scripts/check_docs.py
 ```
 
 See [workflow acceptance](docs/workflow-validation.md) for the test scope, caveats and the current CI billing limitation. Linux tests do not prove Windows/macOS runtime behavior. No claim is made of accurately identified human readers or verified end-users.
+
+## Rename compatibility
+
+Formerly OpenEcho. Existing Windows data and configuration are preserved; the previous installation path remains a compatibility junction. See [migration notes](docs/rename-migration.md).

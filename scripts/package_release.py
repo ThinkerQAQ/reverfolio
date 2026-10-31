@@ -25,25 +25,25 @@ subprocess.run(['python3', 'scripts/check_docs.py'], cwd=ROOT, check=True)
 assets = []
 for operating_system in ('windows', 'linux', 'darwin'):
     for architecture in ('amd64', 'arm64'):
-        with tempfile.TemporaryDirectory(prefix='openecho-package-') as temporary:
-            root = pathlib.Path(temporary) / 'OpenEcho'
+        with tempfile.TemporaryDirectory(prefix='reverfolio-package-') as temporary:
+            root = pathlib.Path(temporary) / 'Reverfolio'
             (root / 'bin').mkdir(parents=True)
-            binary = root / 'bin' / ('opencho.exe' if operating_system == 'windows' else 'openecho')
+            binary = root / 'bin' / ('reverfolio.exe' if operating_system == 'windows' else 'reverfolio')
             env = os.environ.copy()
             env.update(GOOS=operating_system, GOARCH=architecture, CGO_ENABLED='0')
-            subprocess.run(['go', 'build', '-trimpath', '-ldflags=-s -w', '-o', str(binary), './cmd/openecho'],
+            subprocess.run(['go', 'build', '-trimpath', '-ldflags=-s -w', '-o', str(binary), './cmd/reverfolio'],
                            cwd=ROOT, env=env, check=True)
             if operating_system == 'windows':
                 shutil.copytree(ROOT / 'extension', root / 'extension')
-                for script in ('Start-OpenEcho.cmd', 'Run-OpenEcho.ps1',
-                               'Install-OpenEcho.ps1', 'Initialize-OpenEchoExtension.ps1'):
+                for script in ('Start-Reverfolio.cmd', 'Run-Reverfolio.ps1',
+                               'Install-Reverfolio.ps1', 'Initialize-ReverfolioExtension.ps1'):
                     shutil.copy2(ROOT / 'scripts/windows' / script, root / script)
             for name in ('config.example.toml', 'README.md', 'README.zh-CN.md',
                          'LICENSE', 'THIRD_PARTY_NOTICES.md', 'SECURITY.md'):
                 shutil.copy2(ROOT / name, root / name)
             (root / 'docs').mkdir()
             shutil.copy2(ROOT / 'docs/windows-layout.md', root / 'docs/windows-layout.md')
-            prefix = 'OpenEcho-' + version + '-' + operating_system + '-' + architecture
+            prefix = 'Reverfolio-' + version + '-' + operating_system + '-' + architecture
             if operating_system == 'windows':
                 asset = DIST / (prefix + '.zip')
                 with zipfile.ZipFile(asset, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=8) as z:
@@ -53,7 +53,7 @@ for operating_system in ('windows', 'linux', 'darwin'):
             else:
                 asset = DIST / (prefix + '.tar.gz')
                 with tarfile.open(asset, 'w:gz') as tf:
-                    tf.add(root, arcname='OpenEcho')
+                    tf.add(root, arcname='Reverfolio')
             assets.append(asset)
             print('PACKAGED', operating_system, architecture, asset.stat().st_size, flush=True)
 checksum_file = DIST / 'SHA256SUMS'

@@ -123,51 +123,51 @@ body:has(.settings-full-page) .workspace-main{max-width:none;width:100%}
 
 /* Same management UI in the Edge/Chrome extension side panel. */
 [hidden]{display:none!important}
-.openecho-extension body{background:#f5f7fb}
-.openecho-extension .app{display:flex;min-height:100vh}
-.openecho-extension .sidebar{
+.reverfolio-extension body{background:#f5f7fb}
+.reverfolio-extension .app{display:flex;min-height:100vh}
+.reverfolio-extension .sidebar{
   display:flex;position:sticky;top:0;flex:0 0 58px;
   width:58px;min-width:58px;height:100vh;
   padding:12px 5px;overflow:auto;
 }
-.openecho-extension .sidebar .brand{margin:3px auto 14px}
-.openecho-extension .sidebar .brand>div:last-child,.openecho-extension .sidebar-status,.openecho-extension .nav-label,.openecho-extension .sidebar-bottom{display:none}
-.openecho-extension .sidebar nav{display:flex;flex-direction:column;gap:7px;overflow:visible}
-.openecho-extension .sidebar .nav-button{
+.reverfolio-extension .sidebar .brand{margin:3px auto 14px}
+.reverfolio-extension .sidebar .brand>div:last-child,.reverfolio-extension .sidebar-status,.reverfolio-extension .nav-label,.reverfolio-extension .sidebar-bottom{display:none}
+.reverfolio-extension .sidebar nav{display:flex;flex-direction:column;gap:7px;overflow:visible}
+.reverfolio-extension .sidebar .nav-button{
   flex:0 0 auto;min-width:0;width:100%;padding:12px 3px;
   display:flex;justify-content:center;align-items:center;
   border-radius:8px;
 }
-.openecho-extension .nav-button .nav-icon{display:grid;width:22px;font-size:21px}
-.openecho-extension .nav-button span:last-child{display:none}
-.openecho-extension .main-shell{flex:1;min-width:0}
-.openecho-extension .topbar{min-height:65px;padding:13px 15px;gap:9px}
-.openecho-extension .topbar h1{font-size:17px}
-.openecho-extension .topbar p,.openecho-extension .topbar .eyebrow,.openecho-extension .topbar .sync-indicator{display:none}
-.openecho-extension .top-actions{gap:5px;flex-wrap:nowrap}
-.openecho-extension .top-actions .btn{padding:7px 9px;font-size:12px}
-.openecho-extension .workspace-main{
+.reverfolio-extension .nav-button .nav-icon{display:grid;width:22px;font-size:21px}
+.reverfolio-extension .nav-button span:last-child{display:none}
+.reverfolio-extension .main-shell{flex:1;min-width:0}
+.reverfolio-extension .topbar{min-height:65px;padding:13px 15px;gap:9px}
+.reverfolio-extension .topbar h1{font-size:17px}
+.reverfolio-extension .topbar p,.reverfolio-extension .topbar .eyebrow,.reverfolio-extension .topbar .sync-indicator{display:none}
+.reverfolio-extension .top-actions{gap:5px;flex-wrap:nowrap}
+.reverfolio-extension .top-actions .btn{padding:7px 9px;font-size:12px}
+.reverfolio-extension .workspace-main{
   padding:13px 11px 32px;margin:0 auto;max-width:none;width:100%;
 }
-.openecho-extension .stat-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-.openecho-extension .stat-card{padding:13px 12px}
-.openecho-extension .stat-card .stat-value{font-size:24px}
-.openecho-extension .stat-card .stat-label{font-size:11px}
-.openecho-extension .stat-card .stat-hint{font-size:10px}
-.openecho-extension .grid-2,.openecho-extension .grid-cards,.openecho-extension .form-grid{grid-template-columns:1fr}
-.openecho-extension .section-header{align-items:center}
-.openecho-extension .section-header h2{font-size:14px}
-.openecho-extension .panel,.openecho-extension .mini-card{padding:12px}
-.openecho-extension .data-table{font-size:11px}
-.openecho-extension .data-table td,.openecho-extension .data-table th{padding:9px 7px}
-.openecho-extension .settings-full-page{padding:13px}
-.openecho-extension .settings-full-page .settings-category-card{min-height:62px;padding:12px 11px}
-.openecho-extension .settings-full-page .settings-category-card strong{font-size:13px}
-.openecho-extension .settings-field label{grid-template-columns:1fr}
-.openecho-extension .settings-field label strong,.openecho-extension .settings-field label small,
-.openecho-extension .settings-field input,.openecho-extension .settings-field select{grid-column:1;grid-row:auto}
-.openecho-extension .settings-savebar{justify-content:flex-end}
-.openecho-extension .settings-hint{width:100%}
+.reverfolio-extension .stat-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.reverfolio-extension .stat-card{padding:13px 12px}
+.reverfolio-extension .stat-card .stat-value{font-size:24px}
+.reverfolio-extension .stat-card .stat-label{font-size:11px}
+.reverfolio-extension .stat-card .stat-hint{font-size:10px}
+.reverfolio-extension .grid-2,.reverfolio-extension .grid-cards,.reverfolio-extension .form-grid{grid-template-columns:1fr}
+.reverfolio-extension .section-header{align-items:center}
+.reverfolio-extension .section-header h2{font-size:14px}
+.reverfolio-extension .panel,.reverfolio-extension .mini-card{padding:12px}
+.reverfolio-extension .data-table{font-size:11px}
+.reverfolio-extension .data-table td,.reverfolio-extension .data-table th{padding:9px 7px}
+.reverfolio-extension .settings-full-page{padding:13px}
+.reverfolio-extension .settings-full-page .settings-category-card{min-height:62px;padding:12px 11px}
+.reverfolio-extension .settings-full-page .settings-category-card strong{font-size:13px}
+.reverfolio-extension .settings-field label{grid-template-columns:1fr}
+.reverfolio-extension .settings-field label strong,.reverfolio-extension .settings-field label small,
+.reverfolio-extension .settings-field input,.reverfolio-extension .settings-field select{grid-column:1;grid-row:auto}
+.reverfolio-extension .settings-savebar{justify-content:flex-end}
+.reverfolio-extension .settings-hint{width:100%}
 
 
 /* Interactive source cards replace the raw table on the dashboard.
@@ -189,6 +189,6 @@ body:has(.settings-full-page) .workspace-main{max-width:none;width:100%}
 .activity-details{padding:13px 16px}
 .activity-details>summary{color:#3069bf;list-style-position:inside;font-weight:650}
 .activity-details[open]>summary{margin-bottom:12px}
-.openecho-extension .activity-grid{grid-template-columns:1fr;gap:9px}
-.openecho-extension .activity-card{padding:12px;gap:9px}
-.openecho-extension .activity-stat-row strong{font-size:18px}
+.reverfolio-extension .activity-grid{grid-template-columns:1fr;gap:9px}
+.reverfolio-extension .activity-card{padding:12px;gap:9px}
+.reverfolio-extension .activity-stat-row strong{font-size:18px}

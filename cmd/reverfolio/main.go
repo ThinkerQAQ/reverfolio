@@ -16,12 +16,19 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ThinkerQAQ/openecho/internal/echo"
+	"github.com/ThinkerQAQ/reverfolio/internal/echo"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+func configuredAPIToken() string {
+	if token := os.Getenv("REVERFOLIO_API_TOKEN"); token != "" {
+		return token
+	}
+	return os.Getenv("OPENECHO_API_TOKEN")
+}
+
 func apiToken(path string) (string, error) {
-	if token := os.Getenv("OPENECHO_API_TOKEN"); token != "" {
+	if token := configuredAPIToken(); token != "" {
 		if len(token) < 32 {
 			return "", echo.ErrInvalid
 		}
@@ -56,13 +63,26 @@ func apiToken(path string) (string, error) {
 }
 func main() {
 	addr := flag.String("listen", "127.0.0.1:18440", "loopback listen address")
-	dbPath := flag.String("db", "data/openecho.sqlite", "private SQLite database path")
+	dbPath := flag.String("db", "data/reverfolio.sqlite", "private SQLite database path")
 	restore := flag.String("restore", "", "restore a backup to a NEW -db path and exit")
 	stdio := flag.Bool("mcp-stdio", false, "serve MCP over local stdio instead of HTTP")
 	githubAuth := flag.String("github-auth", "env", "GitHub credentials: env or gh (explicit CLI fallback)")
 	interval := flag.Duration("collect-interval", 24*time.Hour, "scheduled GitHub interval; 0 disables scheduling; minimum 1 minute")
 	configPath := flag.String("config", "", "path to private TOML configuration (auto-detect next to bin directory)")
 	flag.Parse()
+	visitedDB := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "db" {
+			visitedDB = true
+		}
+	})
+	if !visitedDB {
+		if _, err := os.Stat(*dbPath); os.IsNotExist(err) {
+			if _, legacyErr := os.Stat("data/openecho.sqlite"); legacyErr == nil {
+				*dbPath = "data/openecho.sqlite"
+			}
+		}
+	}
 	if *configPath == "" {
 		if exe, exeErr := os.Executable(); exeErr == nil {
 			candidate := filepath.Join(filepath.Dir(exe), "..", "config.toml")
@@ -74,7 +94,7 @@ func main() {
 	settings := echo.NewConfigManager(*configPath)
 	config, err := settings.Read()
 	if err != nil {
-		log.Fatal("invalid OpenEcho config.toml: ", err)
+		log.Fatal("invalid Reverfolio config.toml: ", err)
 	}
 	if *configPath != "" {
 		visited := map[string]bool{}
@@ -159,7 +179,7 @@ func main() {
 	} else if !os.IsNotExist(readErr) {
 		log.Fatal("could not read private extension access key")
 	}
-	if os.Getenv("OPENECHO_API_TOKEN") == "" {
+	if configuredAPIToken() == "" {
 		log.Print("Local API token file: ", tokenPath)
 	}
 	server := &http.Server{Addr: *addr, Handler: echo.Handler(service, token), ReadHeaderTimeout: 5 * time.Second, IdleTimeout: 60 * time.Second, WriteTimeout: 100 * time.Second}
@@ -169,7 +189,7 @@ func main() {
 		defer cancel()
 		server.Shutdown(shutdown)
 	}()
-	log.Printf("OpenEcho listening at http://%s (MCP: /mcp)", *addr)
+	log.Printf("Reverfolio listening at http://%s (MCP: /mcp)", *addr)
 	if err = server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatal(err)
 	}

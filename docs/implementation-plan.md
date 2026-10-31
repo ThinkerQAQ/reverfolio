@@ -1,4 +1,4 @@
-# OpenEcho implementation plan
+# Reverfolio implementation plan
 
 Date: 2026-10-31 (Asia/Shanghai)
 Status: foundation implementation in progress on a feature branch; no release yet.
@@ -44,7 +44,7 @@ Build a thin vertical slice first: register a repository, collect metrics, persi
 
 - Tools for work lookup, discovery task listing/claiming, search-run recording, mention submission/review, collection status and trends.
 - Request IDs for writes, task leases, source URL validation, authenticated network access.
-- ChatGPT uses its own search/browser tools; OpenEcho supplies tasks and receives evidence. Optional autonomous execution is a later adapter.
+- ChatGPT uses its own search/browser tools; Reverfolio supplies tasks and receives evidence. Optional autonomous execution is a later adapter.
 - Acceptance: a client retrieves a task, submits evidence, reviews it and retrieves a traceable report. Conflicting reviews and expired leases are handled explicitly.
 
 ## P5 — Web UI and reporting
