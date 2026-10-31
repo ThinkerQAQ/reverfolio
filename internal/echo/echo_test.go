@@ -128,6 +128,8 @@ func TestGitHubPartialFailuresAndPagination(t *testing.T) {
 			fmt.Fprint(w, `[{"id":1,"name":"app.zip","download_count":7,"created_at":"2026-10-01T00:00:00Z"}]`)
 		case strings.HasSuffix(r.URL.Path, "/views"):
 			http.Error(w, "fixture-secret should never be persisted", 403)
+		case strings.Contains(r.URL.Path, "/traffic/popular/"):
+			fmt.Fprint(w, `[]`)
 		case strings.HasSuffix(r.URL.Path, "/clones"):
 			fmt.Fprint(w, `{"count":3,"uniques":2,"clones":[{"timestamp":"2026-10-19T00:00:00Z","count":3,"uniques":2}]}`)
 		default:
@@ -147,6 +149,10 @@ func TestGitHubPartialFailuresAndPagination(t *testing.T) {
 	}
 	if _, ok := snap.Traffic["views"]; ok {
 		t.Fatal("403 must not turn into zero views")
+	}
+	var rawCount int
+	if err := store.db.QueryRow(`SELECT count(*) FROM raw_observations WHERE snapshot_id=?`, snap.ID).Scan(&rawCount); err != nil || rawCount < 4 {
+		t.Fatal("raw archive missing", rawCount, err)
 	}
 	n := calls
 	again, err := service.Collect(context.Background(), work.ID, "request-1")

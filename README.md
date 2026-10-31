@@ -6,17 +6,13 @@ Local-first observability for open-source and content impact.
 
 OpenEcho will connect projects, multilingual articles, distribution channels, metric history, and evidence of external citations or adoption. AI clients can discover evidence through their search tools and submit it through MCP.
 
-**Status: foundation preview. Repository registration, SQLite persistence, manual GitHub snapshots, per-asset interval changes and a minimal Web UI are implemented. No release is published yet.**
+**Status: v0.1 development preview on a feature branch; no release published.** GitHub snapshots, article/site registry, bilingual channel links, candidate evidence and review, search tasks, historical numeric observations, MCP, Web UI, scheduled snapshots, raw-response archiving and backup/restore are implemented. Additional provider connectors and AI search execution are not included.
 
-## Planned architecture
+## Architecture and data policy
 
-One Go service, SQLite, a local web interface, and MCP. The business core is implemented for this domain; established libraries provide infrastructure. Metrics, evidence, and analytical claims remain distinct and traceable.
+One local Go service, SQLite, embedded Web UI and an MCP endpoint share the same business operations. An AI client performs searches using its own authorized tools; OpenEcho records the task, candidate link and review decision. A `secondary_report` mention cannot be verified without original `web` or `api` evidence and explicit review. Reference pages, verified identity URLs, grouped propagation events, GitHub downloads, visitors and actual software users are different metrics.
 
-## First milestone
-
-Register works and channel pages, persist GitHub snapshots, import historical observations, review external evidence, and expose the same application services through Web UI and MCP.
-
-See the implementation plan for sequencing and acceptance gates. Real credentials, personal analytics, and imported history stay outside this repository.
+All live observations and credentials belong in a private runtime directory, not git. Do not commit imported reports, browsing data, access tokens, databases, or personal metrics. See [architecture](docs/architecture.zh-CN.md) and [implementation plan](docs/implementation-plan.md).
 
 ## Development and governance
 
@@ -26,25 +22,33 @@ Use feature branches and pull requests. Squash merge only; delete merged branche
 
 [MIT](LICENSE). Third-party code must retain its applicable notices. No third-party application source has been imported during bootstrap.
 
-## Run the foundation preview
+## Run locally
 
-Requires Go 1.26 or later. Run from a source checkout:
+Requires Go >= 1.26. From the repository checkout:
 
 ```bash
-go run ./cmd/openecho
+go run ./cmd/openecho -db data/openecho.sqlite
 ```
 
-Open http://127.0.0.1:18440 and enter the token from `data/api-token`. This file is private runtime configuration; never paste it into issues or commit it. The page keeps the entered token in memory only. The service also accepts `OPENECHO_API_TOKEN` (at least 32 characters).
+Open <http://127.0.0.1:18440> and enter the generated token from `data/api-token`. This file is private. The token is held only in the tab's memory; the local HTTP API and `/mcp` require `Authorization: Bearer <token>` and a loopback Host. Alternatively set a 32+ character `OPENECHO_API_TOKEN` server-side. All HTTP listening is loopback-only.
 
-For authenticated GitHub data, set `GITHUB_TOKEN` in the server environment. Public release counters work without it; repository traffic requires write access to the target repository and appropriate token permissions. Credentials are not sent to the Web UI. GitHub API redirects are refused to avoid credential forwarding.
+Supply `GITHUB_TOKEN` to collect repository traffic with appropriate GitHub permissions. When explicitly authorized to use the signed-in CLI, run with `-github-auth gh` instead. A missing permission or endpoint is recorded as partial/unavailable, not zero. Public release downloads are cumulative asset counters; the first observation is a baseline, not an interval increment.
 
-Optional flags: `-listen 127.0.0.1:18440` and `-db data/openecho.sqlite`. Listening outside loopback is intentionally rejected in this preview.
+The UI supports registering repositories/articles/sites, language/channel pages, submitting candidate mentions, human review and grouping, discovery/search run tracking, numeric history dry-run import, Markdown/JSON report downloads and SQLite backup. All write commands require unique request IDs. The MCP tools expose the same operations, and `-mcp-stdio` provides a local stdio transport. The default `-collect-interval 24h` runs idempotent GitHub snapshots; set `-collect-interval 0` to disable scheduling.
 
-Register an `owner/repository`, then collect a snapshot. Collect again with a new request ID to observe interval changes. Reusing an `Idempotency-Key` returns the original snapshot. First observations and late-discovered old assets are baselines; failed endpoints remain unavailable. Daily traffic uses UTC, and daily unique counts must not be added as unique people.
+Restore **only to a new database path**, never over the current database:
 
-Implemented HTTP endpoints: `GET/POST /api/works`, `POST /api/works/{id}/collect`, `GET /api/works/{id}/snapshots`, `GET /api/works/{id}/changes`, and `GET /api/works/{id}/traffic/{views|clones}`. All API requests require Bearer authentication; collection also requires `Idempotency-Key`. Snapshot listing currently returns the latest 100 observations.
+```bash
+go run ./cmd/openecho -restore /private/backup.sqlite -db /private/new-state.sqlite
+```
 
-This slice stores selected, sanitized observation fields as JSON in SQLite, including repository IDs, assets and daily/window traffic. Full raw-response archives, referrers/popular paths, scheduling, edition/channel editing, evidence/history imports, MCP and backup/export are not implemented yet. There is no automatic classification of human readers or active users.
+Historical numeric observations use `schema_version: 1`, each with source, unit, scope, timezone, start/end time and observation time. Dry-run validation precedes import. Source URLs for translations and distribution must be linked to the correct work; unknown distribution links should be left missing, not guessed. Backups contain private data and must not be committed.
+
+## Interfaces
+
+- MCP: `/mcp` over authenticated streamable HTTP (or `-mcp-stdio`); supports registering works/channels, search tasks, candidate mention submission/review, GitHub collection, historic observation import, report and audit.
+- HTTP: `/api/works`, `/api/works/{id}/collect`, `/api/works/{id}/snapshots`, `/api/works/{id}/changes`, `/api/works/{id}/traffic/{views|clones}`; `POST /api/actions/{upsert_work|add_channel|submit_mention|review_mention|link_propagation_event|create_discovery_task|claim_discovery_task|complete_discovery_task|import_history}`; `GET /api/report`, `/api/mentions`, `/api/tasks`, `/api/audit`; `POST /api/backup`.
+- Web: `/` (same local service and application state).
 
 ## Validation
 
@@ -54,4 +58,4 @@ go vet ./...
 python3 scripts/check_docs.py
 ```
 
-Platform CI is configured for Linux, Windows and macOS. See governance for the current GitHub-hosted runner account restriction; configured checks are not evidence of completed platform tests.
+See [workflow acceptance](docs/workflow-validation.md) for the test scope, caveats and the current CI billing limitation. Linux tests do not prove Windows/macOS runtime behavior. No claim is made of accurately identified human readers or verified end-users.

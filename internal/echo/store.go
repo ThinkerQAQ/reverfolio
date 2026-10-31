@@ -23,6 +23,8 @@ type Work struct {
 	ID           int64  `json:"id"`
 	Title        string `json:"title"`
 	Repository   string `json:"repository"`
+	Kind         string `json:"kind"`
+	CanonicalURL string `json:"canonical_url"`
 	RepositoryID *int64 `json:"github_id,omitempty"`
 }
 type Asset struct {
@@ -42,18 +44,20 @@ type Traffic struct {
 	Days    []Daily `json:"days"`
 }
 type Snapshot struct {
-	ID           int64              `json:"id"`
-	RepositoryID int64              `json:"github_id"`
-	WorkID       int64              `json:"work_id"`
-	Key          string             `json:"request_id"`
-	CapturedAt   time.Time          `json:"captured_at"`
-	State        string             `json:"state"`
-	Stars        *int64             `json:"stars"`
-	Forks        *int64             `json:"forks"`
-	Assets       []Asset            `json:"assets"`
-	ReleasesOK   bool               `json:"releases_available"`
-	Traffic      map[string]Traffic `json:"traffic"`
-	Problems     []string           `json:"problems"`
+	Popular      map[string]json.RawMessage `json:"popular,omitempty"`
+	Raw          map[string]json.RawMessage `json:"-"`
+	ID           int64                      `json:"id"`
+	RepositoryID int64                      `json:"github_id"`
+	WorkID       int64                      `json:"work_id"`
+	Key          string                     `json:"request_id"`
+	CapturedAt   time.Time                  `json:"captured_at"`
+	State        string                     `json:"state"`
+	Stars        *int64                     `json:"stars"`
+	Forks        *int64                     `json:"forks"`
+	Assets       []Asset                    `json:"assets"`
+	ReleasesOK   bool                       `json:"releases_available"`
+	Traffic      map[string]Traffic         `json:"traffic"`
+	Problems     []string                   `json:"problems"`
 }
 type Change struct {
 	AssetID int64  `json:"asset_id"`
@@ -96,8 +100,8 @@ func Open(path string) (*Store, error) {
 	if err = db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil {
 		return fail(err)
 	}
-	if version > 1 {
-		return fail(fmt.Errorf("database schema %d is newer than supported version 1", version))
+	if version > 3 {
+		return fail(fmt.Errorf("database schema %d is newer than supported version 3", version))
 	}
 	if version == 0 {
 		tx, err := db.Begin()
@@ -117,7 +121,14 @@ func Open(path string) (*Store, error) {
 			return fail(err)
 		}
 	}
-	return &Store{db: db}, nil
+	store := &Store{db: db}
+	if err = store.migrateDomain(); err != nil {
+		return fail(err)
+	}
+	if err = store.migrateSiteAndArchives(); err != nil {
+		return fail(err)
+	}
+	return store, nil
 }
 func (s *Store) Close() error { return s.db.Close() }
 func (s *Store) CreateWork(ctx context.Context, title, repository string) (Work, error) {
@@ -130,19 +141,19 @@ func (s *Store) CreateWork(ctx context.Context, title, repository string) (Work,
 		return Work{}, err
 	}
 	var w Work
-	err = s.db.QueryRowContext(ctx, `SELECT id,title,repository,github_id FROM works WHERE repository=?`, repository).Scan(&w.ID, &w.Title, &w.Repository, &w.RepositoryID)
+	err = s.db.QueryRowContext(ctx, `SELECT id,title,COALESCE(repository,''),github_id,kind,COALESCE(canonical_url,'') FROM works WHERE repository=?`, repository).Scan(&w.ID, &w.Title, &w.Repository, &w.RepositoryID, &w.Kind, &w.CanonicalURL)
 	return w, err
 }
 func (s *Store) Work(ctx context.Context, id int64) (Work, error) {
 	var w Work
-	err := s.db.QueryRowContext(ctx, `SELECT id,title,repository,github_id FROM works WHERE id=?`, id).Scan(&w.ID, &w.Title, &w.Repository, &w.RepositoryID)
+	err := s.db.QueryRowContext(ctx, `SELECT id,title,COALESCE(repository,''),github_id,kind,COALESCE(canonical_url,'') FROM works WHERE id=?`, id).Scan(&w.ID, &w.Title, &w.Repository, &w.RepositoryID, &w.Kind, &w.CanonicalURL)
 	if errors.Is(err, sql.ErrNoRows) {
 		err = ErrNotFound
 	}
 	return w, err
 }
 func (s *Store) Works(ctx context.Context) ([]Work, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id,title,repository,github_id FROM works ORDER BY id`)
+	rows, err := s.db.QueryContext(ctx, `SELECT id,title,COALESCE(repository,''),github_id,kind,COALESCE(canonical_url,'') FROM works ORDER BY id`)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +161,7 @@ func (s *Store) Works(ctx context.Context) ([]Work, error) {
 	result := []Work{}
 	for rows.Next() {
 		var w Work
-		if err = rows.Scan(&w.ID, &w.Title, &w.Repository, &w.RepositoryID); err != nil {
+		if err = rows.Scan(&w.ID, &w.Title, &w.Repository, &w.RepositoryID, &w.Kind, &w.CanonicalURL); err != nil {
 			return nil, err
 		}
 		result = append(result, w)
@@ -212,6 +223,11 @@ func (s *Store) Save(ctx context.Context, snap Snapshot) (Snapshot, error) {
 	snap.ID, err = result.LastInsertId()
 	if err != nil {
 		return Snapshot{}, err
+	}
+	for endpoint, payload := range snap.Raw {
+		if _, err = tx.ExecContext(ctx, `INSERT INTO raw_observations(snapshot_id,endpoint,payload) VALUES(?,?,?)`, snap.ID, endpoint, string(payload)); err != nil {
+			return Snapshot{}, err
+		}
 	}
 	for metric, traffic := range snap.Traffic {
 		for _, day := range traffic.Days {

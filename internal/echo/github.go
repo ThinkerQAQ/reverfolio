@@ -17,7 +17,7 @@ type GitHub struct {
 	Token   string
 }
 
-func (g GitHub) get(ctx context.Context, path string, out any) error {
+func (g GitHub) getOnce(ctx context.Context, path string, out any) error {
 	base := g.BaseURL
 	if base == "" {
 		base = "https://api.github.com"
@@ -43,7 +43,8 @@ func (g GitHub) get(ctx context.Context, path string, out any) error {
 	defer res.Body.Close()
 	// Never persist remote error bodies, request headers, or tokens.
 	if res.StatusCode != http.StatusOK {
-		return fmt.Errorf("GitHub status %d", res.StatusCode)
+		retry, _ := strconv.Atoi(res.Header.Get("Retry-After"))
+		return apiStatusError{res.StatusCode, time.Duration(retry) * time.Second}
 	}
 	data, err := io.ReadAll(io.LimitReader(res.Body, 8*1024*1024+1))
 	if err != nil || len(data) > 8*1024*1024 {
@@ -52,10 +53,13 @@ func (g GitHub) get(ctx context.Context, path string, out any) error {
 	if err = json.Unmarshal(data, out); err != nil {
 		return fmt.Errorf("invalid GitHub response")
 	}
+	captureRaw(ctx, path, data)
 	return nil
 }
 func (g GitHub) Collect(ctx context.Context, work Work, key string) Snapshot {
 	snap := Snapshot{WorkID: work.ID, Key: key, CapturedAt: time.Now().UTC(), State: "complete", Traffic: map[string]Traffic{}, Assets: []Asset{}, Problems: []string{}}
+	snap.Raw = map[string]json.RawMessage{}
+	ctx = context.WithValue(ctx, rawCaptureKey{}, snap.Raw)
 	fail := func(source string, err error) {
 		snap.Problems = append(snap.Problems, source+": "+err.Error())
 		snap.State = "partial"
@@ -182,6 +186,24 @@ func (g GitHub) Collect(ctx context.Context, work Work, key string) Snapshot {
 			fail(metric, fmt.Errorf("invalid daily data"))
 		}
 	}
+	snap.Popular = map[string]json.RawMessage{}
+	for _, kind := range []string{"referrers", "paths"} {
+		var items []json.RawMessage
+		if err := g.get(ctx, prefix+"/traffic/popular/"+kind, &items); err != nil {
+			fail(kind, err)
+			continue
+		}
+		if items == nil {
+			fail(kind, fmt.Errorf("invalid popular-content response"))
+			continue
+		}
+		body, err := json.Marshal(items)
+		if err != nil {
+			fail(kind, err)
+			continue
+		}
+		snap.Popular[kind] = body
+	}
 	if snap.Stars == nil && !snap.ReleasesOK && len(snap.Traffic) == 0 {
 		snap.State = "failed"
 	}
@@ -200,6 +222,9 @@ func (s Service) Collect(ctx context.Context, id int64, key string) (Snapshot, e
 	work, err := s.Store.Work(ctx, id)
 	if err != nil {
 		return Snapshot{}, err
+	}
+	if work.Kind != "project" {
+		return Snapshot{}, ErrInvalid
 	}
 	previous, err := s.Store.SnapshotByKey(ctx, id, key)
 	if err == nil {

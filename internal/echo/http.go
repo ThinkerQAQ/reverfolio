@@ -14,11 +14,12 @@ import (
 	"time"
 )
 
-//go:embed web/index.html
+//go:embed web/app.html
 var web embed.FS
 
 func Handler(service Service, token string) http.Handler {
 	mux := http.NewServeMux()
+	service.registerWorkflow(mux)
 	write := func(w http.ResponseWriter, value any) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(value)
@@ -38,7 +39,7 @@ func Handler(service Service, token string) http.Handler {
 	}
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { write(w, map[string]string{"status": "ok"}) })
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
-		data, _ := web.ReadFile("web/index.html")
+		data, _ := web.ReadFile("web/app.html")
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Write(data)
 	})
@@ -165,7 +166,8 @@ func Handler(service Service, token string) http.Handler {
 			http.Error(w, "invalid host", http.StatusForbidden)
 			return
 		}
-		if strings.HasPrefix(r.URL.Path, "/api/") {
+		if strings.HasPrefix(r.URL.Path, "/api/") || r.URL.Path == "/mcp" {
+			r.Body = http.MaxBytesReader(w, r.Body, 2*1024*1024)
 			provided := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 			if !strings.HasPrefix(r.Header.Get("Authorization"), "Bearer ") || token == "" || subtle.ConstantTimeCompare([]byte(provided), []byte(token)) != 1 {
 				http.Error(w, "unauthorized", http.StatusUnauthorized)

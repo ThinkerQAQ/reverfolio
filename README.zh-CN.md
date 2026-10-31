@@ -4,32 +4,34 @@
 
 本地运行的开源与内容影响力观测工具。关联开源项目、文章中英文版本、多平台分发页面、指标历史，以及第三方引用和使用证据。
 
-**当前状态：基础预览版。已实现仓库登记、SQLite 持久化、手动 GitHub 快照、逐文件下载变化和基础 Web 页面；尚未发布 Release。**
+**当前状态：v0.1 开发预览，尚未发布 Release。** 已实现 GitHub 指标快照、文章／网站与项目统一登记、中英文及分发渠道关联、传播候选证据与人工审核、搜索任务与审计、历史数值指标导入、MCP、本地 Web、定时采集、过滤后的 GitHub 原始响应归档和 SQLite 备份恢复。
 
-计划采用 Go 单服务＋SQLite＋Web UI＋MCP。平台适配器保存指标快照；AI 客户端调用搜索工具发现线索，通过 MCP 提交证据；统一业务层负责归属、去重、审核和报告。
-
-第一版覆盖作品登记、GitHub 历史指标、历史导入、传播证据审核、Web UI 与 MCP。详细步骤与验收要求见实施计划。
+架构采用 Go 单服务＋SQLite＋内嵌 Web UI＋MCP。AI 客户端负责用自身工具搜索，OpenEcho 负责保存任务、线索、审核与统计；**不包含自动 AI 搜索执行器**。历史二手报告只能生成待审核线索，必须补充原网页或原始 API 证据并明确人工审核，才能计入已确认传播。GitHub 下载、浏览、去重访客与实际使用者分别计量，不相互推断。
 
 通过功能分支和 PR 开发，仅使用 Squash Merge，合并后删除分支。规则执行情况见[仓库治理](docs/governance.md)。真实账号配置、凭据、个人统计和历史调查资料保存在运行数据目录中，不提交到代码库。
 
 采用 [MIT](LICENSE) 许可证。引入第三方代码时保留适用的版权和许可声明。
 
-## 运行基础预览版
+## 本地运行
 
-需要 Go 1.26 或以上版本，在源码目录执行：
+Go 1.26 或以上：
 
 ```bash
-go run ./cmd/openecho
+go run ./cmd/openecho -db data/openecho.sqlite
 ```
 
-打开 http://127.0.0.1:18440，将 `data/api-token` 中的本地令牌填入页面。令牌仅保存在页面内存中，不进入浏览器持久化存储。也可通过环境变量 `OPENECHO_API_TOKEN` 设置不少于 32 字符的令牌。
+浏览器打开 <http://127.0.0.1:18440>，填入 `data/api-token` 中自动生成的本地 Token。Token 仅存页面内存，不写入浏览器本地存储。也可以通过服务端 `OPENECHO_API_TOKEN` 设置不少于 32 字符的密钥。HTTP API 和 `/mcp` 均需要 Bearer 鉴权，仅允许本机回环地址监听。
 
-需要鉴权的 GitHub 数据通过服务端环境变量 `GITHUB_TOKEN` 配置；流量接口要求相应仓库权限，权限不足会标记为不可用，不会伪造为零。令牌不发送给页面。
+GitHub 指标采集优先使用服务端环境变量 `GITHUB_TOKEN`；明确允许复用已登录的 GitHub CLI 时可以加 `-github-auth gh`。权限不足标记为部分成功或不可用，不能当作零值。首次观察的 Release 下载是累计基线，而非本期新增。
 
-先登记 `owner/repository`，再点击采集；下一次采集生成新的请求 ID，展示两次有效观测之间的下载变化。首次观测、迟发现的旧文件为基线。逐日流量按 UTC 保存，逐日去重数不能相加为独立人数。
+Web 页面提供作品及渠道登记、传播候选证据提交和审核、检索任务、历史数值指标导入预览、Markdown/JSON 报告与数据库备份。MCP 对外暴露同一业务逻辑；`-mcp-stdio` 支持本机客户端。默认 `-collect-interval 24h` 定时采集 GitHub，可设为 `-collect-interval 0` 禁用。
 
-可选参数：`-listen 127.0.0.1:18440`、`-db data/openecho.sqlite`。当前仅允许回环地址监听。
+一致性备份通过 Web 的“Download SQLite backup”；恢复只能写入**不存在的新数据库**，不能覆盖现有数据：
 
-当前只保存经过筛选的指标快照 JSON，没有实现完整原始响应归档、来源网站和热门路径、自动调度、语言版本／渠道编辑、历史与证据导入、MCP、备份导出及真人识别。详情见英文说明与实施计划。
+```bash
+go run ./cmd/openecho -restore /private/backup.sqlite -db /private/new-state.sqlite
+```
 
-本地验证：`go test -race ./...`、`go vet ./...`、`python3 scripts/check_docs.py`。CI 已配置三平台检查，但 GitHub 托管任务仍受账号限制，不能据此宣称三平台测试已通过。
+历史数值导入采用 `schema_version: 1`，记录时间范围、时区、单位、范围和来源，先 dry-run 再确认；未核实的第三方分发链接保持为空，不编造。所有凭据、SQLite 数据、个人指标和历史资料不得提交 Git 仓库。
+
+验证命令：`go test -race ./...`、`go vet ./...`、`python3 scripts/check_docs.py`。当前平台 CI 受 GitHub 账号账单／额度限制，不代表 Windows/macOS 已实机验证；详见[验收说明](docs/workflow-validation.md)。

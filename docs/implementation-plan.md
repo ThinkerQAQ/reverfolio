@@ -77,3 +77,9 @@ Implemented: repository work registration, private SQLite files, transactional s
 Pending before P1/P2 are complete: generic articles/editions/channels, full raw-response archives, referrers/popular paths, collection task persistence and scheduling, bounded retry/backoff, backup/export and the next-stage MCP/evidence domain. GitHub calls currently have per-request and overall collection timeouts and no automatic retry.
 
 The implementation PR is stacked on the repository-bootstrap PR until that PR is merged. Hosted CI availability is reported separately from local test results.
+
+## Workflow implementation checkpoint — 2026-10-31
+
+The development branch extends the GitHub foundation with article/site registry, channel pages, reviewed mentions and auditable grouping, lease-based AI discovery tasks, historical numerical metric import, GitHub endpoint retry and filtered raw-response archival, streamable HTTP/stdio MCP, embedded UI, scheduled collection, SQLite backup/restore, and Markdown/JSON report exports.
+
+Outstanding: independent external-provider adapters (Umami, GSC, BlogCTL), actual automatic AI search, definitive independent usage attribution, full user-configurable source/accounts, packaged releases, and tested Windows/macOS runtime behavior. These are **not** represented as completed. CI remains blocked by GitHub account billing/spending settings. For detailed acceptance evidence see [workflow-validation.md](workflow-validation.md).
