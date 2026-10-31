@@ -1,0 +1,35 @@
+# Private configuration and runtime data
+.env
+.env.*
+!.env.example
+/config.local.*
+/data/
+/backups/
+/evidence/
+/imports/
+/reports/
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+*.log
+*.har
+# Build outputs
+/bin/
+/dist/
+/coverage/
+coverage.out
+node_modules/
+.DS_Store
+Thumbs.db
+
+# Machine-specific TOML configuration (never include credentials)
+/config.toml
+
+# Windows local SQLite and credentials
+/Data/
+
+# Local extension secret: public template is committed intentionally;
+# never stage an installed populated version from the Windows folder.

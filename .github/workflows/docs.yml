@@ -1,0 +1,24 @@
+name: Documentation
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  docs:
+    name: docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Check whitespace
+        run: git diff --check $(git hash-object -t tree /dev/null) HEAD
+      - name: Check local documentation links
+        run: python3 scripts/check_docs.py
+      - name: Check extension manifest, icons, localized UI and mock interactions
+        run: |
+          node scripts/check_extension.mjs
+          node --check extension/background.js
+          node --check extension/ui/app.js
+          python3 scripts/build_extension_ui.py
+          git diff --exit-code -- extension/ui
