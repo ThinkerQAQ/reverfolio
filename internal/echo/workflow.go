@@ -181,7 +181,7 @@ func addTool[In any](server *mcp.Server, name, description string, readonly bool
 	})
 }
 func (s Service) MCPServer() *mcp.Server {
-	server := mcp.NewServer(&mcp.Implementation{Name: "Reverfolio", Version: "0.3.0"}, nil)
+	server := mcp.NewServer(&mcp.Implementation{Name: "Reverfolio", Version: "0.3.1"}, nil)
 	addTool(server, "list_works", "Read registered repositories and articles.", true, func(ctx context.Context, _ EmptyInput) (any, error) { return s.Store.Works(ctx) })
 	addTool(server, "get_work", "Read one work, channel pages, recent snapshots and interval changes.", true, func(ctx context.Context, in WorkIDInput) (any, error) { return s.Store.Overview(ctx, in.WorkID) })
 	addTool(server, "upsert_work", "Register a project or article. Requires request_id; duplicate identity returns the existing work without changing its title.", false, func(ctx context.Context, in WorkInput) (any, error) { return s.Store.RegisterWork(ctx, in) })

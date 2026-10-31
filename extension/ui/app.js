@@ -147,7 +147,7 @@ const stat=(title,value,note,primary=false)=>'<div class="stat-card'+(primary?' 
 function projects(){
  return state.data.report.report.sources.map(s=>{
   const x=s.latest,d=x?.downloads;
-  return {...s,downloads:d?(pref("github.download_scope")==="installers"?d.packages:d.total):null,stars:x?.stars??null,clones:x?.traffic?.clones?.count??null,snapshot:x?.captured_at||""};
+  return {...s,changes:s.last_comparable_changes,downloads:d?(pref("github.download_scope")==="installers"?d.packages:d.total):null,stars:x?.stars??null,clones:x?.traffic?.clones?.count??null,snapshot:x?.captured_at||""};
  });
 }
 function downloadLabel(){return pref("github.download_scope")==="installers"?settingsLabel(["程序包下载","Package downloads"]):T("发布资产下载");}
@@ -439,3 +439,8 @@ const hash=location.hash.replace(/^#/,"");
 if(nav.some(x=>x[0]===hash))state.view=hash;
 shellRender();
 refresh(false).catch(err=>notification(extensionMode?"本地服务连接失败：请启动 C:\\software\\Coding\\reverfolio\\Start-Reverfolio.cmd。"+(err.message||""):err.message,true));
+
+window.addEventListener("hashchange",()=>{
+ const view=location.hash.replace(/^#/,"");
+ if(nav.some(item=>item[0]===view)&&state.view!==view){state.view=view;render();}
+});
