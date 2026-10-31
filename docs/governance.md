@@ -17,7 +17,7 @@ Use feature branches and PRs. Main must not be force-pushed or deleted. Resolve 
 
 The authenticated account is GitHub Free. GitHub rejected the request to enable protection on this private repository with HTTP 403: Upgrade to GitHub Pro or make this repository public to enable this feature.
 
-Therefore PR-required merges, administrator enforcement, required status checks, conversation resolution, linear history protection, and force-push/deletion prevention are documented practices, **not server-enforced branch protection**. Squash-only settings do not block direct pushes. Documentation CI runs but cannot block direct pushes under this limitation.
+Therefore PR-required merges, administrator enforcement, required status checks, conversation resolution, linear history protection, and force-push/deletion prevention are documented practices, **not server-enforced branch protection**. Squash-only settings do not block direct pushes. Documentation CI is configured but cannot block direct pushes under this limitation. Its first GitHub-hosted run did not start: GitHub reported recent account payment failures or an insufficient spending limit. No workflow steps executed. Local documentation and whitespace validation passed; hosted CI remains unverified until the account restriction is resolved.
 
 Keep the repository private. If the account later supports private branch protection, configure main with strict status checks, docs plus actual application CI contexts, required PRs (zero mandatory external approvals), stale-review dismissal, resolved conversations, linear history, enforced administrators, no force pushes and no deletions. Re-read settings after applying.
 
