@@ -120,3 +120,75 @@ body:has(.settings-full-page) .workspace-main{max-width:none;width:100%}
 
 .brand-mark:has(img){background:transparent;box-shadow:none;border-radius:11px;overflow:hidden}
 .brand-mark img{display:block;width:100%;height:100%}
+
+/* Same management UI in the Edge/Chrome extension side panel. */
+[hidden]{display:none!important}
+.openecho-extension body{background:#f5f7fb}
+.openecho-extension .app{display:flex;min-height:100vh}
+.openecho-extension .sidebar{
+  display:flex;position:sticky;top:0;flex:0 0 58px;
+  width:58px;min-width:58px;height:100vh;
+  padding:12px 5px;overflow:auto;
+}
+.openecho-extension .sidebar .brand{margin:3px auto 14px}
+.openecho-extension .sidebar .brand>div:last-child,.openecho-extension .sidebar-status,.openecho-extension .nav-label,.openecho-extension .sidebar-bottom{display:none}
+.openecho-extension .sidebar nav{display:flex;flex-direction:column;gap:7px;overflow:visible}
+.openecho-extension .sidebar .nav-button{
+  flex:0 0 auto;min-width:0;width:100%;padding:12px 3px;
+  display:flex;justify-content:center;align-items:center;
+  border-radius:8px;
+}
+.openecho-extension .nav-button .nav-icon{display:grid;width:22px;font-size:21px}
+.openecho-extension .nav-button span:last-child{display:none}
+.openecho-extension .main-shell{flex:1;min-width:0}
+.openecho-extension .topbar{min-height:65px;padding:13px 15px;gap:9px}
+.openecho-extension .topbar h1{font-size:17px}
+.openecho-extension .topbar p,.openecho-extension .topbar .eyebrow,.openecho-extension .topbar .sync-indicator{display:none}
+.openecho-extension .top-actions{gap:5px;flex-wrap:nowrap}
+.openecho-extension .top-actions .btn{padding:7px 9px;font-size:12px}
+.openecho-extension .workspace-main{
+  padding:13px 11px 32px;margin:0 auto;max-width:none;width:100%;
+}
+.openecho-extension .stat-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.openecho-extension .stat-card{padding:13px 12px}
+.openecho-extension .stat-card .stat-value{font-size:24px}
+.openecho-extension .stat-card .stat-label{font-size:11px}
+.openecho-extension .stat-card .stat-hint{font-size:10px}
+.openecho-extension .grid-2,.openecho-extension .grid-cards,.openecho-extension .form-grid{grid-template-columns:1fr}
+.openecho-extension .section-header{align-items:center}
+.openecho-extension .section-header h2{font-size:14px}
+.openecho-extension .panel,.openecho-extension .mini-card{padding:12px}
+.openecho-extension .data-table{font-size:11px}
+.openecho-extension .data-table td,.openecho-extension .data-table th{padding:9px 7px}
+.openecho-extension .settings-full-page{padding:13px}
+.openecho-extension .settings-full-page .settings-category-card{min-height:62px;padding:12px 11px}
+.openecho-extension .settings-full-page .settings-category-card strong{font-size:13px}
+.openecho-extension .settings-field label{grid-template-columns:1fr}
+.openecho-extension .settings-field label strong,.openecho-extension .settings-field label small,
+.openecho-extension .settings-field input,.openecho-extension .settings-field select{grid-column:1;grid-row:auto}
+.openecho-extension .settings-savebar{justify-content:flex-end}
+.openecho-extension .settings-hint{width:100%}
+
+
+/* Interactive source cards replace the raw table on the dashboard.
+   Exact unsummarized metrics remain available in an expandable table. */
+.activity-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:13px;margin-bottom:15px}
+.activity-card{background:#fff;border:1px solid #dde6f2;border-radius:11px;padding:16px;box-shadow:0 1px 3px #172d4310;display:flex;flex-direction:column;gap:14px;min-width:0}
+.activity-card:hover{border-color:#bad0f1;box-shadow:0 4px 12px #284d7b14}
+.activity-top{display:flex;gap:10px;align-items:center;min-width:0}
+.activity-icon{width:36px;height:36px;flex-shrink:0;display:grid;place-items:center;border-radius:10px;background:#eaf3ff;color:#3271d0;font-size:20px}
+.activity-heading{flex:1;min-width:0;line-height:1.3}
+.activity-heading strong{display:block;overflow-wrap:anywhere;font-size:13px}
+.activity-heading small{display:block;color:#8596ad;font-size:11px;overflow-wrap:anywhere;margin-top:4px}
+.activity-external{align-self:start;font-size:16px}
+.activity-stat-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:11px 0;border-top:1px solid #e9eef5;border-bottom:1px solid #e9eef5}
+.activity-stat-row div{display:flex;flex-direction:column;gap:4px;min-width:0}
+.activity-stat-row span{font-size:11px;color:#7c90a5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.activity-stat-row strong{font-size:19px;line-height:1.1;color:#21436c;font-variant-numeric:tabular-nums}
+.activity-foot{display:flex;justify-content:space-between;flex-wrap:wrap;font-size:11px;color:#8392a8;gap:8px}
+.activity-details{padding:13px 16px}
+.activity-details>summary{color:#3069bf;list-style-position:inside;font-weight:650}
+.activity-details[open]>summary{margin-bottom:12px}
+.openecho-extension .activity-grid{grid-template-columns:1fr;gap:9px}
+.openecho-extension .activity-card{padding:12px;gap:9px}
+.openecho-extension .activity-stat-row strong{font-size:18px}

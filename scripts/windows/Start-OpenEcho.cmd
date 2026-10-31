@@ -11,6 +11,10 @@ if not exist "%CONFIG%" (
   echo Missing config: %CONFIG%
   exit /b 1
 )
+if exist "%ROOT%Initialize-OpenEchoExtension.ps1" (
+  powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "%ROOT%Initialize-OpenEchoExtension.ps1"
+  if errorlevel 1 exit /b 1
+)
 cd /d "%ROOT%"
 echo OpenEcho starting. Use the local URL from config.toml.
 "%EXE%" -config "%CONFIG%"

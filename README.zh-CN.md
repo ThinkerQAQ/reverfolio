@@ -14,7 +14,7 @@
 
 ## 浏览器扩展（可选）
 
-OpenEcho 自有的独立扩展位于 extension/，提供专属图标、服务状态、快捷入口和侧边栏。Windows 文件放在 C:\software\Coding\opencho\extension。在 Edge 打开 edge://extensions，开启开发人员模式，点击加载解压缩的扩展，并选择 extension 文件夹。详见 [安装说明](extension/README.zh-CN.md)。不依赖 BlogCTL，也不读取 GitHub/MCP 凭据。
+OpenEcho 独立扩展位于 extension/，**直接在 Edge/Chrome 侧边栏运行完整管理工作台**，与主 Web 页面复用同一份前端代码，可在扩展标签页全宽打开；已移除跳转按钮拼凑的旧弹窗和「Windows 优先/WSL 自动检测」选择器。扩展只连接 Windows 本地 127.0.0.1:19452。文件放在 C:\software\Coding\opencho\extension。旧 v0.1 解压缩扩展需在 edge://extensions 删除后重新加载此目录以注册固定 ID。详见 [安装说明](extension/README.zh-CN.md)。不依赖 BlogCTL，也不保存 GitHub/MCP 凭据。
 
 ## Windows 目录约定
 

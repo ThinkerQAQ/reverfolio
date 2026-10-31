@@ -175,7 +175,7 @@ function settingsReadOnly(node){
  if(kind==="backup")return '<p class="desc">'+E(settingsLabel(["数据库备份是私有的 SQLite 文件。恢复需要在服务离线时使用新的文件路径，不会覆盖现有数据库。","Backups are private SQLite files. Restore only to a new destination while offline."]))+'</p>'+
   '<button type="button" class="btn btn-primary" data-action="backup">'+E(settingsLabel(["下载数据库备份","Download SQLite backup"]))+'</button>';
  if(kind==="security")return status("Local UI","Active",settingsLabel(["浏览器通过 HttpOnly 本地会话使用，MCP 和程序 API 保持 Bearer 授权，服务监听本地回环地址。","Browser uses an HttpOnly local session; MCP and API require Bearer authentication on a loopback listener."]))+
-  '<div class="settings-info"><code>'+E(location.origin)+'</code></div>';
+  '<div class="settings-info"><code>'+E(apiOrigin)+'</code></div>';
  if(kind==="about")return '<p><strong>OpenEcho · 0.1 preview</strong></p><p>'+E(settingsLabel(["Go + SQLite + 原生嵌入式 Web UI + MCP。没有 BlogCTL 运行依赖；界面设计借鉴分层分类交互。","Go + SQLite + embedded Web UI + MCP. No BlogCTL dependency; only hierarchical navigation is an interaction reference."]))+'</p>';
  return '<div class="settings-empty">'+E(settingsLabel(["请选择一项设置","Choose a setting"]))+'</div>';
 }

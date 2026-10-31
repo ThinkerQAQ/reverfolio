@@ -148,6 +148,17 @@ func main() {
 	if err != nil {
 		log.Fatal("could not load private API token: ", err)
 	}
+	// Local extension capability lives beside SQLite, independent of MCP credentials.
+	extPath := filepath.Join(filepath.Dir(*dbPath), "extension-access.key")
+	if data, readErr := os.ReadFile(extPath); readErr == nil {
+		extToken := strings.TrimSpace(string(data))
+		if len(extToken) < 48 || len(extToken) > 256 {
+			log.Fatal("invalid private extension access key")
+		}
+		service.ExtensionToken = extToken
+	} else if !os.IsNotExist(readErr) {
+		log.Fatal("could not read private extension access key")
+	}
 	if os.Getenv("OPENECHO_API_TOKEN") == "" {
 		log.Print("Local API token file: ", tokenPath)
 	}

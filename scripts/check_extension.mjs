@@ -3,100 +3,67 @@ import {readFileSync,existsSync} from "node:fs";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
 import vm from "node:vm";
-const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"../extension");
-const manifest=JSON.parse(readFileSync(path.join(root,"manifest.json"),"utf8"));
-assert.equal(manifest.manifest_version,3);
-assert.equal(manifest.name,"__MSG_extensionName__");
-assert.equal(manifest.action.default_popup,"popup/index.html");
-assert.equal(manifest.side_panel.default_path,"popup/index.html");
-assert.deepEqual([...manifest.permissions].sort(),["sidePanel","storage"].sort());
-assert.equal(manifest.host_permissions.length,3);
-for(const host of manifest.host_permissions){
- const url=new URL(host.replace("*",""));
- assert.equal(url.hostname,"127.0.0.1");
- assert.equal(url.protocol,"http:");
-}
-const declared=new Set([...Object.values(manifest.action.default_icon),...Object.values(manifest.icons)]);
-for(const item of declared){
- assert.ok(existsSync(path.join(root,item)),"Missing icon: "+item);
- const buf=readFileSync(path.join(root,item));
+import crypto from "node:crypto";
+
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"../");
+const ext=path.join(root,"extension");
+const m=JSON.parse(readFileSync(path.join(ext,"manifest.json"),"utf8"));
+const read=(dir,file)=>readFileSync(path.join(dir,file),"utf8");
+assert.equal(m.manifest_version,3);
+assert.equal(m.name,"__MSG_extensionName__");
+assert.equal(m.version,"0.2.0");
+assert.equal(m.action.default_popup,undefined,"No second launcher popup");
+assert.equal(m.side_panel.default_path,"ui/index.html");
+assert.equal(m.background.service_worker,"background.js");
+assert.deepEqual(m.permissions,["sidePanel"]);
+assert.deepEqual(m.host_permissions,["http://127.0.0.1:19452/*"]);
+assert.match(m.content_security_policy.extension_pages,/connect-src 'self' http:\/\/127.0.0.1:19452/);
+const publicKey=Buffer.from(m.key,"base64");
+const hash=crypto.createHash("sha256").update(publicKey).digest().subarray(0,16);
+const id=Array.from(hash).map(b=>String.fromCharCode(97+(b>>4),97+(b&15))).join("");
+const go=read(root,"internal/echo/extension_origin.go");
+assert.ok(go.includes("chrome-extension://"+id),"Backend origin must match extension identity");
+const icons=new Set([...Object.values(m.action.default_icon),...Object.values(m.icons)]);
+for(const item of icons){
+ assert.ok(existsSync(path.join(ext,item)),item);
+ const buf=readFileSync(path.join(ext,item));
  assert.equal(buf.subarray(0,8).toString("hex"),"89504e470d0a1a0a");
  const size=Number(item.match(/icon(\d+)\.png/)[1]);
  assert.equal(buf.readUInt32BE(16),size);
  assert.equal(buf.readUInt32BE(20),size);
 }
-for(const lang of ["en","zh_CN"]){
- const messages=JSON.parse(readFileSync(path.join(root,"_locales",lang,"messages.json"),"utf8"));
+for(const locale of ["zh_CN","en"]){
+ const messages=JSON.parse(read(path.join(ext,"_locales",locale),"messages.json"));
  for(const key of ["extensionName","extensionDescription","actionTitle"])assert.ok(messages[key]?.message);
 }
-const html=readFileSync(path.join(root,"popup/index.html"),"utf8");
-const script=readFileSync(path.join(root,"popup/popup.js"),"utf8");
-assert.match(html,/<script src="\.\/popup\.js" defer><\/script>/);
-assert.ok(!/\son\w+\s*=/.test(html),"No inline event handlers allowed");
-assert.ok(!/https:\/\/|document\.cookie|nativeMessaging/.test(script),"No third-party fetching or cookie access");
-const els=new Map();
-class Element{
- constructor(key){
-  this.key=key;this.dataset={};this.listeners={};this.textContent="";this.value="";
-  this.disabled=false;this.className="dot";
- }
- addEventListener(name,handler){this.listeners[name]=handler}
- async click(){if(this.listeners.click)return await this.listeners.click({target:this})}
- async change(value){this.value=value;if(this.listeners.change)return await this.listeners.change({target:this})}
+const ui=path.join(ext,"ui");
+const source=path.join(root,"internal/echo/web");
+for(const name of ["app.js","settings.js","app.css","favicon.svg"]){
+ assert.equal(read(ui,name),read(source,name),"Extension UI must mirror main UI: "+name);
 }
-const get=id=>{
- if(!els.has(id))els.set(id,new Element(id));
- return els.get(id);
-};
-const translationElems=["tagline","retry","service","auto","windows","wsl","portable","open","quick","overview","works","channels","evidence","tasks","history","settings","sidePanel","hint","privacy"].map(key=>{
- const el=new Element(key);el.dataset.i18n=key;return el;
-});
-const routeElems=["overview","works","channels","evidence","tasks","history","settings"].map(route=>{
- const el=new Element("route:"+route);el.dataset.route=route;return el;
-});
-const writes=[],openTabs=[],healthChecks=[];
+const html=read(ui,"index.html");
+assert.match(html,/<meta name="openecho-api-origin" content="http:\/\/127.0.0.1:19452">/);
+assert.match(html,/src="\.\/app.js"/);
+assert.match(html,/src="\.\/local-auth.js"/);
+const template=read(ui,"local-auth.js");
+assert.match(template,/OPEN_ECHO_EXTENSION_ACCESS = ""/,"Repository must contain an empty credential template");
+assert.match(html,/src="\.\/settings.js"/);
+assert.ok(!html.includes('id="service"'),"No redundant service selector");
+assert.ok(!html.includes("http://127.0.0.1:19450"),"No WSL fallback");
+const app=read(ui,"app.js");
+assert.match(app,/extensionMode/);
+assert.match(app,/apiURL\(url\)/);
+assert.match(app,/credentials:extensionMode\?"omit":"same-origin"/);
+assert.match(app,/X-OpenEcho-Extension-Access/);
+assert.ok(!/eval\(|new Function\(/.test(app),"Avoid unsafe-eval");
+const background=read(ext,"background.js");
+let enabled=0,opened=0;
 const chrome={
- storage:{local:{
-  get:async()=>({language:"zh",service:"auto"}),
-  set:async value=>{writes.push(value)}
- }},
- tabs:{create:async payload=>{openTabs.push(payload)}},
- sidePanel:{open:async()=>{}},
- windows:{WINDOW_ID_CURRENT:-2,getCurrent:async()=>({id:1})}
+ sidePanel:{setPanelBehavior:async o=>{assert.equal(o.openPanelOnActionClick,true);enabled++}},
+ runtime:{onInstalled:{addListener:()=>{}}},
+ action:{onClicked:{addListener:()=>{opened++}}}
 };
-let closed=0;
-const document={
- documentElement:{lang:""},
- getElementById:get,
- querySelectorAll:(query)=>{
-  if(query==="[data-i18n]")return translationElems;
-  if(query==="[data-route]")return routeElems;
-  return [];
- }
-};
-const fetch=async(url,opts)=>{
- healthChecks.push({url,opts});
- return {
-  ok:url.startsWith("http://127.0.0.1:19452/"),
-  json:async()=>({status:"ok"})
- };
-};
-vm.runInNewContext(script,{document,chrome,fetch,window:{close:()=>closed++},setTimeout,clearTimeout,AbortController,console});
-await new Promise(resolve=>setTimeout(resolve,30));
-assert.equal(get("status").textContent,"本地服务已连接");
-assert.equal(get("open").disabled,false);
-assert.equal(get("service-address").textContent,"http://127.0.0.1:19452");
-assert.ok(healthChecks.every(x=>x.opts.credentials==="omit"));
-await routeElems.find(x=>x.dataset.route==="settings").click();
-assert.equal(openTabs[0].url,"http://127.0.0.1:19452/#settings");
-assert.equal(openTabs[0].active,true);
-assert.equal(closed,1);
-await get("lang").click();
-assert.equal(get("lang").textContent,"中文");
-assert.equal(document.documentElement.lang,"en");
-assert.equal(writes[0].language,"en");
-await get("service").change("wsl");
-assert.equal(writes[1].service,"wsl");
-assert.equal(get("status").textContent,"Local service not running");
-assert.equal(get("open").disabled,true);
-console.log("Extension manifest, icon sizes, locale, isolated health check and shortcut interactions passed.");
+vm.runInNewContext(background,{chrome});
+assert.equal(enabled,1,"Browser action must open the full side panel");
+assert.equal(opened,0,"No obsolete launcher tab for a supported browser");
+console.log("Extension verified: full shared dashboard, pinned origin",id,"single local service, icons and side-panel action");

@@ -27,4 +27,9 @@ Thumbs.db
 
 # Machine-specific TOML configuration (never include credentials)
 /config.toml
-\n# Windows local SQLite and credentials\n/Data/\n
+
+# Windows local SQLite and credentials
+/Data/
+
+# Local extension secret: public template is committed intentionally;
+# never stage an installed populated version from the Windows folder.

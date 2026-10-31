@@ -24,7 +24,7 @@ Use feature branches and pull requests. Squash merge only; delete merged branche
 
 ## Browser extension (optional)
 
-The independent OpenEcho browser extension is in extension/. It includes dedicated icons, read-only local service health, quick links and a side-panel launcher. Windows files are deployed under C:\software\Coding\opencho\extension. Install through **Edge: edge://extensions > Developer mode > Load unpacked**, selecting that exact extension folder. See [installation steps](extension/README.md). It has no BlogCTL dependency and never handles GitHub or MCP credentials.
+The optional OpenEcho browser extension is in extension/. It loads the FULL native dashboard and its controls in an Edge/Chrome side panel or a browser tab, using exactly the same app source and styles as the local Web UI. It connects to the single Windows local origin 127.0.0.1:19452; there is no service-priority selection or launcher popup. Windows files go in C:\software\Coding\opencho\extension. To upgrade from v0.1 unpacked, remove the old extension and load the directory again using Edge edge://extensions > Developer mode > Load unpacked. See [installation steps](extension/README.md). It is independent of BlogCTL and does not read or store GitHub/MCP credentials.
 
 ## Configuration and Windows layout
 

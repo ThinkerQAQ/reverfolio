@@ -1,26 +1,24 @@
-# OpenEcho 浏览器扩展（Edge / Chrome）
+# OpenEcho Edge / Chrome 扩展
 
-独立的 Manifest V3 扩展，提供 OpenEcho 本地服务状态检测、管理页面快捷入口与侧边栏导航；不连接 BlogCTL，也不持有 GitHub/MCP 密钥。
+扩展现在就是 OpenEcho 工作台，不是跳转器。点击工具栏图标，在浏览器侧边栏直接打开完整影响力管理界面；右上角按钮可以在标签页打开全宽的同一界面。两处复用相同前端代码。
 
-## Windows 安装
+## 安装与更新
 
-1. 确认服务已运行。双击 C:\software\Coding\opencho\Start-OpenEcho.cmd，或打开 http://127.0.0.1:19452/ 验证。
-2. 在 Edge 地址栏输入 edge://extensions（Chrome 对应 chrome://extensions）。
-3. 开启 **开发人员模式**。
-4. 点击 **加载解压缩的扩展**（Load unpacked）。
-5. 选择 C:\software\Coding\opencho\extension。这是包含 manifest.json 的文件夹，不是整个 opencho 或 popup 子文件夹。
-6. 在浏览器工具栏的扩展菜单找到 OpenEcho，点击固定图标。可查看连接状态、切换中英文并打开工作台或侧边栏。
+1. 在 Windows 启动 OpenEcho：C:\software\Coding\opencho\Start-OpenEcho.cmd，确认 http://127.0.0.1:19452/ 可以打开。
+2. 首次安装执行 OpenEcho 安装目录中的 Initialize-OpenEchoExtension.ps1，或直接通过 Start-OpenEcho.cmd 启动（它会自动初始化）。这会在 Data 生成独立随机访问密钥，并同步到扩展 ui/local-auth.js，无需手动填 Token。
+3. 打开 Edge 的 edge://extensions（Chrome 使用 chrome://extensions），开启开发人员模式。
+4. 点击加载解压缩的扩展，选中 C:\software\Coding\opencho\extension。
+5. 固定 OpenEcho 图标，点击后直接进入完整侧边栏，包含总览、项目、渠道、引用审核、发现任务、历史统计、递归设置。
+6. 不再显示自动检测、Windows 优先、其他服务之类的选项。
 
-本地更新扩展后，前往 edge://extensions，在 OpenEcho 卡片中点击 **重新加载**。
+从 v0.1 升级：v0.2 为扩展固定了新的公开身份密钥。请在 edge://extensions 删除旧的解压缩扩展，再重新加载本目录，确保浏览器注册正确的扩展 ID。后续更新可直接重新加载。
 
-## 权限和边界
+## 数据与权限
 
-- 默认检查 Windows 19452、Ubuntu/WSL 19450 和普通本地端口 18440；也可手动选择实例。
-- 只读取本地 GET /healthz 来显示服务是否启动。进入工作台时使用已有的本地安全会话。
-- 扩展的语言与选择的服务保存在浏览器扩展专用本地存储；**OpenEcho 主程序的设置依然保存在 config.toml，业务数据在 Data/state.sqlite**。
-- 仅申请 storage、sidePanel 和三个本地地址访问权限。不申请 Cookie、浏览历史、网页注入或 Native Messaging 权限，也不上传数据。
-- 完整的管理、引用审核和统计仍在 OpenEcho 自身 Web 页面内完成。
+- 唯一服务地址 http://127.0.0.1:19452，不自动连接 WSL。WSL 的 19450 仍供原有服务和 MCP 使用。
+- 扩展与本地 Web 使用同一套交互。业务数据在 Windows 的 Data/state.sqlite，配置保存在 config.toml。
+- 扩展只申请 sidePanel 权限和本机 19452 访问权限，不读取浏览器 Cookie，不复制 GitHub/MCP 密钥；专用访问密钥由本地初始化脚本生成，保存在 Data/extension-access.key 和扩展私有文件 ui/local-auth.js，不得上传到 GitHub，不连接其他网站。
+- 本地服务验证 OpenEcho 扩展固定身份；其他网页或扩展不能直接访问它的管理 API。MCP 鉴权保持独立。
+- 本地服务未运行时展示明确错误，不会切换到其他数据源。
 
-扩展不会自行启动 OpenEcho；不需要安装 BlogCTL。复制 extension 文件夹仅完成文件部署，浏览器安装仍需要在扩展管理页手动选择该文件夹。
-
-English instructions: README.md
+前端源码同步脚本：scripts/build_extension_ui.py；后端身份验证：internal/echo/http.go。

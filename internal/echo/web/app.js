@@ -59,7 +59,8 @@ const LANG = {
   "输入关键词筛选":"Filter by keyword","原始证据":"Original evidence","快照":"Snapshot",
   "筛选":"Filter","所有状态":"All statuses","仅显示":"Only",
   "直接进入":"Open","仅本机访问":"Only available on this device","数据时间":"Data time",
-  "无可用数据":"No data available","至少输入一个链接":"A URL is required"
+  "无可用数据":"No data available","至少输入一个链接":"A URL is required",
+  "在标签页中打开":"Open as tab","服务尚未启动":"Start the local OpenEcho service"
 };
 const nav = [
   ["overview","◫","影响力总览","统一查看项目、文章与真实传播证据"],
@@ -82,11 +83,19 @@ const anchor = (url,label) => '<a href="'+safeHref(url)+'" target="_blank" rel="
 const tag = (label,cls="") => '<span class="badge '+E(cls)+'">'+E(label)+'</span>';
 const uuid = () => crypto.randomUUID();
 const selectWorks = () => state.data.works.map(w=>'<option value="'+w.id+'">'+E(w.title)+'</option>').join("");
+// Both browser-extension panel and desktop browser consume the exact same UI.
+// The trusted extension bundle supplies a fixed localhost origin in a meta tag.
+// Regular web pages use their own origin, retaining HttpOnly same-site sessions.
+const extensionMode = location.protocol==="chrome-extension:";
+const apiOrigin = document.querySelector('meta[name="openecho-api-origin"]')?.content || location.origin;
+const apiURL = path => new URL(path,apiOrigin).href;
+if(extensionMode)document.documentElement.classList.add("openecho-extension");
 async function api(url,opts={}) {
-  const headers = {"Content-Type":"application/json",...(opts.method && opts.method!=="GET" ? {"X-OpenEcho-UI":"1"} : {}),...(opts.headers||{})};
-  const response=await fetch(url,{credentials:"same-origin",...opts,headers});
+  const extensionHeader = extensionMode ? {"X-OpenEcho-Extension-Access":String(window.OPEN_ECHO_EXTENSION_ACCESS||"")} : {};
+  const headers = {"Content-Type":"application/json",...extensionHeader,...(opts.method && opts.method!=="GET" ? {"X-OpenEcho-UI":"1"} : {}),...(opts.headers||{})};
+  const response=await fetch(apiURL(url),{credentials:extensionMode?"omit":"same-origin",...opts,headers});
   if(!response.ok) {
-    if(response.status===401) throw Error(T("请刷新页面重新建立本地会话"));
+    if(response.status===401) throw Error(extensionMode ? "OpenEcho 扩展未获授权：运行 Start-OpenEcho.cmd 初始化本地访问，然后在 Edge 扩展管理页面重新加载扩展。" : T("请刷新页面重新建立本地会话"));
     throw Error((await response.text()).trim().slice(0,240)+" (HTTP "+response.status+")");
   }
   return response.json();
@@ -114,13 +123,15 @@ async function refresh(showMessage=true){
 }
 function navRender(){
   $("navigation").innerHTML=nav.map(([id,icon,label])=>
-   '<button class="nav-button '+(state.view===id?"active":"")+'" data-action="navigate" data-view="'+id+'"><span class="nav-icon" aria-hidden="true">'+icon+'</span><span>'+T(label)+'</span></button>').join("");
+   '<button class="nav-button '+(state.view===id?"active":"")+'" data-action="navigate" data-view="'+id+'" title="'+E(T(label))+'" aria-label="'+E(T(label))+'"><span class="nav-icon" aria-hidden="true">'+icon+'</span><span>'+T(label)+'</span></button>').join("");
 }
 function shellRender(){
   document.documentElement.lang=state.lang==="en"?"en":"zh-CN";
   const current=nav.find(x=>x[0]===state.view)||nav[0];
   $("page-title").textContent=T(current[2]);$("page-subtitle").textContent=T(current[3]);
   $("locale-button").textContent=state.lang==="zh"?"EN":"中文";
+  const newTab=$("open-browser-tab");
+  if(newTab)newTab.hidden=!extensionMode;
   document.title="OpenEcho · "+T(current[2]);
   document.querySelectorAll("[data-i18n]").forEach(node=>node.textContent=T(node.dataset.i18n));
   navRender();
@@ -149,9 +160,23 @@ function overviewView(){
  const verified=mentions.filter(m=>m.state==="verified").slice(-Number(pref("overview.evidence_limit","4"))).reverse();
  const githubView=pref("overview.show_github")!=="false" ?
   heading("GitHub 项目活动","统计为累计发布资产下载量；不等于真实安装用户")+
-  '<div class="panel"><div class="table-wrap"><table class="data-table"><thead><tr><th>'+T("仓库")+'</th><th>'+(pref("github.download_scope")==="installers"?settingsLabel(["安装包下载","Installable downloads"]):T("发布资产下载"))+'</th><th>'+T("近期克隆")+'</th><th>'+T("Star")+'</th><th>'+T("最近采集")+'</th></tr></thead><tbody>'+
+  '<div class="activity-grid">'+rows.slice().sort((a,b)=>b.downloads+b.clones-a.downloads-a.clones).map(p=>
+    '<article class="activity-card"><div class="activity-top">'+
+      '<div class="activity-icon" aria-hidden="true">⌘</div>'+
+      '<div class="activity-heading"><strong>'+anchor("https://github.com/"+p.repository,p.title)+'</strong>'+
+      '<small>'+E(p.repository)+'</small></div>'+
+      '<span class="activity-external">'+anchor("https://github.com/"+p.repository,"↗")+'</span></div>'+
+      '<div class="activity-stat-row">'+
+      '<div><span>'+T("发布资产下载")+'</span><strong>'+fmt(p.downloads)+'</strong></div>'+
+      '<div><span>'+T("近期克隆")+'</span><strong>'+fmt(p.clones)+'</strong></div>'+
+      '<div><span>'+T("Star")+'</span><strong>'+fmt(p.stars)+'</strong></div>'+
+      '</div><div class="activity-foot"><span>'+T("最近采集")+'</span><time>'+dt(p.snapshot)+'</time></div></article>'
+  ).join("")+'</div>'+
+  '<details class="panel activity-details"><summary>'+settingsLabel(["查看 GitHub 原始统计表","View the GitHub metrics table"])+'</summary>'+
+  '<div class="table-wrap"><table class="data-table"><thead><tr><th>'+T("仓库")+'</th><th>'+(pref("github.download_scope")==="installers"?settingsLabel(["安装包下载","Installable downloads"]):T("发布资产下载"))+'</th><th>'+T("近期克隆")+'</th><th>'+T("Star")+'</th><th>'+T("最近采集")+'</th></tr></thead><tbody>'+
   rows.map(p=>'<tr><td>'+anchor("https://github.com/"+p.repository,p.title)+'</td><td class="num">'+fmt(p.downloads)+'</td><td class="num">'+fmt(p.clones)+'</td><td class="num">'+fmt(p.stars)+'</td><td class="muted">'+dt(p.snapshot)+'</td></tr>').join("")+
-  '</tbody></table></div><p class="kpi-note">'+T("离线优先。GitHub 下载、克隆与网站访客标识都不能等同于真实使用者。")+'</p></div>' : "";
+  '</tbody></table></div></details>'+
+  '<p class="kpi-note">'+T("离线优先。GitHub 下载、克隆与网站访客标识都不能等同于真实使用者。")+'</p>' : "";
  const evidence=pref("overview.show_evidence")!=="false" ?
   '<div>'+heading("外部影响证据","已确认的第三方引用与采用记录",'<button class="btn btn-sm" data-action="navigate" data-view="evidence">'+T("查看更多")+'</button>')+
   '<div class="panel">'+(verified.length?verified.map(m=>'<div class="list-row"><div class="status-line">'+tag(T("已审核"),"verified")+' <strong>'+E(works.find(w=>w.id===m.work_id)?.title||"")+'</strong></div><p class="muted">'+E(m.evidence?.at(-1)?.quote||"")+'</p><div class="evidence-url">'+anchor(m.url)+'</div></div>').join(""):'<div class="empty">'+T("暂无公开链接")+'</div>')+'</div></div>' : "";
@@ -306,6 +331,10 @@ function blobSave(blob,name){
 async function runClick(button){
  const action=button.dataset.action,id=Number(button.dataset.id||0);
  if(action==="navigate"){state.view=button.dataset.view;location.hash="#"+state.view;render();return;}
+ if(action==="open-browser-tab"){
+  if(extensionMode&&chrome.tabs?.create)await chrome.tabs.create({url:chrome.runtime.getURL("ui/index.html#"+state.view)});
+  return;
+ }
  if(action==="toggle-locale"||action==="set-locale"){
   const next=action==="toggle-locale"?(state.lang==="zh"?"en":"zh"):button.dataset.locale;
   const setting=settingsValue("interface.language");
@@ -316,7 +345,7 @@ async function runClick(button){
  if(action.startsWith("settings-")){await settingsHandleAction(button);return;}
  if(action==="refresh"){await act(async()=>{});return;}
  if(action==="show-work"){
-  const element=$("detail-"+id);if(element){element.hidden=!element.hidden;if(!element.hidden)element.open=true;}return;
+  const element=$("detail-"+id);if(element){element.hidden=false;element.open=!element.open;}return;
  }
  if(action==="collect"){await act(async()=>{await api("/api/works/"+id+"/collect",{method:"POST",headers:{"Idempotency-Key":uuid()}});});return;}
  if(action==="claim"){await act(async()=>{
@@ -348,7 +377,8 @@ async function runClick(button){
  }
  if(action==="backup"){
   try{
-   const r=await fetch("/api/backup",{method:"POST",credentials:"same-origin",headers:{"X-OpenEcho-UI":"1"}});
+   const auth=extensionMode?{"X-OpenEcho-Extension-Access":String(window.OPEN_ECHO_EXTENSION_ACCESS||"")}:{};
+   const r=await fetch(apiURL("/api/backup"),{method:"POST",credentials:extensionMode?"omit":"same-origin",headers:{"X-OpenEcho-UI":"1",...auth}});
    if(!r.ok)throw Error("Backup failed (HTTP "+r.status+")");
    blobSave(await r.blob(),"openecho-backup-"+new Date().toISOString().slice(0,10)+".sqlite");
   }catch(e){notification(e.message,true);}return;
@@ -400,4 +430,4 @@ document.addEventListener("change",e=>{
 const hash=location.hash.replace(/^#/,"");
 if(nav.some(x=>x[0]===hash))state.view=hash;
 shellRender();
-refresh(false).catch(err=>notification(err.message,true));
+refresh(false).catch(err=>notification(extensionMode?"本地服务连接失败：请启动 C:\\software\\Coding\\opencho\\Start-OpenEcho.cmd。"+(err.message||""):err.message,true));

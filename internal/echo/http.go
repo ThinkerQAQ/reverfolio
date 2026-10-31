@@ -183,7 +183,33 @@ func Handler(service Service, token string) http.Handler {
 			http.Error(w, "invalid host", http.StatusForbidden)
 			return
 		}
-		if strings.HasPrefix(r.URL.Path, "/api/") || r.URL.Path == "/mcp" {
+		apiRoute := strings.HasPrefix(r.URL.Path, "/api/")
+		// Pin browser-extension access to OpenEcho's own signed manifest origin.
+		// The extension is another local control surface, NOT a source of MCP tokens.
+		// Chromium sets the Origin and Fetch Metadata headers; arbitrary website
+		// scripts cannot impersonate the pinned chrome-extension:// origin.
+		extensionOrigin := r.Header.Get("Origin")
+		// Chromium extension pages with host permission may omit Origin on
+		// GET (Sec-Fetch-Site=none). Origin alone is not authentication.
+		extensionUI := apiRoute &&
+			r.Header.Get("Sec-Fetch-Mode") == "cors" &&
+			(extensionOrigin == TrustedOpenEchoExtensionOrigin ||
+				(extensionOrigin == "" && r.Header.Get("Sec-Fetch-Site") == "none"))
+		presented := r.Header.Get("X-OpenEcho-Extension-Access")
+		extensionCapabilityOK := extensionUI && service.ExtensionToken != "" &&
+			subtle.ConstantTimeCompare([]byte(presented), []byte(service.ExtensionToken)) == 1
+		if extensionUI {
+			w.Header().Set("Vary", "Origin")
+			w.Header().Set("Access-Control-Allow-Origin", TrustedOpenEchoExtensionOrigin)
+			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-OpenEcho-UI, Idempotency-Key, X-OpenEcho-Extension-Access")
+			w.Header().Set("Access-Control-Max-Age", "300")
+			if r.Method == http.MethodOptions {
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+		}
+		if apiRoute || r.URL.Path == "/mcp" {
 			r.Body = http.MaxBytesReader(w, r.Body, 2*1024*1024)
 			provided := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 			bearerOK := strings.HasPrefix(r.Header.Get("Authorization"), "Bearer ") &&
@@ -199,11 +225,16 @@ func Handler(service Service, token string) http.Handler {
 					cookieOK = false
 				}
 			}
-			if !bearerOK && !cookieOK {
+			// Extension can read the local API and perform explicitly marked UI
+			// mutations. It cannot access /mcp and never receives a bearer key.
+			extensionAuthorized := extensionCapabilityOK &&
+				(r.Method == http.MethodGet ||
+					(r.Method == http.MethodPost && r.Header.Get("X-OpenEcho-UI") == "1"))
+			if !bearerOK && !cookieOK && !extensionAuthorized {
 				http.Error(w, "unauthorized", http.StatusUnauthorized)
 				return
 			}
-			if origin := r.Header.Get("Origin"); origin != "" && origin != "http://"+r.Host {
+			if origin := r.Header.Get("Origin"); origin != "" && origin != "http://"+r.Host && !extensionAuthorized {
 				http.Error(w, "invalid origin", http.StatusForbidden)
 				return
 			}
