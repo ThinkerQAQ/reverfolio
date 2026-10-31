@@ -1,0 +1,26 @@
+# Private configuration and runtime data
+.env
+.env.*
+!.env.example
+/config.local.*
+/data/
+/backups/
+/evidence/
+/imports/
+/reports/
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+*.log
+*.har
+# Build outputs
+/bin/
+/dist/
+/coverage/
+coverage.out
+node_modules/
+.DS_Store
+Thumbs.db
