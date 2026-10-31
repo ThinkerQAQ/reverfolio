@@ -187,7 +187,8 @@ function settingsDetail(){
  const found=settingFind(state.settingsSelected);
  if(!found)return '<div class="settings-empty">Setting not found</div>';
  const {node,trail}=found;
- const breadcrumbs=trail.map((p,i)=>'<button type="button" class="settings-crumb" data-action="settings-select" data-id="'+E(p.id)+'">'+E(settingsLabel(p.name))+'</button>').join('<span class="settings-crumb-sep">/</span>');
+ const breadcrumbs='<button type="button" class="settings-crumb settings-crumb-home" data-action="settings-home">'+E(settingsLabel(["设置","Settings"]))+'</button>'+
+ '<span class="settings-crumb-sep">/</span>'+trail.map((p,i)=>'<button type="button" class="settings-crumb" data-action="settings-select" data-id="'+E(p.id)+'">'+E(settingsLabel(p.name))+'</button>').join('<span class="settings-crumb-sep">/</span>');
  if(node.children)return '<div class="settings-breadcrumb">'+breadcrumbs+'</div><h2>'+E(settingsLabel(node.name))+'</h2>'+
   '<p class="desc">'+E(settingsLabel(node.desc))+'</p>'+
   '<div class="settings-category-list">'+node.children.map(child=>
@@ -203,18 +204,45 @@ function settingsDetail(){
   '<p class="desc">'+E(settingsLabel(node.desc))+'</p>'+
   '<hr class="separator">'+controls;
 }
+// A single full-width settings route, like BlogCTL: index -> category -> leaf.
+function settingsIndexRows(){
+ if(state.settingsQuery){
+  const hits=settingSearch(state.settingsQuery);
+  return '<div class="settings-results-count">'+E(settingsLabel(["匹配","Matches"]))+' '+hits.length+' '+E(settingsLabel(["项配置","settings"]))+'</div>'+
+   (hits.length?hits.map(path=>{
+    const leaf=path.at(-1);
+    return '<button type="button" class="settings-category-card settings-search-hit" data-action="settings-select" data-id="'+E(leaf.id)+'">'+
+     '<span><strong>'+E(settingsLabel(leaf.name))+'</strong>'+
+     '<small>'+E(path.slice(0,-1).map(x=>settingsLabel(x.name)).join(" / "))+'</small></span><span class="settings-category-chevron">›</span></button>';
+   }).join(""):'<div class="settings-empty">'+E(settingsLabel(["没有找到匹配的配置项","No matching settings"]))+'</div>');
+ }
+ return settingTree.map(node=>
+  '<button type="button" class="settings-category-card" data-action="settings-select" data-id="'+E(node.id)+'">'+
+  '<span><strong>'+E(settingsLabel(node.name))+'</strong><small>'+E(settingsLabel(node.desc))+'</small></span>'+
+  '<span class="settings-category-meta">'+settingLeaves(node.children||[])+' <span class="settings-category-chevron">›</span></span></button>'
+ ).join("");
+}
 function renderSettingsTree(){
- return '<div class="settings-shell"><section class="settings-browser">'+
-  '<div class="settings-browser-header"><h2>'+E(settingsLabel(["设置","Settings"]))+'</h2><p>'+E(settingsLabel(["按层级查找；点击进入后编辑并保存。","Browse by hierarchy. Edit and save within each section."]))+'</p></div>'+
+ if(state.settingsSelected){
+  return '<section class="settings-full-page panel" id="settings-detail">'+settingsDetail()+'</section>';
+ }
+ return '<section class="settings-full-page panel" id="settings-home">'+
+  '<div class="settings-browser-header"><h2>'+E(settingsLabel(["设置","Settings"]))+'</h2>'+
+  '<p>'+E(settingsLabel(["按分类查找设置，选择后进入下一层，支持编辑、保存和返回。","Browse categories, drill down, edit, save and go back."]))+'</p></div>'+
   '<div class="settings-search-wrap"><input type="search" id="settings-search" autocomplete="off" placeholder="'+E(settingsLabel(["搜索设置：GitHub、审核、时区…","Search: GitHub, review, timezone…"]))+'" aria-label="'+E(settingsLabel(["搜索设置","Search settings"]))+'" value="'+E(state.settingsQuery)+'"></div>'+
-  '<div id="settings-tree" role="tree">'+settingsSidebar()+'</div></section>'+
-  '<section class="settings-detail panel" id="settings-detail">'+settingsDetail()+'</section></div>';
+  '<div id="settings-tree" class="settings-category-list" role="navigation" aria-label="'+E(settingsLabel(["设置分类","Settings categories"]))+'">'+settingsIndexRows()+'</div></section>';
 }
 function settingsRenderSidebar(){
- const area=$("settings-tree");if(area)area.innerHTML=settingsSidebar();
+ const area=$("settings-tree");if(area)area.innerHTML=settingsIndexRows();
 }
 async function settingsHandleAction(button){
  switch(button.dataset.action){
+  case "settings-home":{
+   state.settingsSelected="";
+   state.settingsQuery="";
+   state.settingsDraft={};
+   render();break;
+  }
   case "settings-save":{
    await settingsHandleForm();
    break;

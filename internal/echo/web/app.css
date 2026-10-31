@@ -74,3 +74,46 @@ body.compact-layout .workspace-main{padding-top:15px}
 .settings-tree-row[data-depth="2"]{padding-left:38px}
 .settings-tree-row[data-depth="3"]{padding-left:52px}
 .settings-tree-row[data-depth="4"]{padding-left:66px}
+
+
+/* BlogCTL-style full-width hierarchical settings navigation: one level at a time. */
+.settings-full-page{
+  width:100%;
+  max-width:none;
+  margin:0;
+  min-height:0;
+  padding:clamp(18px,2vw,32px);
+}
+.settings-full-page .settings-browser-header{padding:0 0 16px}
+.settings-full-page .settings-browser-header h2{font-size:20px}
+.settings-full-page .settings-search-wrap{padding:0 0 20px;border-bottom:0}
+.settings-full-page .settings-search-wrap input{max-width:none;width:100%;padding:12px 14px}
+.settings-full-page .settings-category-list{display:grid;grid-template-columns:1fr;gap:0;margin-top:0;border:1px solid #e4eaf2;border-radius:10px;overflow:hidden}
+.settings-full-page .settings-category-card{
+  width:100%;
+  min-height:78px;
+  border:0;
+  border-bottom:1px solid #e8edf4;
+  border-radius:0;
+  padding:15px 22px;
+  background:#fff;
+}
+.settings-full-page .settings-category-card:last-child{border-bottom:0}
+.settings-full-page .settings-category-card:hover{background:#f2f7ff}
+.settings-full-page .settings-category-card strong{font-size:15px}
+.settings-full-page .settings-category-card small{font-size:12px;margin-top:3px}
+.settings-category-meta{color:#899bb2;display:flex;gap:16px;align-items:center}
+.settings-category-chevron{color:#7d9ac4;font-size:22px;line-height:1}
+.settings-full-page .settings-breadcrumb{margin-bottom:23px}
+.settings-full-page .settings-detail-empty{display:none}
+.settings-full-page .settings-fields{max-width:none}
+.settings-full-page .settings-field label{grid-template-columns:minmax(0,1fr) minmax(220px,36%)}
+.settings-full-page .settings-search-hit{display:flex;padding:15px 22px}
+.settings-full-page .settings-results-count{background:#f7fafd;padding:9px 18px}
+@media(max-width:780px){
+ .settings-full-page .settings-field label{grid-template-columns:1fr}
+ .settings-full-page .settings-category-card{padding:12px 14px;min-height:66px}
+}
+
+/* Settings must consume all horizontal space available next to the app nav. */
+body:has(.settings-full-page) .workspace-main{max-width:none;width:100%}
