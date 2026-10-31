@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>OpenEcho · 影响力工作台</title>
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+  <link rel="stylesheet" href="/assets/app.css">
+  <script defer src="/assets/app.js"></script>
+  <script defer src="/assets/settings.js"></script>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark"><img src="/assets/favicon.svg" width="39" height="39" alt="" aria-hidden="true"></div><div><strong>OpenEcho</strong><small data-i18n="影响力观察工作台">影响力观察工作台</small></div></div>
+      <div class="sidebar-status"><span class="online-dot"></span><span data-i18n="本地服务">本地服务</span><span class="pill" data-i18n="已连接">已连接</span></div>
+      <div class="nav-label" data-i18n="工作台">工作台</div>
+      <nav id="navigation" aria-label="Workspaces"></nav>
+      <div class="sidebar-bottom"><div class="sidebar-footer"><span data-i18n="本地优先 · 数据私有">本地优先 · 数据私有</span><small>OpenEcho · v0.2.0</small></div></div>
+    </aside>
+    <div class="main-shell">
+      <header class="topbar">
+        <div><div class="eyebrow" data-i18n="工作台">工作台</div><h1 id="page-title">影响力总览</h1><p id="page-subtitle"></p></div>
+        <div class="top-actions"><span class="sync-indicator"><span class="online-dot"></span><span data-i18n="本地服务">本地服务</span></span>
+          <button type="button" class="btn btn-secondary" data-action="open-browser-tab" id="open-browser-tab" title="在标签页中打开" hidden>↗</button>
+          <button type="button" class="btn btn-secondary" data-action="toggle-locale" id="locale-button">EN</button>
+          <button type="button" class="btn btn-primary" data-action="refresh"><span aria-hidden="true">↻</span> <span data-i18n="刷新">刷新</span></button>
+        </div>
+      </header>
+      <main class="workspace-main">
+        <div class="notice" id="notice" role="status" aria-live="polite"></div>
+        <section id="view" aria-label="OpenEcho workspace"><div class="loading">正在读取 OpenEcho 数据…</div></section>
+      </main>
+    </div>
+  </div>
+</body>
+</html>
