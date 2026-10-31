@@ -20,11 +20,11 @@ Go 1.26 或以上：
 go run ./cmd/openecho -db data/openecho.sqlite
 ```
 
-浏览器打开 <http://127.0.0.1:18440>，填入 `data/api-token` 中自动生成的本地 Token。Token 仅存页面内存，不写入浏览器本地存储。也可以通过服务端 `OPENECHO_API_TOKEN` 设置不少于 32 字符的密钥。HTTP API 和 `/mcp` 均需要 Bearer 鉴权，仅允许本机回环地址监听。
+浏览器直接打开 <http://127.0.0.1:18440>，**本地 Web 页面不需要手动填写 Token**。页面使用仅在当前服务进程有效的 HttpOnly、SameSite=Strict 会话 Cookie；写操作还需同源请求头，拒绝跨站请求。程序 HTTP API 和 `/mcp` 仍支持独立的 Bearer 鉴权，`data/api-token` 中的密钥不会暴露到页面脚本；也可在服务端设置不少于 32 字符的 `OPENECHO_API_TOKEN`。HTTP 服务只允许回环地址监听。
 
 GitHub 指标采集优先使用服务端环境变量 `GITHUB_TOKEN`；明确允许复用已登录的 GitHub CLI 时可以加 `-github-auth gh`。权限不足标记为部分成功或不可用，不能当作零值。首次观察的 Release 下载是累计基线，而非本期新增。
 
-Web 页面提供作品及渠道登记、传播候选证据提交和审核、检索任务、历史数值指标导入预览、Markdown/JSON 报告与数据库备份。MCP 对外暴露同一业务逻辑；`-mcp-stdio` 支持本机客户端。默认 `-collect-interval 24h` 定时采集 GitHub，可设为 `-collect-interval 0` 禁用。
+独立 Web 页面默认中文，可切换并记住英文；侧栏包含影响力总览、项目、公开分发渠道、引用审核、检索任务、历史统计和设置。支持登记作品／公开链接、证据审核、任务管理、指标导入预览和数据库备份。**仅借鉴成熟管理面板的交互，不依赖 BlogCTL、浏览器扩展或其他发布工具运行，也不会直接连接它们的数据。** MCP 对外暴露同一业务逻辑；`-mcp-stdio` 支持本机客户端。默认 `-collect-interval 24h` 定时采集 GitHub，可设为 `-collect-interval 0` 禁用。
 
 一致性备份通过 Web 的“Download SQLite backup”；恢复只能写入**不存在的新数据库**，不能覆盖现有数据：
 

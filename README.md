@@ -6,7 +6,7 @@ Local-first observability for open-source and content impact.
 
 OpenEcho will connect projects, multilingual articles, distribution channels, metric history, and evidence of external citations or adoption. AI clients can discover evidence through their search tools and submit it through MCP.
 
-**Status: v0.1 development preview on a feature branch; no release published.** GitHub snapshots, article/site registry, bilingual channel links, candidate evidence and review, search tasks, historical numeric observations, MCP, Web UI, scheduled snapshots, raw-response archiving and backup/restore are implemented. Additional provider connectors and AI search execution are not included.
+**Status: v0.1 development preview on a feature branch; no release published.** GitHub snapshots, article/site registry, bilingual channel links, candidate evidence and review, search tasks, historical numeric observations, MCP, standalone bilingual Web UI, scheduled snapshots, raw-response archiving and backup/restore are implemented. Additional provider connectors and AI search execution are not included.
 
 ## Architecture and data policy
 
@@ -30,11 +30,11 @@ Requires Go >= 1.26. From the repository checkout:
 go run ./cmd/openecho -db data/openecho.sqlite
 ```
 
-Open <http://127.0.0.1:18440> and enter the generated token from `data/api-token`. This file is private. The token is held only in the tab's memory; the local HTTP API and `/mcp` require `Authorization: Bearer <token>` and a loopback Host. Alternatively set a 32+ character `OPENECHO_API_TOKEN` server-side. All HTTP listening is loopback-only.
+Open <http://127.0.0.1:18440> in a browser. **No manual token entry is required for the local UI.** It receives a process-scoped, HttpOnly, SameSite=Strict session cookie; unsafe requests require a same-origin UI header and cross-origin/cross-site access is rejected. The programmatic HTTP API and `/mcp` still accept the private `Authorization: Bearer <token>` credential from `data/api-token` (never exposed to page JavaScript). Alternatively set a 32+ character `OPENECHO_API_TOKEN` server-side. The HTTP server binds loopback only.
 
 Supply `GITHUB_TOKEN` to collect repository traffic with appropriate GitHub permissions. When explicitly authorized to use the signed-in CLI, run with `-github-auth gh` instead. A missing permission or endpoint is recorded as partial/unavailable, not zero. Public release downloads are cumulative asset counters; the first observation is a baseline, not an interval increment.
 
-The UI supports registering repositories/articles/sites, language/channel pages, submitting candidate mentions, human review and grouping, discovery/search run tracking, numeric history dry-run import, Markdown/JSON report downloads and SQLite backup. All write commands require unique request IDs. The MCP tools expose the same operations, and `-mcp-stdio` provides a local stdio transport. The default `-collect-interval 24h` runs idempotent GitHub snapshots; set `-collect-interval 0` to disable scheduling.
+The standalone bilingual UI defaults to Simplified Chinese, with persistent English switching. Its sidebar provides overview, projects, channels, evidence review, discovery tasks, historical metrics and settings. It supports registering repositories/articles/sites, language/channel pages, submitting candidate mentions, human review and grouping, discovery/search run tracking, numeric history dry-run import and SQLite backup. **OpenEcho has no runtime dependency on BlogCTL, any browser extension or other publishing application.** All write commands require unique request IDs. The MCP tools expose the same operations, and `-mcp-stdio` provides a local stdio transport. The default `-collect-interval 24h` runs idempotent GitHub snapshots; set `-collect-interval 0` to disable scheduling.
 
 Restore **only to a new database path**, never over the current database:
 

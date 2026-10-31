@@ -58,7 +58,7 @@ Build a thin vertical slice first: register a repository, collect metrics, persi
 ## P6 — Additional sources
 
 - Umami, Search Console, distribution-platform metrics and optional Webmention.
-- Integrate BlogCTL through explicit versioned exports or APIs after inspecting its actual capabilities; avoid directly coupling to its private database schema.
+- Expose an independent, manually managed public-channel registry. The application has no dependency on a blog publisher or its database.
 - Track technical events (release, distribution, migration, incidents) on the timeline.
 - Validate provider permissions and capabilities before marking an adapter supported.
 
@@ -80,6 +80,6 @@ The implementation PR is stacked on the repository-bootstrap PR until that PR is
 
 ## Workflow implementation checkpoint — 2026-10-31
 
-The development branch extends the GitHub foundation with article/site registry, channel pages, reviewed mentions and auditable grouping, lease-based AI discovery tasks, historical numerical metric import, GitHub endpoint retry and filtered raw-response archival, streamable HTTP/stdio MCP, embedded UI, scheduled collection, SQLite backup/restore, and Markdown/JSON report exports.
+The development branch extends the GitHub foundation with article/site registry, channel pages, reviewed mentions and auditable grouping, lease-based AI discovery tasks, historical numerical metric import, GitHub endpoint retry and filtered raw-response archival, streamable HTTP/stdio MCP, standalone bilingual sidebar UI with local browser session, scheduled collection, SQLite backup/restore, and Markdown/JSON report exports.
 
-Outstanding: independent external-provider adapters (Umami, GSC, BlogCTL), actual automatic AI search, definitive independent usage attribution, full user-configurable source/accounts, packaged releases, and tested Windows/macOS runtime behavior. These are **not** represented as completed. CI remains blocked by GitHub account billing/spending settings. For detailed acceptance evidence see [workflow-validation.md](workflow-validation.md).
+Outstanding: independent external-provider adapters (Umami, GSC, Bing Webmaster), actual automatic AI search, definitive independent usage attribution, full user-configurable source/accounts, packaged releases, and tested Windows/macOS runtime behavior. These are **not** represented as completed. CI remains blocked by GitHub account billing/spending settings. For detailed acceptance evidence see [workflow-validation.md](workflow-validation.md).

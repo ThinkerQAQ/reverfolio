@@ -2,11 +2,14 @@ package echo
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/subtle"
 	"embed"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
+	"io/fs"
 	"net"
 	"net/http"
 	"strconv"
@@ -14,11 +17,24 @@ import (
 	"time"
 )
 
-//go:embed web/app.html
+//go:embed web/*
 var web embed.FS
 
 func Handler(service Service, token string) http.Handler {
+	// The local UI gets a short-lived process-scoped, HttpOnly session cookie.
+	// Programmatic API and MCP clients still use the original bearer token.
+	// The cookie never exposes the bearer token to JavaScript or page markup.
+	seed := make([]byte, 32)
+	if _, err := rand.Read(seed); err != nil {
+		panic("could not initialize local UI session")
+	}
+	uiSession := hex.EncodeToString(seed)
 	mux := http.NewServeMux()
+	assets, err := fs.Sub(web, "web")
+	if err != nil {
+		panic("could not load embedded UI assets")
+	}
+	mux.Handle("GET /assets/", http.StripPrefix("/assets/", http.FileServerFS(assets)))
 	service.registerWorkflow(mux)
 	write := func(w http.ResponseWriter, value any) {
 		w.Header().Set("Content-Type", "application/json")
@@ -39,6 +55,7 @@ func Handler(service Service, token string) http.Handler {
 	}
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { write(w, map[string]string{"status": "ok"}) })
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
+		http.SetCookie(w, &http.Cookie{Name: "openecho_ui", Value: uiSession, Path: "/", HttpOnly: true, SameSite: http.SameSiteStrictMode})
 		data, _ := web.ReadFile("web/app.html")
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Write(data)
@@ -156,7 +173,7 @@ func Handler(service Service, token string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Cache-Control", "no-store")
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
 		// Require exact loopback Host even if the socket was reached through a proxy; prevent DNS rebinding.
 		host := r.Host
 		if h, _, err := net.SplitHostPort(host); err == nil {
@@ -169,7 +186,20 @@ func Handler(service Service, token string) http.Handler {
 		if strings.HasPrefix(r.URL.Path, "/api/") || r.URL.Path == "/mcp" {
 			r.Body = http.MaxBytesReader(w, r.Body, 2*1024*1024)
 			provided := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
-			if !strings.HasPrefix(r.Header.Get("Authorization"), "Bearer ") || token == "" || subtle.ConstantTimeCompare([]byte(provided), []byte(token)) != 1 {
+			bearerOK := strings.HasPrefix(r.Header.Get("Authorization"), "Bearer ") &&
+				token != "" && subtle.ConstantTimeCompare([]byte(provided), []byte(token)) == 1
+			cookie, cookieErr := r.Cookie("openecho_ui")
+			cookieOK := cookieErr == nil && subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(uiSession)) == 1
+			// A cookie is only accepted for the browser UI's same-origin fetches;
+			// no cookie access to MCP, and unsafe requests require an explicit UI header.
+			if cookieOK {
+				site := r.Header.Get("Sec-Fetch-Site")
+				if r.URL.Path == "/mcp" || site == "cross-site" || site == "same-site" ||
+					(r.Method != http.MethodGet && r.Header.Get("X-OpenEcho-UI") != "1") {
+					cookieOK = false
+				}
+			}
+			if !bearerOK && !cookieOK {
 				http.Error(w, "unauthorized", http.StatusUnauthorized)
 				return
 			}
