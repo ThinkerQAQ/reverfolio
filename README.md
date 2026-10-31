@@ -22,6 +22,10 @@ Use feature branches and pull requests. Squash merge only; delete merged branche
 
 [MIT](LICENSE). Third-party code must retain its applicable notices. No third-party application source has been imported during bootstrap.
 
+## Browser extension (optional)
+
+The independent OpenEcho browser extension is in extension/. It includes dedicated icons, read-only local service health, quick links and a side-panel launcher. Windows files are deployed under C:\software\Coding\opencho\extension. Install through **Edge: edge://extensions > Developer mode > Load unpacked**, selecting that exact extension folder. See [installation steps](extension/README.md). It has no BlogCTL dependency and never handles GitHub or MCP credentials.
+
 ## Configuration and Windows layout
 
 Windows: C:\software\Coding\opencho\. The executable is in bin/opencho.exe, SQLite state in Data/state.sqlite and local settings in config.toml. See [Windows layout](docs/windows-layout.md). This local installation is independent of the Ubuntu/WSL database and does not automatically synchronize.

@@ -12,6 +12,10 @@
 
 采用 [MIT](LICENSE) 许可证。引入第三方代码时保留适用的版权和许可声明。
 
+## 浏览器扩展（可选）
+
+OpenEcho 自有的独立扩展位于 extension/，提供专属图标、服务状态、快捷入口和侧边栏。Windows 文件放在 C:\software\Coding\opencho\extension。在 Edge 打开 edge://extensions，开启开发人员模式，点击加载解压缩的扩展，并选择 extension 文件夹。详见 [安装说明](extension/README.zh-CN.md)。不依赖 BlogCTL，也不读取 GitHub/MCP 凭据。
+
 ## Windows 目录约定
 
 Windows 安装目录：C:\software\Coding\opencho\（拼写为 opencho）。可执行文件位于 bin/opencho.exe，SQLite 数据位于 Data/state.sqlite，非敏感运行配置和界面设置保存在 config.toml。详情参见 [Windows 目录结构](docs/windows-layout.md)。Windows 与 Ubuntu/WSL 数据库首次复制后不会自动同步。

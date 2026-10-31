@@ -9,6 +9,11 @@ Folder structure:
     opencho/
       bin/
         opencho.exe
+      extension/
+        manifest.json
+        icons/
+        popup/
+        _locales/
       Data/
         state.sqlite
         api-token
@@ -16,7 +21,8 @@ Folder structure:
       Start-OpenEcho.cmd
       Run-OpenEcho.ps1
 
-- bin/: Windows executable, not personal data.
+- bin/: Windows executable with the OpenEcho icon, not personal data.
+- extension/: optional unpacked Edge/Chrome extension with icon, local status and quick links. Load the extension folder from edge://extensions (Developer mode). It does not read SQLite or TOML.
 - Data/: private local SQLite database and automatically generated server API token. Never overwrite on upgrade.
 - config.toml: local TOML configuration for startup and nonsecret UI preferences. It is NOT a SQLite table; never commit it.
 - config.example.toml: tracked reference template; safe to share.

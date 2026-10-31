@@ -1,0 +1,33 @@
+:root{font:13px/1.5 system-ui,-apple-system,"Segoe UI","Microsoft YaHei",sans-serif;color:#263b57;background:#f5f8fd}
+*{box-sizing:border-box}
+body{margin:0;width:360px;min-width:300px}
+button,select{font:inherit}
+button{cursor:pointer}
+header{display:flex;gap:11px;align-items:center;background:#fff;padding:17px 18px 14px;border-bottom:1px solid #e5ebf4}
+header img{flex-shrink:0;filter:drop-shadow(0 3px 5px #3975d024)}
+.product{flex:1;display:flex;flex-direction:column;line-height:1.35}
+.product strong{font-size:18px;letter-spacing:-.02em;color:#203859}
+.product span{font-size:11px;color:#8394a9}
+.small-btn{background:#fff;border:1px solid #d8e1ef;border-radius:8px;color:#385982;padding:5px 10px;font-size:12px}
+.status-row{display:flex;justify-content:space-between;align-items:center;background:#fff;padding:8px 19px;border-bottom:1px solid #e5ebf4}
+.status-left{display:flex;gap:8px;align-items:center;font-size:12px}
+.dot{width:8px;height:8px;background:#9ca9ba;border-radius:50%;display:inline-block}
+.dot.online{background:#21b47a;box-shadow:0 0 0 3px #e5f8ef}
+.dot.offline{background:#ea6956}
+.text-button{border:0;background:none;color:#2969c9;font-size:12px;padding:5px}
+main{padding:17px 19px 13px}
+label{display:block;margin-bottom:7px;font-weight:650;font-size:12px;color:#687e98}
+select{border:1px solid #d6e1ef;background:#fff;color:#294564;border-radius:9px;width:100%;padding:10px 12px;outline-offset:3px}
+.address{font-size:11px;color:#8296ac;margin:7px 1px 14px}
+.primary{background:#2968da;color:#fff;border:0;border-radius:9px;font-size:13px;font-weight:650;width:100%;padding:11px 15px;display:flex;align-items:center;justify-content:center;gap:9px}
+.primary:hover{background:#1e55b9}
+.primary:disabled{opacity:.5;cursor:not-allowed}
+.section-title{font-size:12px;color:#8696ab;font-weight:700;margin:19px 0 9px}
+.links{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.links button{background:#fff;color:#345375;border:1px solid #e0e8f2;border-radius:8px;padding:10px 8px;font-size:12px;text-align:center}
+.links button:hover{border-color:#b6cdf3;background:#eff5ff}
+.links button:disabled{opacity:.5}
+.secondary{width:100%;margin-top:13px;border:1px solid #d6e1ef;border-radius:8px;background:#fff;color:#3566a7;padding:9px 10px;font-size:12px;font-weight:550}
+.help{font-size:11px;color:#8495a9;margin:12px 0 1px;line-height:1.5}
+footer{display:flex;justify-content:space-between;border-top:1px solid #e8edf4;padding:10px 19px;color:#94a5b8;font-size:10px}
+@media(min-width:480px){body{width:auto}}

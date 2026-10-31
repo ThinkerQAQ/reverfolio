@@ -42,6 +42,9 @@ func TestLocalUIAutomaticSessionAndAPIProtection(t *testing.T) {
 	if js, _ := get("/assets/app.js"); js.StatusCode != 200 {
 		t.Fatalf("JS %d", js.StatusCode)
 	}
+	if icon, data := get("/assets/favicon.svg"); icon.StatusCode != 200 || !strings.Contains(string(data), "<svg") {
+		t.Fatalf("Brand favicon missing: HTTP %d", icon.StatusCode)
+	}
 	anon, _ := get("/api/works")
 	if anon.StatusCode != 401 {
 		t.Fatalf("unauthenticated API returned %d", anon.StatusCode)

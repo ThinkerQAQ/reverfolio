@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>OpenEcho</title>
+  <link rel="stylesheet" href="./style.css">
+  <script src="./popup.js" defer></script>
+</head>
+<body>
+  <header>
+    <img src="../icons/icon48.png" width="45" height="45" alt="">
+    <div class="product"><strong>OpenEcho</strong><span data-i18n="tagline">影响力观察工作台</span></div>
+    <button id="lang" class="small-btn" type="button" aria-label="Language">EN</button>
+  </header>
+  <div class="status-row">
+    <div class="status-left"><span id="status-dot" class="dot"></span><strong id="status" aria-live="polite">检测中…</strong></div>
+    <button id="retry" class="text-button" type="button" data-i18n="retry">刷新</button>
+  </div>
+  <main>
+    <label for="service" data-i18n="service">本地服务</label>
+    <select id="service">
+      <option value="auto" data-i18n="auto">自动检测（优先 Windows）</option>
+      <option value="windows" data-i18n="windows">Windows · 19452</option>
+      <option value="wsl" data-i18n="wsl">Ubuntu / WSL · 19450</option>
+      <option value="portable" data-i18n="portable">其他本地 · 18440</option>
+    </select>
+    <div id="service-address" class="address" aria-live="polite">127.0.0.1</div>
+    <button id="open" class="primary" type="button"><span data-i18n="open">打开 OpenEcho</span><span aria-hidden="true">↗</span></button>
+    <div class="section-title" data-i18n="quick">快捷入口</div>
+    <div class="links" id="links">
+      <button type="button" data-route="overview" data-i18n="overview">影响力总览</button>
+      <button type="button" data-route="works" data-i18n="works">项目管理</button>
+      <button type="button" data-route="channels" data-i18n="channels">分发渠道</button>
+      <button type="button" data-route="evidence" data-i18n="evidence">引用与采用</button>
+      <button type="button" data-route="tasks" data-i18n="tasks">发现任务</button>
+      <button type="button" data-route="history" data-i18n="history">历史统计</button>
+      <button type="button" data-route="settings" data-i18n="settings">设置</button>
+    </div>
+    <button id="sidepanel" class="secondary" type="button" data-i18n="sidePanel">在侧边栏打开快捷入口</button>
+    <p id="help" class="help" data-i18n="hint">扩展只检查本地服务状态，实际数据管理在 OpenEcho 页面完成。</p>
+  </main>
+  <footer><span data-i18n="privacy">不读取账号 Cookie · 不上传数据</span><span>v0.1.0</span></footer>
+</body>
+</html>
