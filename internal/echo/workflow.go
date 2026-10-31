@@ -181,7 +181,7 @@ func addTool[In any](server *mcp.Server, name, description string, readonly bool
 	})
 }
 func (s Service) MCPServer() *mcp.Server {
-	server := mcp.NewServer(&mcp.Implementation{Name: "Reverfolio", Version: "0.2.1"}, nil)
+	server := mcp.NewServer(&mcp.Implementation{Name: "Reverfolio", Version: "0.3.0"}, nil)
 	addTool(server, "list_works", "Read registered repositories and articles.", true, func(ctx context.Context, _ EmptyInput) (any, error) { return s.Store.Works(ctx) })
 	addTool(server, "get_work", "Read one work, channel pages, recent snapshots and interval changes.", true, func(ctx context.Context, in WorkIDInput) (any, error) { return s.Store.Overview(ctx, in.WorkID) })
 	addTool(server, "upsert_work", "Register a project or article. Requires request_id; duplicate identity returns the existing work without changing its title.", false, func(ctx context.Context, in WorkInput) (any, error) { return s.Store.RegisterWork(ctx, in) })
@@ -209,6 +209,7 @@ func (s Service) MCPServer() *mcp.Server {
 	addTool(server, "update_setting", "Change an allowlisted nonsecret Reverfolio preference with optimistic version and request ID.", false, func(ctx context.Context, in UpdateSettingInput) (any, error) {
 		return s.Config.UpdateSettings(ctx, UpdateSettingsInput{RequestID: in.RequestID, Updates: []SettingChange{{Key: in.Key, Value: in.Value, ExpectedVersion: in.ExpectedVersion}}})
 	})
+	addTool(server, "get_collection_status", "Read configured collection interval and credential presence; actual endpoint permission or collection errors remain in snapshots. No secrets returned.", true, func(ctx context.Context, _ EmptyInput) (any, error) { return s.RuntimeStatus(ctx) })
 	addTool(server, "get_audit", "Read historical observations, review transitions and recorded search scopes. Lease secrets are omitted.", true, func(ctx context.Context, _ EmptyInput) (any, error) { return s.Store.Audit(ctx) })
 	return server
 }
@@ -252,7 +253,7 @@ func (s Service) registerWorkflow(mux *http.ServeMux) {
 	actionRoute(mux, "claim_discovery_task", func(ctx context.Context, in ClaimInput) (any, error) { return s.Store.ClaimTask(ctx, in) })
 	actionRoute(mux, "complete_discovery_task", func(ctx context.Context, in CompleteInput) (any, error) { return s.Store.CompleteTask(ctx, in) })
 	mux.HandleFunc("GET /api/runtime", func(w http.ResponseWriter, r *http.Request) {
-		v, err := s.Config.RuntimeStatus(r.Context())
+		v, err := s.RuntimeStatus(r.Context())
 		if err != nil {
 			http.Error(w, "invalid local config", 500)
 			return
