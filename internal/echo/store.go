@@ -28,10 +28,12 @@ type Work struct {
 	RepositoryID *int64 `json:"github_id,omitempty"`
 }
 type Asset struct {
-	ID        int64     `json:"id"`
-	Name      string    `json:"name"`
-	Downloads int64     `json:"download_count"`
-	CreatedAt time.Time `json:"created_at"`
+	Category             string    `json:"category"`
+	ClassificationReason string    `json:"classification_reason"`
+	ID                   int64     `json:"id"`
+	Name                 string    `json:"name"`
+	Downloads            int64     `json:"download_count"`
+	CreatedAt            time.Time `json:"created_at"`
 }
 type Daily struct {
 	Day     string `json:"day"`
@@ -44,6 +46,7 @@ type Traffic struct {
 	Days    []Daily `json:"days"`
 }
 type Snapshot struct {
+	Downloads    *DownloadBreakdown         `json:"downloads"`
 	Popular      map[string]json.RawMessage `json:"popular,omitempty"`
 	Raw          map[string]json.RawMessage `json:"-"`
 	ID           int64                      `json:"id"`
@@ -66,10 +69,12 @@ type Change struct {
 	State   string `json:"state"`
 }
 type Interval struct {
-	From   *time.Time `json:"from"`
-	To     *time.Time `json:"to"`
-	State  string     `json:"state"`
-	Assets []Change   `json:"assets"`
+	KnownDownloads *DownloadBreakdown `json:"known_downloads"`
+	UnknownAssets  int                `json:"unknown_assets"`
+	From           *time.Time         `json:"from"`
+	To             *time.Time         `json:"to"`
+	State          string             `json:"state"`
+	Assets         []Change           `json:"assets"`
 }
 
 type Store struct{ db *sql.DB }
@@ -184,6 +189,7 @@ func (s *Store) SnapshotByKey(ctx context.Context, workID int64, key string) (Sn
 	return snap, err
 }
 func (s *Store) Save(ctx context.Context, snap Snapshot) (Snapshot, error) {
+	annotateSnapshot(&snap)
 	if snap.Key == "" || snap.CapturedAt.IsZero() {
 		return Snapshot{}, ErrInvalid
 	}
@@ -314,6 +320,16 @@ func Compare(previous, current Snapshot) Interval {
 	}
 	for _, a := range old {
 		result.Assets = append(result.Assets, Change{AssetID: a.ID, Name: a.Name, State: "missing_or_deleted"})
+	}
+
+	result.KnownDownloads = &DownloadBreakdown{ClassificationVersion: AssetClassificationVersion}
+	for _, change := range result.Assets {
+		if change.Delta == nil {
+			result.UnknownAssets++
+			continue
+		}
+		category, _ := ClassifyAsset(change.Name)
+		result.KnownDownloads.add(category, *change.Delta)
 	}
 	return result
 }

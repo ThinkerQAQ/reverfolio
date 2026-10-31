@@ -51,3 +51,9 @@ go run ./cmd/reverfolio -restore /private/backup.sqlite -db /private/new-state.s
 ## 名称迁移
 
 原名 OpenEcho，现统一为 Reverfolio（回响集）。保留原有 Windows SQLite 数据、TOML 配置、扩展 ID 与端口；旧目录保留兼容入口。详见[迁移说明](docs/rename-migration.md)。
+
+## 下载分类与区间变化
+
+网页、扩展、MCP 和导出报告共用后端文件名分类：程序包、源码、辅助文件、其他／未分类。逐附件显示类别和分类理由；含义不明的压缩包不会直接计为程序包，下载量仍不代表安装或真实用户。历史快照读取时补充分类，不改写原始观测。
+
+区间变化只合计已知增量，另列新增基线、计数下降、附件消失等未知增量；保留两个快照的时间范围，不冒充每日增长。没有 Release 访问权限时显示不可用，而不是 0。

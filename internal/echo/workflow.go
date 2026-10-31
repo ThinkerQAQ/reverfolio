@@ -118,11 +118,12 @@ func (s *Store) GenerateReport(ctx context.Context, id int64) (ReportOutput, err
 			text += fmt.Sprintf("  - Forks: %d\n", *latest.Forks)
 		}
 		if latest.ReleasesOK {
-			var downloads int64
-			for _, a := range latest.Assets {
-				downloads += a.Downloads
+			annotateSnapshot(latest)
+			d := latest.Downloads
+			text += fmt.Sprintf("  - Release downloads: %d total; %d packages; %d source; %d auxiliary; %d other/unclassified (filename heuristic %s, not users)\n", d.Total, d.Packages, d.Source, d.Auxiliary, d.Other, d.ClassificationVersion)
+			if changes := source.Changes; changes.KnownDownloads != nil {
+				text += fmt.Sprintf("  - Observed interval downloads: %d total; %d packages; %d assets with unknown delta; interval=%s to %s (not a daily rate)\n", changes.KnownDownloads.Total, changes.KnownDownloads.Packages, changes.UnknownAssets, stamp(*changes.From), stamp(*changes.To))
 			}
-			text += fmt.Sprintf("  - All release-asset downloads (including auxiliary files): %d\n", downloads)
 		}
 		for _, metric := range []string{"views", "clones"} {
 			if window, ok := latest.Traffic[metric]; ok {

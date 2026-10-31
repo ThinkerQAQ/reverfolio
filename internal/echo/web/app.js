@@ -75,7 +75,7 @@ const state = {lang:(localStorage.getItem("reverfolio.lang") || localStorage.get
 const $ = id => document.getElementById(id);
 const T = key => state.lang==="en" ? (LANG[key] || key) : key;
 const E = value => String(value ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const fmt = value => Number(value ?? 0).toLocaleString(state.lang==="en"?"en-US":"zh-CN");
+const fmt = value => value == null ? "—" : Number(value).toLocaleString(state.lang==="en"?"en-US":"zh-CN");
 const dt = value => value ? new Date(value).toLocaleString(state.lang==="en"?"en-US":"zh-CN",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",...(pref("display.timezone")==="UTC"?{timeZone:"UTC"}:{})})+(pref("display.timezone")==="UTC"?" UTC":"") : "—";
 const when = value => value ? new Date(value).toLocaleDateString(state.lang==="en"?"en-US":"zh-CN",pref("display.timezone")==="UTC"?{timeZone:"UTC"}:undefined) : "—";
 const safeHref = value => {try {const u=new URL(value);return ["https:","http:"].includes(u.protocol)?E(u.href):"#";}catch{return "#";}};
@@ -144,16 +144,24 @@ function render(){
 }
 const heading=(title,sub="",right="")=>'<div class="section-header"><div><h2>'+T(title)+'</h2>'+(sub?'<p>'+T(sub)+'</p>':"")+'</div>'+right+'</div>';
 const stat=(title,value,note,primary=false)=>'<div class="stat-card'+(primary?' primary':'')+'"><div class="stat-label">'+T(title)+'</div><div class="stat-value">'+fmt(value)+'</div><div class="stat-hint">'+T(note)+'</div></div>';
-function isInstallableAsset(asset){
- const name=String(asset.name||"").toLowerCase();
- if(/(?:sha256|checksums?|license|sbom|source|ffmpeg|debug|\.asc$|\.sig$|\.txt$)/i.test(name))return false;
- return /(?:\.zip|\.tar\.gz|\.tgz|\.exe|\.msi|\.deb|\.rpm|\.dmg|\.pkg|\.appimage|\.7z)$/.test(name);
-}
 function projects(){
  return state.data.report.report.sources.map(s=>{
-  const x=s.latest,assets=x?.assets||[],views=x?.traffic?.views||{},clones=x?.traffic?.clones||{};
-  return {...s,downloads:assets.filter(a=>pref("github.download_scope")!=="installers"||isInstallableAsset(a)).reduce((n,a)=>n+(Number(a.download_count)||0),0),stars:x?.stars??0,views:views.count??0,clones:clones.count??0,snapshot:x?.captured_at||""};
+  const x=s.latest,d=x?.downloads;
+  return {...s,downloads:d?(pref("github.download_scope")==="installers"?d.packages:d.total):null,stars:x?.stars??null,clones:x?.traffic?.clones?.count??null,snapshot:x?.captured_at||""};
  });
+}
+function downloadLabel(){return pref("github.download_scope")==="installers"?settingsLabel(["程序包下载","Package downloads"]):T("发布资产下载");}
+function downloadDetails(p){
+ const d=p.latest?.downloads;
+ if(!d)return '<p class="muted">'+settingsLabel(["Release 数据不可用","Release data unavailable"])+'</p>';
+ const kinds={package:settingsLabel(["程序包","Package"]),source:settingsLabel(["源码","Source"]),auxiliary:settingsLabel(["辅助文件","Auxiliary"]),other:settingsLabel(["其他／未分类","Other / unclassified"])};
+ const changes=p.changes,delta=changes?.known_downloads;
+ return '<details class="download-breakdown"><summary>'+settingsLabel(["下载分类与区间变化","Download breakdown & interval changes"])+'</summary>'+
+ '<p class="meta">'+E(settingsLabel(["按文件名推断，不能代表安装或真实用户。","Inferred from filenames; not installations or verified users."]))+'</p>'+
+ '<p>'+E(settingsLabel(["程序包","Packages"]))+': '+fmt(d.packages)+' · '+E(kinds.source)+': '+fmt(d.source)+' · '+E(kinds.auxiliary)+': '+fmt(d.auxiliary)+' · '+E(kinds.other)+': '+fmt(d.other)+'</p>'+
+ (delta?'<p>'+E(settingsLabel(["已知区间增量","Known interval increase"]))+': +'+fmt(delta.total)+' ('+E(kinds.package)+': +'+fmt(delta.packages)+'); '+E(settingsLabel(["未知增量附件","Assets with unknown changes"]))+': '+fmt(changes.unknown_assets)+'</p><p class="meta">'+dt(changes.from)+' → '+dt(changes.to)+'</p>':'<p class="meta">'+E(settingsLabel(["尚无两个可比较的完整 Release 快照。","Two complete release observations are required for a comparison."]))+'</p>')+
+ '<div class="table-wrap"><table class="data-table"><thead><tr><th>'+settingsLabel(["附件","Asset"])+'</th><th>'+settingsLabel(["分类","Category"])+'</th><th>'+settingsLabel(["累计下载","Cumulative downloads"])+'</th></tr></thead><tbody>'+
+ (p.latest.assets||[]).map(a=>'<tr><td style="overflow-wrap:anywhere">'+E(a.name)+'</td><td>'+E(kinds[a.category]||kinds.other)+'</td><td>'+fmt(a.download_count)+'</td></tr>').join("")+'</tbody></table></div></details>';
 }
 function overviewView(){
  const {works,report,mentions}=state.data,summary=report.report,rows=projects();
@@ -167,10 +175,10 @@ function overviewView(){
       '<small>'+E(p.repository)+'</small></div>'+
       '<span class="activity-external">'+anchor("https://github.com/"+p.repository,"↗")+'</span></div>'+
       '<div class="activity-stat-row">'+
-      '<div><span>'+T("发布资产下载")+'</span><strong>'+fmt(p.downloads)+'</strong></div>'+
+      '<div><span>'+downloadLabel()+'</span><strong>'+fmt(p.downloads)+'</strong></div>'+
       '<div><span>'+T("近期克隆")+'</span><strong>'+fmt(p.clones)+'</strong></div>'+
       '<div><span>'+T("Star")+'</span><strong>'+fmt(p.stars)+'</strong></div>'+
-      '</div><div class="activity-foot"><span>'+T("最近采集")+'</span><time>'+dt(p.snapshot)+'</time></div></article>'
+      '</div><div class="activity-foot"><span>'+T("最近采集")+'</span><time>'+dt(p.snapshot)+'</time></div>'+downloadDetails(p)+'</article>'
   ).join("")+'</div>'+
   '<details class="panel activity-details"><summary>'+settingsLabel(["查看 GitHub 原始统计表","View the GitHub metrics table"])+'</summary>'+
   '<div class="table-wrap"><table class="data-table"><thead><tr><th>'+T("仓库")+'</th><th>'+(pref("github.download_scope")==="installers"?settingsLabel(["安装包下载","Installable downloads"]):T("发布资产下载"))+'</th><th>'+T("近期克隆")+'</th><th>'+T("Star")+'</th><th>'+T("最近采集")+'</th></tr></thead><tbody>'+
@@ -208,10 +216,10 @@ function worksView(){
   const url=w.kind==="project"?"https://github.com/"+w.repository:w.canonical_url;
   return '<article class="mini-card filterable" data-search="'+E([w.title,w.repository,w.canonical_url].join(" ").toLowerCase())+'"><div class="work-header"><h3>'+anchor(url,w.title)+'</h3>'+tag(T(w.kind==="project"?"GitHub 项目":w.kind==="site"?"网站":"文章"))+'</div>'+
    '<p class="meta">'+E(w.kind==="project"?w.repository:w.canonical_url)+'</p><div class="work-stats">'+
-   (p?'<span>'+T("发布资产下载")+': <strong>'+fmt(p.downloads)+'</strong></span><span>'+T("近期克隆")+': <strong>'+fmt(p.clones)+'</strong></span>':'')+
+   (p?'<span>'+downloadLabel()+': <strong>'+fmt(p.downloads)+'</strong></span><span>'+T("近期克隆")+': <strong>'+fmt(p.clones)+'</strong></span>':'')+
    '<span>'+T("渠道数")+': <strong>'+fmt(pages.length)+'</strong></span></div>'+
    (w.kind==="project"?'<div class="btn-row" style="margin-top:15px"><button class="btn btn-sm" data-action="collect" data-id="'+w.id+'">'+T("更新 GitHub")+'</button><button class="btn btn-sm" data-action="show-work" data-id="'+w.id+'">'+T("查看详情")+'</button></div>':'<div class="btn-row" style="margin-top:15px"><button class="btn btn-sm" data-action="navigate" data-view="channels">'+T("关联链接")+'</button></div>')+
-   '<details class="work-detail" id="detail-'+w.id+'" hidden><summary>'+T("统计详情")+'</summary><pre>'+E(JSON.stringify(p?.latest||{channels:pages},null,2))+'</pre></details></article>';
+   (p?downloadDetails(p):'')+'<details class="work-detail" id="detail-'+w.id+'" hidden><summary>'+T("统计详情")+'</summary><pre>'+E(JSON.stringify(p?.latest||{channels:pages},null,2))+'</pre></details></article>';
  }).join("");
  return '<div class="toolbar"><input class="search" data-filter placeholder="'+T("输入关键词筛选")+'" aria-label="'+T("项目检索")+'"><div class="muted">'+T("已登记作品")+': '+fmt(state.data.works.length)+'</div></div>'+
  '<div class="grid-cards">'+cards+'</div>'+
