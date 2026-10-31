@@ -207,6 +207,7 @@ func (g GitHub) Collect(ctx context.Context, work Work, key string) Snapshot {
 	if snap.Stars == nil && !snap.ReleasesOK && len(snap.Traffic) == 0 {
 		snap.State = "failed"
 	}
+	annotateSnapshot(&snap)
 	return snap
 }
 
