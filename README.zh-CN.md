@@ -12,6 +12,10 @@
 
 采用 [MIT](LICENSE) 许可证。引入第三方代码时保留适用的版权和许可声明。
 
+## Windows 目录约定
+
+Windows 安装目录：C:\software\Coding\opencho\（拼写为 opencho）。可执行文件位于 bin/opencho.exe，SQLite 数据位于 Data/state.sqlite，非敏感运行配置和界面设置保存在 config.toml。详情参见 [Windows 目录结构](docs/windows-layout.md)。Windows 与 Ubuntu/WSL 数据库首次复制后不会自动同步。
+
 ## 本地运行
 
 Go 1.26 或以上：
@@ -24,7 +28,7 @@ go run ./cmd/openecho -db data/openecho.sqlite
 
 GitHub 指标采集优先使用服务端环境变量 `GITHUB_TOKEN`；明确允许复用已登录的 GitHub CLI 时可以加 `-github-auth gh`。权限不足标记为部分成功或不可用，不能当作零值。首次观察的 Release 下载是累计基线，而非本期新增。
 
-独立 Web 页面默认中文，可切换并记住英文；侧栏包含影响力总览、项目、公开分发渠道、引用审核、检索任务、历史统计和设置。支持登记作品／公开链接、证据审核、任务管理、指标导入预览和数据库备份。**仅借鉴成熟管理面板的交互，不依赖 BlogCTL、浏览器扩展或其他发布工具运行，也不会直接连接它们的数据。** MCP 对外暴露同一业务逻辑；`-mcp-stdio` 支持本机客户端。默认 `-collect-interval 24h` 定时采集 GitHub，可设为 `-collect-interval 0` 禁用。
+独立 Web 页面默认中文，可切换英文并保存在 TOML 中；侧栏包含影响力总览、项目、公开分发渠道、引用审核、检索任务、历史统计和设置。支持登记作品／公开链接、证据审核、任务管理、指标导入预览和数据库备份。**仅借鉴成熟管理面板的交互，不依赖 BlogCTL、浏览器扩展或其他发布工具运行，也不会直接连接它们的数据。** MCP 对外暴露同一业务逻辑；`-mcp-stdio` 支持本机客户端。默认 `-collect-interval 24h` 定时采集 GitHub，可设为 `-collect-interval 0` 禁用。
 
 一致性备份通过 Web 的“Download SQLite backup”；恢复只能写入**不存在的新数据库**，不能覆盖现有数据：
 

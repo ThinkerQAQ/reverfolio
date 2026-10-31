@@ -22,6 +22,10 @@ Use feature branches and pull requests. Squash merge only; delete merged branche
 
 [MIT](LICENSE). Third-party code must retain its applicable notices. No third-party application source has been imported during bootstrap.
 
+## Configuration and Windows layout
+
+Windows: C:\software\Coding\opencho\. The executable is in bin/opencho.exe, SQLite state in Data/state.sqlite and local settings in config.toml. See [Windows layout](docs/windows-layout.md). This local installation is independent of the Ubuntu/WSL database and does not automatically synchronize.
+
 ## Run locally
 
 Requires Go >= 1.26. From the repository checkout:
@@ -34,7 +38,7 @@ Open <http://127.0.0.1:18440> in a browser. **No manual token entry is required 
 
 Supply `GITHUB_TOKEN` to collect repository traffic with appropriate GitHub permissions. When explicitly authorized to use the signed-in CLI, run with `-github-auth gh` instead. A missing permission or endpoint is recorded as partial/unavailable, not zero. Public release downloads are cumulative asset counters; the first observation is a baseline, not an interval increment.
 
-The standalone bilingual UI defaults to Simplified Chinese, with persistent English switching. Its sidebar provides overview, projects, channels, evidence review, discovery tasks, historical metrics and settings. It supports registering repositories/articles/sites, language/channel pages, submitting candidate mentions, human review and grouping, discovery/search run tracking, numeric history dry-run import and SQLite backup. **OpenEcho has no runtime dependency on BlogCTL, any browser extension or other publishing application.** All write commands require unique request IDs. The MCP tools expose the same operations, and `-mcp-stdio` provides a local stdio transport. The default `-collect-interval 24h` runs idempotent GitHub snapshots; set `-collect-interval 0` to disable scheduling.
+The standalone bilingual UI defaults to Simplified Chinese; language and other editable preferences persist in machine-local TOML. Its sidebar provides overview, projects, channels, evidence review, discovery tasks, historical metrics and settings. It supports registering repositories/articles/sites, language/channel pages, submitting candidate mentions, human review and grouping, discovery/search run tracking, numeric history dry-run import and SQLite backup. **OpenEcho has no runtime dependency on BlogCTL, any browser extension or other publishing application.** All write commands require unique request IDs. The MCP tools expose the same operations, and `-mcp-stdio` provides a local stdio transport. The default `-collect-interval 24h` runs idempotent GitHub snapshots; set `-collect-interval 0` to disable scheduling.
 
 Restore **only to a new database path**, never over the current database:
 

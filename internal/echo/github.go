@@ -213,6 +213,7 @@ func (g GitHub) Collect(ctx context.Context, work Work, key string) Snapshot {
 type Service struct {
 	Store  *Store
 	GitHub GitHub
+	Config *ConfigManager
 }
 
 func (s Service) Collect(ctx context.Context, id int64, key string) (Snapshot, error) {

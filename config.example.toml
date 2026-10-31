@@ -1,0 +1,36 @@
+# OpenEcho configuration. Copy to config.toml beside bin/.
+# Private SQLite, tokens and observations stay in Data/ and must not be committed.
+version = 1
+
+[server]
+listen = "127.0.0.1:18440"
+
+[storage]
+database = "Data/state.sqlite"
+
+[collection]
+interval = "24h"
+
+[github]
+auth = "env"
+download_scope = "all"
+
+[interface]
+language = "zh-CN"
+compact = false
+
+[overview]
+show_github = true
+show_evidence = true
+show_history = true
+evidence_limit = "4"
+
+[evidence]
+default_filter = "all"
+reviewer = "local-ui"
+
+[discovery]
+worker = "OpenEcho web UI"
+
+[display]
+timezone = "local"

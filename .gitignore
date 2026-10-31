@@ -24,3 +24,7 @@ coverage.out
 node_modules/
 .DS_Store
 Thumbs.db
+
+# Machine-specific TOML configuration (never include credentials)
+/config.toml
+\n# Windows local SQLite and credentials\n/Data/\n

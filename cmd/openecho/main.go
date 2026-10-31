@@ -61,7 +61,44 @@ func main() {
 	stdio := flag.Bool("mcp-stdio", false, "serve MCP over local stdio instead of HTTP")
 	githubAuth := flag.String("github-auth", "env", "GitHub credentials: env or gh (explicit CLI fallback)")
 	interval := flag.Duration("collect-interval", 24*time.Hour, "scheduled GitHub interval; 0 disables scheduling; minimum 1 minute")
+	configPath := flag.String("config", "", "path to private TOML configuration (auto-detect next to bin directory)")
 	flag.Parse()
+	if *configPath == "" {
+		if exe, exeErr := os.Executable(); exeErr == nil {
+			candidate := filepath.Join(filepath.Dir(exe), "..", "config.toml")
+			if _, statErr := os.Stat(candidate); statErr == nil {
+				*configPath = candidate
+			}
+		}
+	}
+	settings := echo.NewConfigManager(*configPath)
+	config, err := settings.Read()
+	if err != nil {
+		log.Fatal("invalid OpenEcho config.toml: ", err)
+	}
+	if *configPath != "" {
+		visited := map[string]bool{}
+		flag.Visit(func(f *flag.Flag) { visited[f.Name] = true })
+		if !visited["listen"] {
+			*addr = config.Server.Listen
+		}
+		if !visited["github-auth"] {
+			*githubAuth = config.GitHub.Auth
+		}
+		if !visited["collect-interval"] {
+			parsed, parseErr := time.ParseDuration(config.Collection.Interval)
+			if parseErr != nil {
+				log.Fatal("invalid TOML collection.interval")
+			}
+			*interval = parsed
+		}
+		if !visited["db"] {
+			*dbPath = config.Storage.Database
+			if !filepath.IsAbs(*dbPath) {
+				*dbPath = filepath.Join(filepath.Dir(*configPath), *dbPath)
+			}
+		}
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	if *restore != "" {
@@ -92,7 +129,7 @@ func main() {
 		}
 		ghToken = strings.TrimSpace(string(out))
 	}
-	service := echo.Service{Store: store, GitHub: echo.GitHub{Token: ghToken}}
+	service := echo.Service{Store: store, GitHub: echo.GitHub{Token: ghToken}, Config: settings}
 	if *interval > 0 {
 		go service.RunScheduler(ctx, *interval, func(err error) { log.Print(err) })
 	}

@@ -201,6 +201,13 @@ func (s Service) MCPServer() *mcp.Server {
 	addTool(server, "complete_discovery_task", "Record actual search engine, scope, results and completion status with a valid lease token.", false, func(ctx context.Context, in CompleteInput) (any, error) { return s.Store.CompleteTask(ctx, in) })
 	addTool(server, "import_history", "Validate or atomically import schema_version=1 historical observations. Dry run never writes; conflicts do not overwrite prior observations.", false, func(ctx context.Context, in ImportInput) (any, error) { return s.Store.ImportHistory(ctx, in) })
 	addTool(server, "generate_report", "Read evidence-backed counts and a Markdown report. work_id=0 includes all works. No files are written.", true, func(ctx context.Context, in WorkIDInput) (any, error) { return s.Store.GenerateReport(ctx, in.WorkID) })
+	addTool(server, "list_settings", "Read nonsecret OpenEcho presentation settings and their versions.", true, func(ctx context.Context, _ EmptyInput) (any, error) { return s.Config.Settings(ctx) })
+	addTool(server, "update_settings", "Atomically save allowlisted nonsecret preferences with expected versions and audit request ID.", false, func(ctx context.Context, in UpdateSettingsInput) (any, error) {
+		return s.Config.UpdateSettings(ctx, in)
+	})
+	addTool(server, "update_setting", "Change an allowlisted nonsecret OpenEcho preference with optimistic version and request ID.", false, func(ctx context.Context, in UpdateSettingInput) (any, error) {
+		return s.Config.UpdateSettings(ctx, UpdateSettingsInput{RequestID: in.RequestID, Updates: []SettingChange{{Key: in.Key, Value: in.Value, ExpectedVersion: in.ExpectedVersion}}})
+	})
 	addTool(server, "get_audit", "Read historical observations, review transitions and recorded search scopes. Lease secrets are omitted.", true, func(ctx context.Context, _ EmptyInput) (any, error) { return s.Store.Audit(ctx) })
 	return server
 }
@@ -243,6 +250,30 @@ func (s Service) registerWorkflow(mux *http.ServeMux) {
 	actionRoute(mux, "create_discovery_task", func(ctx context.Context, in TaskInput) (any, error) { return s.Store.CreateTask(ctx, in) })
 	actionRoute(mux, "claim_discovery_task", func(ctx context.Context, in ClaimInput) (any, error) { return s.Store.ClaimTask(ctx, in) })
 	actionRoute(mux, "complete_discovery_task", func(ctx context.Context, in CompleteInput) (any, error) { return s.Store.CompleteTask(ctx, in) })
+	mux.HandleFunc("GET /api/runtime", func(w http.ResponseWriter, r *http.Request) {
+		v, err := s.Config.RuntimeStatus(r.Context())
+		if err != nil {
+			http.Error(w, "invalid local config", 500)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(v)
+	})
+	mux.HandleFunc("GET /api/settings", func(w http.ResponseWriter, r *http.Request) {
+		v, err := s.Config.Settings(r.Context())
+		if err != nil {
+			http.Error(w, "internal error", 500)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(v)
+	})
+	actionRoute(mux, "update_settings", func(ctx context.Context, in UpdateSettingsInput) (any, error) {
+		return s.Config.UpdateSettings(ctx, in)
+	})
+	actionRoute(mux, "update_setting", func(ctx context.Context, in UpdateSettingInput) (any, error) {
+		return s.Config.UpdateSettings(ctx, UpdateSettingsInput{RequestID: in.RequestID, Updates: []SettingChange{{Key: in.Key, Value: in.Value, ExpectedVersion: in.ExpectedVersion}}})
+	})
 	actionRoute(mux, "import_history", func(ctx context.Context, in ImportInput) (any, error) { return s.Store.ImportHistory(ctx, in) })
 	mux.HandleFunc("GET /api/mentions", func(w http.ResponseWriter, r *http.Request) {
 		v, err := s.Store.Mentions(r.Context(), 0)

@@ -3,6 +3,7 @@ module github.com/ThinkerQAQ/openecho
 go 1.26.0
 
 require (
+	github.com/BurntSushi/toml v1.5.0
 	github.com/modelcontextprotocol/go-sdk v1.8.0
 	modernc.org/sqlite v1.61.0
 )

@@ -70,13 +70,13 @@ const nav = [
   ["history","▤","历史统计","查看统计来源与导入历史数据"],
   ["settings","⚙","设置","查看本地连接、权限与语言偏好"]
 ];
-const state = {lang:localStorage.getItem("openecho.lang")==="en"?"en":"zh",view:"overview",data:null,leases:new Map(),preview:null,importInput:"",busy:false};
+const state = {lang:localStorage.getItem("openecho.lang")==="en"?"en":"zh",view:"overview",data:null,leases:new Map(),preview:null,importInput:"",busy:false,settingsQuery:"",settingsSelected:"",settingsExpanded:new Set(),settingsDraft:{},evidenceFilter:null};
 const $ = id => document.getElementById(id);
 const T = key => state.lang==="en" ? (LANG[key] || key) : key;
 const E = value => String(value ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt = value => Number(value ?? 0).toLocaleString(state.lang==="en"?"en-US":"zh-CN");
-const dt = value => value ? new Date(value).toLocaleString(state.lang==="en"?"en-US":"zh-CN",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}) : "—";
-const when = value => value ? new Date(value).toLocaleDateString(state.lang==="en"?"en-US":"zh-CN") : "—";
+const dt = value => value ? new Date(value).toLocaleString(state.lang==="en"?"en-US":"zh-CN",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",...(pref("display.timezone")==="UTC"?{timeZone:"UTC"}:{})})+(pref("display.timezone")==="UTC"?" UTC":"") : "—";
+const when = value => value ? new Date(value).toLocaleDateString(state.lang==="en"?"en-US":"zh-CN",pref("display.timezone")==="UTC"?{timeZone:"UTC"}:undefined) : "—";
 const safeHref = value => {try {const u=new URL(value);return ["https:","http:"].includes(u.protocol)?E(u.href):"#";}catch{return "#";}};
 const anchor = (url,label) => '<a href="'+safeHref(url)+'" target="_blank" rel="noopener noreferrer">'+E(label||url)+'</a>';
 const tag = (label,cls="") => '<span class="badge '+E(cls)+'">'+E(label)+'</span>';
@@ -103,11 +103,12 @@ async function act(operation) {
   finally {state.busy=false;document.body.classList.remove("busy");}
 }
 async function refresh(showMessage=true){
-  const [works,report,mentions,tasks,audit]=await Promise.all([
-    api("/api/works"),api("/api/report"),api("/api/mentions"),api("/api/tasks"),api("/api/audit")
+  const [works,report,mentions,tasks,audit,settings,runtime]=await Promise.all([
+    api("/api/works"),api("/api/report"),api("/api/mentions"),api("/api/tasks"),api("/api/audit"),api("/api/settings"),api("/api/runtime")
   ]);
   const pairs=await Promise.all(works.map(async w=>[w.id,await api("/api/works/"+w.id+"/channels")]));
-  state.data={works,report,mentions,tasks,audit,channels:new Map(pairs)};
+  state.data={works,report,mentions,tasks,audit,settings,runtime,channels:new Map(pairs)};
+  state.lang=pref("interface.language","zh-CN")==="en"?"en":"zh";
   render();
   if(showMessage)notification(T("数据读取成功"));
 }
@@ -126,35 +127,45 @@ function shellRender(){
 }
 function render(){
   shellRender();if(!state.data){$("view").innerHTML='<div class="loading">Loading…</div>';return;}
+  document.body.classList.toggle("compact-layout",pref("appearance.compact")==="true");
   const pages={overview:overviewView,works:worksView,channels:channelsView,evidence:evidenceView,tasks:tasksView,history:historyView,settings:settingsView};
   $("view").innerHTML=pages[state.view]();
 }
 const heading=(title,sub="",right="")=>'<div class="section-header"><div><h2>'+T(title)+'</h2>'+(sub?'<p>'+T(sub)+'</p>':"")+'</div>'+right+'</div>';
 const stat=(title,value,note,primary=false)=>'<div class="stat-card'+(primary?' primary':'')+'"><div class="stat-label">'+T(title)+'</div><div class="stat-value">'+fmt(value)+'</div><div class="stat-hint">'+T(note)+'</div></div>';
+function isInstallableAsset(asset){
+ const name=String(asset.name||"").toLowerCase();
+ if(/(?:sha256|checksums?|license|sbom|source|ffmpeg|debug|\.asc$|\.sig$|\.txt$)/i.test(name))return false;
+ return /(?:\.zip|\.tar\.gz|\.tgz|\.exe|\.msi|\.deb|\.rpm|\.dmg|\.pkg|\.appimage|\.7z)$/.test(name);
+}
 function projects(){
  return state.data.report.report.sources.map(s=>{
   const x=s.latest,assets=x?.assets||[],views=x?.traffic?.views||{},clones=x?.traffic?.clones||{};
-  return {...s,downloads:assets.reduce((n,a)=>n+(Number(a.download_count)||0),0),stars:x?.stars??0,views:views.count??0,clones:clones.count??0,snapshot:x?.captured_at||""};
+  return {...s,downloads:assets.filter(a=>pref("github.download_scope")!=="installers"||isInstallableAsset(a)).reduce((n,a)=>n+(Number(a.download_count)||0),0),stars:x?.stars??0,views:views.count??0,clones:clones.count??0,snapshot:x?.captured_at||""};
  });
 }
 function overviewView(){
  const {works,report,mentions}=state.data,summary=report.report,rows=projects();
- const verified=mentions.filter(m=>m.state==="verified").slice(-4).reverse();
+ const verified=mentions.filter(m=>m.state==="verified").slice(-Number(pref("overview.evidence_limit","4"))).reverse();
+ const githubView=pref("overview.show_github")!=="false" ?
+  heading("GitHub 项目活动","统计为累计发布资产下载量；不等于真实安装用户")+
+  '<div class="panel"><div class="table-wrap"><table class="data-table"><thead><tr><th>'+T("仓库")+'</th><th>'+(pref("github.download_scope")==="installers"?settingsLabel(["安装包下载","Installable downloads"]):T("发布资产下载"))+'</th><th>'+T("近期克隆")+'</th><th>'+T("Star")+'</th><th>'+T("最近采集")+'</th></tr></thead><tbody>'+
+  rows.map(p=>'<tr><td>'+anchor("https://github.com/"+p.repository,p.title)+'</td><td class="num">'+fmt(p.downloads)+'</td><td class="num">'+fmt(p.clones)+'</td><td class="num">'+fmt(p.stars)+'</td><td class="muted">'+dt(p.snapshot)+'</td></tr>').join("")+
+  '</tbody></table></div><p class="kpi-note">'+T("离线优先。GitHub 下载、克隆与网站访客标识都不能等同于真实使用者。")+'</p></div>' : "";
+ const evidence=pref("overview.show_evidence")!=="false" ?
+  '<div>'+heading("外部影响证据","已确认的第三方引用与采用记录",'<button class="btn btn-sm" data-action="navigate" data-view="evidence">'+T("查看更多")+'</button>')+
+  '<div class="panel">'+(verified.length?verified.map(m=>'<div class="list-row"><div class="status-line">'+tag(T("已审核"),"verified")+' <strong>'+E(works.find(w=>w.id===m.work_id)?.title||"")+'</strong></div><p class="muted">'+E(m.evidence?.at(-1)?.quote||"")+'</p><div class="evidence-url">'+anchor(m.url)+'</div></div>').join(""):'<div class="empty">'+T("暂无公开链接")+'</div>')+'</div></div>' : "";
+ const history=pref("overview.show_history")!=="false" ?
+  '<div>'+heading("最近统计与限制","历史统计不自动变成实时数据")+'<div class="panel">'+
+  (summary.history||[]).filter(r=>["search_impressions","search_clicks","pageviews_approx","visitor_identifiers"].includes(r.metric)).slice(0,6)
+   .map(r=>'<div class="list-row"><div class="status-line"><strong>'+E(r.metric)+'</strong><span class="muted">'+fmt(r.value)+'</span></div><div class="subtle">'+E(r.scope)+'</div></div>').join("")+
+  '<p class="kpi-note">'+T("历史统计不自动变成实时数据")+'</p></div></div>':"";
  return '<div class="toolbar"><div class="muted">'+T("历史统计不自动变成实时数据")+'</div><div class="btn-row"><button class="btn btn-sm" data-action="export-md">Markdown</button><button class="btn btn-sm" data-action="export-json">JSON</button></div></div><div class="stat-grid">'+
   stat("已登记作品",works.length,"包括项目、文章及网站")+
   stat("验证页面",summary.verified_pages,"仅统计审核通过的原始页面",true)+
   stat("传播事件",summary.third_party_events,"同一事件不重复计数")+
   stat("待审核线索",summary.pending,"需要再次核查原始来源")+'</div>'+
-  heading("GitHub 项目活动","统计为累计发布资产下载量；不等于真实安装用户")+
-  '<div class="panel"><div class="table-wrap"><table class="data-table"><thead><tr><th>'+T("仓库")+'</th><th>'+T("发布资产下载")+'</th><th>'+T("近期克隆")+'</th><th>'+T("Star")+'</th><th>'+T("最近采集")+'</th></tr></thead><tbody>'+
-  rows.map(p=>'<tr><td>'+anchor("https://github.com/"+p.repository,p.title)+'</td><td class="num">'+fmt(p.downloads)+'</td><td class="num">'+fmt(p.clones)+'</td><td class="num">'+fmt(p.stars)+'</td><td class="muted">'+dt(p.snapshot)+'</td></tr>').join("")+
-  '</tbody></table></div><p class="kpi-note">'+T("离线优先。GitHub 下载、克隆与网站访客标识都不能等同于真实使用者。")+'</p></div>'+
-  '<div class="grid-2"><div>'+heading("外部影响证据","已确认的第三方引用与采用记录",'<button class="btn btn-sm" data-action="navigate" data-view="evidence">'+T("查看更多")+'</button>')+
-  '<div class="panel">'+(verified.length?verified.map(m=>'<div class="list-row"><div class="status-line">'+tag(T("已审核"),"verified")+' <strong>'+E(state.data.works.find(w=>w.id===m.work_id)?.title||"")+'</strong></div><p class="muted">'+E(m.evidence?.at(-1)?.quote||"")+'</p><div class="evidence-url">'+anchor(m.url)+'</div></div>').join(""):'<div class="empty">'+T("暂无公开链接")+'</div>')+'</div></div>'+
-  '<div>'+heading("最近统计与限制","历史统计不自动变成实时数据")+'<div class="panel">'+
-  (summary.history||[]).filter(r=>["search_impressions","search_clicks","pageviews_approx","visitor_identifiers"].includes(r.metric)).slice(0,6)
-   .map(r=>'<div class="list-row"><div class="status-line"><strong>'+E(r.metric)+'</strong><span class="muted">'+fmt(r.value)+'</span></div><div class="subtle">'+E(r.scope)+'</div></div>').join("")+
-  '<p class="kpi-note">'+T("历史统计不自动变成实时数据")+'</p></div></div></div>';
+  githubView+(evidence||history?'<div class="grid-2">'+evidence+history+'</div>':"");
 }
 function input(label,name,type="text",placeholder="",extra=""){
  return '<label class="field"><span>'+T(label)+'</span><input name="'+name+'" type="'+type+'" placeholder="'+E(placeholder)+'" '+extra+'></label>';
@@ -203,7 +214,8 @@ function channelsView(){
 function evidenceView(){
  const works=state.data.works;
  const labels={mention:"提及",citation:"引用",adoption:"采用",repost:"转载",rewrite:"改写",comment:"评论",aggregation:"聚合",publication:"发布"};
- const list=state.data.mentions.slice().reverse().map(m=>{
+ const filter=state.evidenceFilter||pref("evidence.default_filter","all");
+ const list=state.data.mentions.filter(m=>filter==="all"||m.state===filter).slice().reverse().map(m=>{
   const title=works.find(w=>w.id===m.work_id)?.title||String(m.work_id);
   const code=m.state==="verified"?"已审核":m.state==="pending"?"待审核":m.state==="rejected"?"已拒绝":"已失效";
   const pieces=m.evidence||[];
@@ -220,7 +232,7 @@ function evidenceView(){
   '</article>';
  }).join("");
  return heading("引用与采用","审核第三方引用与实际采用的原始证据")+
- '<div class="toolbar"><input class="search" data-filter placeholder="'+T("输入关键词筛选")+'"><span class="muted">'+fmt(state.data.mentions.length)+'</span></div>'+
+ '<div class="toolbar"><input class="search" data-filter placeholder="'+T("输入关键词筛选")+'"><select class="inline-input" id="evidence-filter" aria-label="'+T("筛选")+'">'+[["all","全部"],["pending","待审核"],["verified","已审核"]].map(([value,label])=>'<option value="'+value+'" '+(filter===value?"selected":"")+'>'+T(label)+'</option>').join("")+'</select><span class="muted">'+fmt(state.data.mentions.length)+'</span></div>'+
  '<div class="evidence-list">'+(list||'<div class="panel empty">'+T("无可用数据")+'</div>')+'</div>'+
  heading("新建引用线索")+
  '<div class="panel"><form data-form="mention"><div class="form-grid">'+workSelection()+
@@ -281,26 +293,7 @@ function historyView(){
  state.data.audit.reviews.slice().reverse().map(r=>'<tr><td>#'+r.mention_id+'</td><td>'+tag(E(r.to),r.to)+'</td><td>'+E(r.reason)+'</td><td>'+dt(r.reviewed_at)+'</td></tr>').join("")+
  '</tbody></table></div></div>';
 }
-function settingsView(){
- const source=[
-  ["GitHub","已启用","GitHub 定时采集"],
-  ["OpenEcho","已启用","外部引用审查"],
-  ["Google Search Console","历史导入","搜索控制台"],
-  ["Bing Webmaster","尚未配置","Bing 站长工具"],
-  ["Umami","历史导入","Umami 统计"]
- ];
- return '<div class="grid-2"><div>'+
-  heading("独立应用","无需其他应用作为运行依赖")+
-  '<div class="panel"><div class="list-row"><strong>'+T("本地网页免手动令牌")+'</strong><div class="muted">'+T("浏览器通过 HttpOnly 本地会话连接，MCP 与程序 API 仍要求授权")+'</div></div>'+
-  '<div class="list-row"><strong>'+T("仅本机访问")+'</strong><p class="muted">http://127.0.0.1:19450/</p></div>'+
-  '<div class="list-row"><strong>'+T("当前不连接任何分发工具")+'</strong></div></div>'+
-  heading("界面语言")+
-  '<div class="panel"><div class="btn-row"><button class="btn '+(state.lang==="zh"?"btn-primary":"")+'" data-action="set-locale" data-locale="zh">'+T("简体中文")+'</button>'+
-  '<button class="btn '+(state.lang==="en"?"btn-primary":"")+'" data-action="set-locale" data-locale="en">'+T("English")+'</button></div></div></div>'+
-  '<div>'+heading("数据采集状态")+
-  '<div class="panel">'+source.map(([name,status,note])=>'<div class="list-row"><div class="work-header"><strong>'+E(name)+'</strong>'+tag(T(status),status==="已启用"?"complete":status==="历史导入"?"partial":"pending")+'</div><div class="subtle">'+T(note)+'</div></div>').join("")+
-  '<p class="kpi-note">'+T("历史统计不自动变成实时数据")+'</p></div></div></div>';
-}
+function settingsView(){return renderSettingsTree();}
 function applyFilter(input){
  const target=input.closest("#view"),q=input.value.toLowerCase().trim();
  target.querySelectorAll(".filterable").forEach(el=>el.hidden=!!q&&!el.dataset.search.includes(q));
@@ -314,25 +307,29 @@ async function runClick(button){
  const action=button.dataset.action,id=Number(button.dataset.id||0);
  if(action==="navigate"){state.view=button.dataset.view;location.hash="#"+state.view;render();return;}
  if(action==="toggle-locale"||action==="set-locale"){
-  state.lang=action==="toggle-locale"?(state.lang==="zh"?"en":"zh"):button.dataset.locale;
-  localStorage.setItem("openecho.lang",state.lang);render();return;
+  const next=action==="toggle-locale"?(state.lang==="zh"?"en":"zh"):button.dataset.locale;
+  const setting=settingsValue("interface.language");
+  if(!setting){notification("Language setting unavailable",true);return;}
+  await act(async()=>await send("update_settings",{updates:[{key:"interface.language",value:next==="en"?"en":"zh-CN",expected_version:setting.version}]}));
+  return;
  }
+ if(action.startsWith("settings-")){await settingsHandleAction(button);return;}
  if(action==="refresh"){await act(async()=>{});return;}
  if(action==="show-work"){
   const element=$("detail-"+id);if(element){element.hidden=!element.hidden;if(!element.hidden)element.open=true;}return;
  }
  if(action==="collect"){await act(async()=>{await api("/api/works/"+id+"/collect",{method:"POST",headers:{"Idempotency-Key":uuid()}});});return;}
  if(action==="claim"){await act(async()=>{
-  const result=await send("claim_discovery_task",{task_id:id,worker:"OpenEcho web UI"});
+  const result=await send("claim_discovery_task",{task_id:id,worker:pref("discovery.worker","OpenEcho web UI")});
   if(result.lease_token)state.leases.set(id,result.lease_token);
  });return;}
  if(action==="review"){const m=state.data.mentions.find(x=>x.id===id),reason=document.querySelector('[data-reason="'+id+'"]')?.value?.trim();
   if(!reason){notification(T("需要填写审核理由"),true);return;}
-  await act(async()=>{await send("review_mention",{mention_id:id,expected_version:m.version,state:button.dataset.state,reason,reviewer:"local-ui"});});return;
+  await act(async()=>{await send("review_mention",{mention_id:id,expected_version:m.version,state:button.dataset.state,reason,reviewer:pref("evidence.reviewer","local-ui")});});return;
  }
  if(action==="group"){const m=state.data.mentions.find(x=>x.id===id),reason=document.querySelector('[data-reason="'+id+'"]')?.value?.trim(),key=document.querySelector('[data-event="'+id+'"]')?.value?.trim();
   if(!reason||!key){notification(T("需要填写审核理由"),true);return;}
-  await act(async()=>{await send("link_propagation_event",{mention_id:id,expected_version:m.version,event_key:key,reason,reviewer:"local-ui"});});return;
+  await act(async()=>{await send("link_propagation_event",{mention_id:id,expected_version:m.version,event_key:key,reason,reviewer:pref("evidence.reviewer","local-ui")});});return;
  }
  if(action==="validate-import" || action==="apply-import"){
   const text=$("import-json")?.value||"";state.importInput=text;
@@ -386,9 +383,12 @@ document.addEventListener("submit",e=>{
 });
 document.addEventListener("input",e=>{
  if(e.target.matches("[data-filter]"))applyFilter(e.target);
+ if(e.target.id==="settings-search"||e.target.dataset.settingKey)settingsHandleInput(e.target);
  if(e.target.id==="import-json"){state.preview=null;state.importInput=e.target.value;const b=document.querySelector('[data-action="apply-import"]');if(b)b.disabled=true;}
 });
 document.addEventListener("change",e=>{
+ if(e.target.id==="evidence-filter"){state.evidenceFilter=e.target.value;render();return;}
+ if(e.target.dataset.settingKey)settingsHandleInput(e.target);
  if(e.target.id==="work-kind"){
   const field=$("work-id-field");if(!field)return;
   const project=e.target.value==="project";
