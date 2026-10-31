@@ -1,7 +1,7 @@
 # OpenEcho implementation plan
 
 Date: 2026-10-31 (Asia/Shanghai)
-Status: approved architectural direction; implementation pending.
+Status: foundation implementation in progress on a feature branch; no release yet.
 
 ## Delivery approach
 
@@ -69,3 +69,11 @@ P1–P5 accepted; no claim that P6 providers are implemented. Verify Linux, Wind
 ## Immediate next PR
 
 Implement P1 plus a GitHub fixture-backed storage slice: work creation, migration, two-repository snapshot isolation, and restart persistence. Do not import all historical reports until import validation and review states exist.
+
+## Foundation slice progress (2026-10-31)
+
+Implemented: repository work registration, private SQLite files, transactional schema initialization, stable GitHub ID guard, idempotent selected-field snapshots, paginated releases/assets, partial endpoint errors, daily traffic revisions, interval asset lifecycle calculations, loopback-only authenticated HTTP, and a minimal embedded UI.
+
+Pending before P1/P2 are complete: generic articles/editions/channels, full raw-response archives, referrers/popular paths, collection task persistence and scheduling, bounded retry/backoff, backup/export and the next-stage MCP/evidence domain. GitHub calls currently have per-request and overall collection timeouts and no automatic retry.
+
+The implementation PR is stacked on the repository-bootstrap PR until that PR is merged. Hosted CI availability is reported separately from local test results.

@@ -1,0 +1,185 @@
+package echo
+
+import (
+	"context"
+	"crypto/subtle"
+	"embed"
+	"encoding/json"
+	"errors"
+	"io"
+	"net"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+)
+
+//go:embed web/index.html
+var web embed.FS
+
+func Handler(service Service, token string) http.Handler {
+	mux := http.NewServeMux()
+	write := func(w http.ResponseWriter, value any) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(value)
+	}
+	handleError := func(w http.ResponseWriter, err error) {
+		status := http.StatusInternalServerError
+		message := "internal error"
+		if errors.Is(err, ErrInvalid) {
+			status = http.StatusBadRequest
+			message = "invalid input"
+		}
+		if errors.Is(err, ErrNotFound) {
+			status = http.StatusNotFound
+			message = "not found"
+		}
+		http.Error(w, message, status)
+	}
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { write(w, map[string]string{"status": "ok"}) })
+	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
+		data, _ := web.ReadFile("web/index.html")
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Write(data)
+	})
+	mux.HandleFunc("GET /api/works", func(w http.ResponseWriter, r *http.Request) {
+		v, err := service.Store.Works(r.Context())
+		if err != nil {
+			handleError(w, err)
+			return
+		}
+		write(w, v)
+	})
+	mux.HandleFunc("POST /api/works", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Title      string `json:"title"`
+			Repository string `json:"repository"`
+		}
+		decoder := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096))
+		decoder.DisallowUnknownFields()
+		if decoder.Decode(&body) != nil || decoder.Decode(new(any)) != io.EOF {
+			handleError(w, ErrInvalid)
+			return
+		}
+		v, err := service.Store.CreateWork(r.Context(), strings.TrimSpace(body.Title), strings.TrimSpace(body.Repository))
+		if err != nil {
+			handleError(w, err)
+			return
+		}
+		write(w, v)
+	})
+	parseID := func(r *http.Request) (int64, error) {
+		id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+		if err != nil || id < 1 {
+			return 0, ErrInvalid
+		}
+		return id, nil
+	}
+	mux.HandleFunc("POST /api/works/{id}/collect", func(w http.ResponseWriter, r *http.Request) {
+		id, err := parseID(r)
+		if err != nil {
+			handleError(w, err)
+			return
+		}
+		ctx, cancel := contextTimeout(r)
+		defer cancel()
+		v, err := service.Collect(ctx, id, r.Header.Get("Idempotency-Key"))
+		if err != nil {
+			handleError(w, err)
+			return
+		}
+		write(w, v)
+	})
+	mux.HandleFunc("GET /api/works/{id}/snapshots", func(w http.ResponseWriter, r *http.Request) {
+		id, err := parseID(r)
+		if err != nil {
+			handleError(w, err)
+			return
+		}
+		if _, err = service.Store.Work(r.Context(), id); err != nil {
+			handleError(w, err)
+			return
+		}
+		v, err := service.Store.Snapshots(r.Context(), id)
+		if err != nil {
+			handleError(w, err)
+			return
+		}
+		write(w, v)
+	})
+	mux.HandleFunc("GET /api/works/{id}/changes", func(w http.ResponseWriter, r *http.Request) {
+		id, err := parseID(r)
+		if err != nil {
+			handleError(w, err)
+			return
+		}
+		if _, err = service.Store.Work(r.Context(), id); err != nil {
+			handleError(w, err)
+			return
+		}
+		v, err := service.Store.Snapshots(r.Context(), id)
+		if err != nil {
+			handleError(w, err)
+			return
+		}
+		// Failed release reads do not erase the most recent comparable observation.
+		complete := []Snapshot{}
+		for _, snap := range v {
+			if snap.ReleasesOK {
+				complete = append(complete, snap)
+			}
+		}
+		if len(complete) < 2 {
+			write(w, Interval{State: "baseline", Assets: []Change{}})
+			return
+		}
+		write(w, Compare(complete[1], complete[0]))
+	})
+	mux.HandleFunc("GET /api/works/{id}/traffic/{metric}", func(w http.ResponseWriter, r *http.Request) {
+		id, err := parseID(r)
+		if err != nil {
+			handleError(w, err)
+			return
+		}
+		if _, err = service.Store.Work(r.Context(), id); err != nil {
+			handleError(w, err)
+			return
+		}
+		v, err := service.Store.Days(r.Context(), id, r.PathValue("metric"))
+		if err != nil {
+			handleError(w, err)
+			return
+		}
+		write(w, map[string]any{"timezone": "UTC", "daily": v, "note": "Daily unique counts are not additive."})
+	})
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; frame-ancestors 'none'")
+		// Require exact loopback Host even if the socket was reached through a proxy; prevent DNS rebinding.
+		host := r.Host
+		if h, _, err := net.SplitHostPort(host); err == nil {
+			host = h
+		}
+		if host != "127.0.0.1" && host != "localhost" && host != "::1" {
+			http.Error(w, "invalid host", http.StatusForbidden)
+			return
+		}
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			provided := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+			if !strings.HasPrefix(r.Header.Get("Authorization"), "Bearer ") || token == "" || subtle.ConstantTimeCompare([]byte(provided), []byte(token)) != 1 {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
+			if origin := r.Header.Get("Origin"); origin != "" && origin != "http://"+r.Host {
+				http.Error(w, "invalid origin", http.StatusForbidden)
+				return
+			}
+		}
+		mux.ServeHTTP(w, r)
+	})
+}
+
+func contextTimeout(r *http.Request) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(r.Context(), 90*time.Second)
+}
