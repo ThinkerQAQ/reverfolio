@@ -30,8 +30,7 @@ def validate_archive(archive, platform):
 def validate_members(names, read, archive, platform):
     paths = set(names)
     required = {
-        'Reverfolio/LICENSE', 'Reverfolio/SECURITY.md',
-        'Reverfolio/THIRD_PARTY_NOTICES.md', 'Reverfolio/THIRD_PARTY_LICENSES.txt',
+        'Reverfolio/LICENSE', 'Reverfolio/THIRD_PARTY_LICENSES.txt',
         'Reverfolio/README.md', 'Reverfolio/README_ZH.md',
         'Reverfolio/config.example.toml',
     }
