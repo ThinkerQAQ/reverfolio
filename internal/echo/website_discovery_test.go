@@ -134,7 +134,7 @@ func TestWebsiteAtomAndHostGuards(t *testing.T) {
 	if !safeWebsiteIP(net.ParseIP("8.8.8.8")) {
 		t.Fatal("public IP rejected")
 	}
-	for _, s := range []string{"/tag/go/", "/about/", "/category/go/", "/assets/logo.png"} {
+	for _, s := range []string{"/tag/go/", "/about/", "/articles/", "/blog/", "/category/go/", "/assets/logo.png"} {
 		if _, ok := candidateFromSitemap("https://example.org" + s); ok {
 			t.Fatal("site navigation counted as article", s)
 		}

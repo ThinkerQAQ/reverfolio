@@ -21,6 +21,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 const maxWebCandidates = 100
@@ -346,6 +347,9 @@ func candidateFromSitemap(u string) (string, bool) {
 		return "", false
 	}
 	lower := strings.ToLower(p)
+	if lower == "articles" || lower == "blog" || lower == "posts" {
+		return "", false
+	}
 	for _, seg := range strings.Split(lower, "/") {
 		switch seg {
 		case "tags", "tag", "categories", "category", "page", "search", "author", "authors", "about", "contact", "projects", "sitemap", "assets", "images", "static", "feed", "rss", "wp-json", "wp-content":
@@ -407,7 +411,16 @@ func (d WebsiteDiscoverer) Discover(ctx context.Context, source string) (Website
 			return
 		}
 		if len(c.Title) > 200 {
-			c.Title = c.Title[:200]
+			// Work titles are bounded by UTF-8 bytes. Do not split a rune.
+			end := 0
+			for _, r := range c.Title {
+				width := utf8.RuneLen(r)
+				if width < 1 || end+width > 200 {
+					break
+				}
+				end += width
+			}
+			c.Title = c.Title[:end]
 		}
 		if old, ok := rows[v]; ok {
 			if old.TitleSource == "feed" {
