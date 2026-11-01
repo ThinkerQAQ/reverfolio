@@ -54,8 +54,7 @@ for operating_system in ('windows', 'linux', 'darwin'):
                                'Install-Reverfolio.ps1', 'Initialize-ReverfolioExtension.ps1',
                                'Register-ReverfolioNativeHost.ps1','Start-Reverfolio-Hidden.vbs'):
                     shutil.copy2(ROOT / 'scripts/windows' / script, root / script)
-            for name in ('config.example.toml', 'README.md', 'README_ZH.md',
-                         'LICENSE', 'THIRD_PARTY_NOTICES.md', 'SECURITY.md'):
+            for name in ('config.example.toml', 'README.md', 'README_ZH.md', 'LICENSE'):
                 shutil.copy2(ROOT / name, root / name)
             shutil.copy2(licenses, root / 'THIRD_PARTY_LICENSES.txt')
             (root / 'scripts').mkdir()
