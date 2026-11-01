@@ -116,16 +116,17 @@ type devtoArticle struct {
 	Comments          *int64 `json:"comments_count"`
 }
 type DEVToArticle struct {
-	ID             int64  `json:"id"`
-	Title          string `json:"title"`
-	URL            string `json:"url"`
-	CanonicalURL   string `json:"canonical_url,omitempty"`
-	ExistingWorkID int64  `json:"existing_work_id,omitempty"`
-	ImportedWorkID int64  `json:"imported_work_id,omitempty"`
-	PublishedAt    string `json:"published_at,omitempty"`
-	Views          *int64 `json:"views,omitempty"`
-	Reactions      *int64 `json:"reactions,omitempty"`
-	Comments       *int64 `json:"comments,omitempty"`
+	ID              int64  `json:"id"`
+	Title           string `json:"title"`
+	URL             string `json:"url"`
+	CanonicalURL    string `json:"canonical_url,omitempty"`
+	ExistingWorkID  int64  `json:"existing_work_id,omitempty"`
+	SuggestedWorkID int64  `json:"suggested_work_id,omitempty"`
+	ImportedWorkID  int64  `json:"imported_work_id,omitempty"`
+	PublishedAt     string `json:"published_at,omitempty"`
+	Views           *int64 `json:"views,omitempty"`
+	Reactions       *int64 `json:"reactions,omitempty"`
+	Comments        *int64 `json:"comments,omitempty"`
 }
 
 func truncateWorkTitle(s string) string {
@@ -329,9 +330,10 @@ type ConnectDEVToInput struct {
 	APIKey    string `json:"api_key"`
 }
 type ImportDEVToInput struct {
-	RequestID          string  `json:"request_id"`
-	AccountID          string  `json:"account_id"`
-	SelectedArticleIDs []int64 `json:"selected_article_ids"`
+	RequestID          string           `json:"request_id"`
+	AccountID          string           `json:"account_id"`
+	SelectedArticleIDs []int64          `json:"selected_article_ids"`
+	WorkAssociations   map[string]int64 `json:"work_associations,omitempty"`
 }
 type ImportDEVToResult struct {
 	AccountID    string                `json:"account_id"`
@@ -448,6 +450,36 @@ func (s Service) DEVToConnect(ctx context.Context, in ConnectDEVToInput) (Platfo
 		return a, nil
 	})
 }
+
+// suggestDEVToWork is a REVIEW HINT, not proof of publication ownership.
+// The caller must explicitly confirm a cross-host association in import_devto.
+// Do not match by title, or accept ambiguous matches.
+func (s *Store) suggestDEVToWork(ctx context.Context, canonical string) (int64, error) {
+	parsed, err := url.Parse(canonical)
+	if err != nil || parsed.Path == "" {
+		return 0, nil
+	}
+	rows, err := s.db.QueryContext(ctx, `SELECT DISTINCT w.id FROM works w
+  LEFT JOIN channel_pages c ON c.work_id=w.id
+  WHERE w.kind='article' AND (w.canonical_url LIKE ? OR c.url LIKE ?)`, "%"+parsed.Path, "%"+parsed.Path)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+	var match int64
+	for rows.Next() {
+		var id int64
+		if err = rows.Scan(&id); err != nil {
+			return 0, err
+		}
+		if match != 0 && match != id {
+			return 0, nil
+		}
+		match = id
+	}
+	return match, rows.Err()
+}
+
 func (s Service) DEVToPreview(ctx context.Context, in DEVToPreviewInput) (DEVToPreview, error) {
 	a, err := s.Store.platformAccount(ctx, in.AccountID)
 	if err != nil {
@@ -484,6 +516,19 @@ func (s Service) DEVToPreview(ctx context.Context, in DEVToPreviewInput) (DEVToP
 				return DEVToPreview{}, e
 			}
 		}
+		if item.ExistingWorkID == 0 && item.CanonicalURL != "" {
+			e := s.Store.db.QueryRowContext(ctx, `SELECT work_id FROM channel_pages WHERE url=?`, item.CanonicalURL).Scan(&item.ExistingWorkID)
+			if e != nil && !errors.Is(e, sql.ErrNoRows) {
+				return DEVToPreview{}, e
+			}
+		}
+		if item.ExistingWorkID == 0 && item.CanonicalURL != "" {
+			id, e := s.Store.suggestDEVToWork(ctx, item.CanonicalURL)
+			if e != nil {
+				return DEVToPreview{}, e
+			}
+			item.SuggestedWorkID = id
+		}
 		e := s.Store.db.QueryRowContext(ctx, `SELECT work_id FROM platform_publications WHERE account_id=? AND remote_article_id=?`, a.ID, item.ID).Scan(&item.ImportedWorkID)
 		if e != nil && !errors.Is(e, sql.ErrNoRows) {
 			return DEVToPreview{}, e
@@ -509,12 +554,38 @@ func (s Service) DEVToImport(ctx context.Context, in ImportDEVToInput) (ImportDE
 	entries := []DEVToArticle{}
 	for _, a := range preview.Articles {
 		if selected[a.ID] {
+			// Cross-host path equivalence is only a suggestion. A client must
+			// explicitly select the candidate Work or acknowledge "new" (0).
+			if a.SuggestedWorkID != 0 && a.ExistingWorkID == 0 {
+				if _, confirmed := in.WorkAssociations[strconv.FormatInt(a.ID, 10)]; !confirmed {
+					return ImportDEVToResult{}, ErrConflict
+				}
+			}
 			entries = append(entries, a)
 			delete(selected, a.ID)
 		}
 	}
 	if len(selected) != 0 {
 		return ImportDEVToResult{}, ErrInvalid
+	}
+	for raw, id := range in.WorkAssociations {
+		parsed, e := strconv.ParseInt(raw, 10, 64)
+		if e != nil || id < 0 {
+			return ImportDEVToResult{}, ErrInvalid
+		}
+		exists := false
+		for _, item := range entries {
+			if item.ID == parsed {
+				exists = true
+				if item.ExistingWorkID != 0 && item.ExistingWorkID != id {
+					return ImportDEVToResult{}, ErrConflict
+				}
+				break
+			}
+		}
+		if !exists {
+			return ImportDEVToResult{}, ErrInvalid
+		}
 	}
 	return command(ctx, s.Store, "import_devto", in.RequestID, in, func(tx *sql.Tx) (ImportDEVToResult, error) {
 		out := ImportDEVToResult{AccountID: in.AccountID, Publications: []PlatformPublication{}}
@@ -534,8 +605,15 @@ func (s Service) DEVToImport(ctx context.Context, in ImportDEVToInput) (ImportDE
 				continue
 			}
 			var work Work
-			if article.ExistingWorkID != 0 {
-				err = tx.QueryRowContext(ctx, `SELECT id,title,COALESCE(repository,''),github_id,kind,COALESCE(canonical_url,'') FROM works WHERE id=?`, article.ExistingWorkID).
+			targetID := article.ExistingWorkID
+			if override, confirmed := in.WorkAssociations[strconv.FormatInt(article.ID, 10)]; confirmed {
+				if article.ExistingWorkID != 0 && override == 0 {
+					return out, ErrConflict
+				}
+				targetID = override
+			}
+			if targetID != 0 {
+				err = tx.QueryRowContext(ctx, `SELECT id,title,COALESCE(repository,''),github_id,kind,COALESCE(canonical_url,'') FROM works WHERE id=?`, targetID).
 					Scan(&work.ID, &work.Title, &work.Repository, &work.RepositoryID, &work.Kind, &work.CanonicalURL)
 				if err != nil || work.Kind != "article" {
 					return out, ErrConflict

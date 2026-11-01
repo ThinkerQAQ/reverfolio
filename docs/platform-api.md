@@ -2,6 +2,12 @@
 
 Reverfolio **v0.9.0** supports the documented [Forem API V1](https://developers.forem.com/api/v1) independently of SyndiRelay, Inkerio or browser cookies. The integration makes **GET requests only**; it never publishes, edits, or deletes posts.
 
+## v0.9.1: historical domains and confirmed work identity
+
+A post whose canonical URL exactly matches an existing Work or a registered language/channel URL is linked to the existing Work. A canonical URL on an old website domain with **the same complete article path** as one catalog channel is only a **suggestion**—cross-host path similarity is not proof of ownership. Review each proposed Work in the Creator platforms preview, then select and import.
+
+The `import_devto` MCP tool accepts an optional `work_associations` object, keyed by stringified DEV.to article ID. Values are existing Work IDs, or explicitly `0` to confirm a new independent Work. A path-only cross-domain suggestion **requires a deliberate mapping** to prevent accidental duplicates. An exact existing mapping cannot be reassigned to a different Work. Existing titles, channels and historical observations stay unchanged.
+
 ## First use
 
 1. Generate a **personal DEV.to API key** from account settings ([API guide](https://developers.forem.com/api)). The token itself may allow publishing: keep it private even though Reverfolio only uses read endpoints.

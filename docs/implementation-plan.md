@@ -107,3 +107,8 @@ P1–P5 and the existing GitHub / Umami / GSC / Bing dashboards are implemented 
 **Implemented:** Direct, officially authenticated DEV.to/Forem API integration in Reverfolio itself, without a SyndiRelay runtime dependency: user identity verification, authored published-article discovery, explicit select-to-import and existing canonical Work linkage, account follower counts, publication views/reactions/comments with source timestamps, independent SQLite schema v7, creator-platform Web/extension dashboard, 39 MCP tools and combined Markdown impact report. Credentials are local write-only UI inputs and private files; MCP never accepts raw platform API keys.
 
 **Not implemented:** Hashnode GraphQL adapter and metric-schema validation, all other content-platform metric adapters, scheduled DEV.to/website account polling, full public-directory ChatGPT plugin review, or any notion of unique cross-platform readers. The preceding 'proposed' section described an earlier design before this direct-API-only decision; do not implement its proposed SyndiRelay metrics outbox or browser-scraping fallback. More details: [official API policy](platform-api.md) / [中文](platform-api.zh-CN.md).
+
+
+## v0.9.1 DEV.to canonical linkage fix (2026-11-01)
+
+Previously, cross-domain historical canonical URLs (for example, an author's old GitHub Pages domain migrating to a custom domain) could bypass exact URL matching and create duplicate Works. v0.9.1 checks existing channel URLs and adds non-authoritative, exact-path **suggestions**; only user-confirmed Work mappings can attach a cross-host publication, and the UI/MCP require an explicit decision. There is no schema migration and no new provider permission. See [platform API](platform-api.md).

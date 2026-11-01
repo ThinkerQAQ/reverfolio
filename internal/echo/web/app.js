@@ -327,7 +327,15 @@ function platformsView(){
  const previewView=preview?'<div class="panel">'+heading(tr("DEV.to 已发布文章候选","Published DEV.to articles"),tr("只有勾选的文章才会登记；canonical URL 命中本地原文时，自动关联而非重复新增。","Only selected articles are registered. Matching canonical URLs link to existing works."))+
  (preview.truncated?'<p class="meta">'+E(tr("本次最多返回 500 篇，请分批管理；不会声称覆盖全部文章。","Capped at 500; this is not a complete historical inventory."))+'</p>':'')+
  '<div class="table-wrap"><table class="data-table"><thead><tr><th>'+E(tr("选择","Select"))+'</th><th>'+E(tr("文章与发布地址","Article & URL"))+'</th><th>'+E(tr("关联状态","Link status"))+'</th><th>'+E(tr("已有浏览","Reported views"))+'</th></tr></thead><tbody>'+
- preview.articles.map(a=>'<tr><td><input type="checkbox" data-devto-choice="'+a.id+'" aria-label="'+E(a.title)+'" '+(a.imported_work_id?'disabled':'')+'></td><td>'+E(a.title)+'<p class="meta">'+anchor(a.url)+'</p>'+(a.canonical_url&&a.canonical_url!==a.url?'<p class="meta">'+E(tr("原文","Canonical"))+': '+anchor(a.canonical_url)+'</p>':'')+'</td><td>'+E(a.imported_work_id?tr("已导入","Imported"):a.existing_work_id?tr("匹配现有作品","Matches existing work"):tr("新作品","New work"))+'</td><td>'+fmt(a.views)+'</td></tr>').join("")+
+ preview.articles.map(a=>{
+  const works=state.data.works.filter(w=>w.kind==="article");
+  const suggestion=a.suggested_work_id||0;
+  const matched=a.existing_work_id||suggestion||0;
+  const options='<option value="" '+(matched?'':'selected')+' disabled>'+E(tr("请选择作品归属","Choose the owning work"))+'</option>'+
+   '<option value="new">'+E(tr("确认这是新的独立作品","Confirm a new independent work"))+'</option>'+
+   works.map(w=>'<option value="'+w.id+'" '+(matched===w.id?'selected':'')+'>'+E((suggestion===w.id?'★ '+tr("候选：","Suggested: "):"")+w.title+" · #"+w.id)+'</option>').join("");
+  return '<tr><td><input type="checkbox" data-devto-choice="'+a.id+'" aria-label="'+E(a.title)+'" '+(a.imported_work_id?'disabled':'')+'></td><td>'+E(a.title)+'<p class="meta">'+anchor(a.url)+'</p>'+(a.canonical_url&&a.canonical_url!==a.url?'<p class="meta">'+E(tr("原文","Canonical"))+': '+anchor(a.canonical_url)+'</p>':'')+'</td><td>'+(a.imported_work_id?E(tr("已导入","Imported")):'<label class="field"><span>'+E(suggestion&&!matched?tr("发现同路径作品，需确认","Same-path candidate; confirm match"):tr("作品归属","Work association"))+'</span><select data-devto-work="'+a.id+'">'+options+'</select></label>')+'</td><td>'+fmt(a.views)+'</td></tr>';
+ }).join("")+
  '</tbody></table></div><div class="form-actions"><button class="btn btn-primary" data-action="import-devto" data-account="'+E(preview.account_id)+'">'+E(tr("导入勾选文章","Import selected articles"))+'</button></div></div>':'';
  return header+connection+(accountPanels||'<div class="panel empty">'+E(tr("尚未连接平台账号。可先连接 DEV.to，完全不需要 SyndiRelay。","No platform accounts connected. Start with DEV.to; SyndiRelay is not required."))+'</div>')+previewView+
  '<p class="kpi-note">'+E(tr("当前仅支持 DEV.to 官方 API。没有官方授权统计 API 的平台不会调用私有接口、抓取登录态或伪造数据。浏览量不是独立读者，粉丝量不可跨平台去重。","DEV.to official API is the first supported provider. No unofficial scraping or private endpoints. Views are not unique readers; followers cannot be deduplicated across platforms."))+'</p>';
@@ -583,8 +591,14 @@ async function runClick(button){
   const p=state.devtoPreview;if(!p)throw Error(settingsLabel(["先读取已发布文章","Discover articles first"]));
   const ids=[...document.querySelectorAll("[data-devto-choice]:checked")].map(x=>Number(x.dataset.devtoChoice));
   if(!ids.length)throw Error(settingsLabel(["请先勾选文章","Select articles first"]));
+  const workAssociations={};
+  for(const id of ids){
+   const value=document.querySelector('[data-devto-work="'+id+'"]')?.value;
+   if(!value)throw Error(settingsLabel(["请为所有选中文章明确指定作品归属","Choose an explicit work association for every selected article"]));
+   workAssociations[String(id)]=value==="new"?0:Number(value);
+  }
   await act(async()=>{
-   await send("import_devto",{account_id:p.account_id,selected_article_ids:ids});
+   await send("import_devto",{account_id:p.account_id,selected_article_ids:ids,work_associations:workAssociations});
    state.devtoPreview=null;
   },settingsLabel(["已关联选中的文章","Selected articles linked"]));return;
  }

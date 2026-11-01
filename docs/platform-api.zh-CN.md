@@ -2,6 +2,12 @@
 
 Reverfolio v0.9.0。**不需要 Inkerio、SyndiRelay 或浏览器 Cookie**，只使用 [Forem 官方 API V1](https://developers.forem.com/api/v1)，且全部为 GET 请求。
 
+## v0.9.1：同一作品跨平台／旧域名关联
+
+如果文章的 canonical URL 精确匹配已登记的 Work 原文或任一语言渠道 URL，Reverfolio 直接关联现有作品。如果旧博客域名与新域名不一致、但完整文章路径与已登记的某条渠道一致，**只显示候选关联，不静默合并**。在「平台账号 → 读取已发布文章」中逐篇确认归属后再勾选导入。
+
+MCP 的 `import_devto` 现接受可选 `work_associations`：JSON 对象键是 DEV.to article ID（字符串），值是已有 Work ID（整数）；将值显式设置为 `0` 表示确认是全新作品。遇到跨域同路径的候选时，这个字段**必须明确指定**，避免自动产生重复的原创作品。对于已经确定归属的作品，不允许改绑到不一致的 Work。作品原有的中文／英文标题与历史指标均不会改写。
+
 ## 五步使用
 
 1. 在 DEV.to 账户设置中生成个人 API Key（[官方说明](https://developers.forem.com/api)）。**API Key 本身可能具有写权限**，Reverfolio 只使用只读请求；不要公开、不要提交 Git。
