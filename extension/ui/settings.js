@@ -165,15 +165,7 @@ function settingsReadOnly(node){
    active?"Collection interval: "+runtime.collection_interval+"; auth mode: "+runtime.github_auth_mode+". Check snapshots for actual success.":"Automatic collection is disabled in TOML. Auth mode: "+runtime.github_auth_mode+". Enable it in Automatic collection after configuring authorization."
   ])) + '<p>'+E(settingsLabel([runtime.github_credential_loaded?"已加载 GitHub 凭据；实际权限与采集结果请查看快照。":"未加载 GitHub 凭据，流量统计可能不可用。",runtime.github_credential_loaded?"GitHub credential loaded; inspect snapshots for permissions and actual results.":"No GitHub credential loaded; traffic metrics may be unavailable."]))+'</p>';
  }
- if(kind==="gsc"||kind==="bing"||kind==="umami"){
-  const title=kind==="gsc"?"Google Search Console":kind==="bing"?"Bing Webmaster":"Umami";
-  const history=(state.data.audit.history||[]).filter(r=>
-   kind==="gsc" ? r.source?.includes("GSC") : kind==="umami" ? r.source?.includes("Umami") : r.source?.includes("Bing"));
-  return status(title,history.length?"Historical":"Not connected",
-   history.length?
-    settingsLabel(["已保存 "+history.length+" 条历史观测，当前尚无自动 API 采集。","Stored "+history.length+" historical observations. Live API collection is not connected."]):
-    settingsLabel(["当前没有已连接的实时采集。未来独立实现数据适配器，不依赖 BlogCTL。","No live connector. Future provider adapters will be independent of any publishing tool."]));
- }
+ if(kind==="gsc"||kind==="bing"||kind==="umami")return siteSourcePanel(kind);
  if(kind==="search-runtime")return '<p>'+E(settingsLabel(["Reverfolio 保存检索任务、任务认领和证据审核；实际搜索由已授权的 AI 客户端执行，系统不会自动声称搜索了全网。","Reverfolio stores tasks, leases and evidence review. Actual search happens through an authorized AI client; no fake autonomous crawl."]))+'</p>';
  if(kind==="backup")return '<p class="desc">'+E(settingsLabel(["数据库备份是私有的 SQLite 文件。恢复需要在服务离线时使用新的文件路径，不会覆盖现有数据库。","Backups are private SQLite files. Restore only to a new destination while offline."]))+'</p>'+
   '<button type="button" class="btn btn-primary" data-action="backup">'+E(settingsLabel(["下载数据库备份","Download SQLite backup"]))+'</button>';

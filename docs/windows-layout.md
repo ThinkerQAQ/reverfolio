@@ -30,11 +30,12 @@ Folder structure:
 - config.toml: local TOML configuration for startup and nonsecret UI preferences. It is NOT a SQLite table; never commit it.
 - config.example.toml: tracked reference template; safe to share.
 - Start with Start-Reverfolio.cmd. Browser UI requires no token, while MCP/API remain authenticated.
-- The Windows config uses 127.0.0.1:19452 to avoid collision with Ubuntu/WSL on port 19450. They are separate local instances.
-- Windows is the ONLY active business data authority. Legacy WSL rows were checked (identical), backed up and disabled. The MCP tunnel launches Windows Reverfolio via Windows interop. See [Windows authority](windows-authority.md).
+- The Windows config uses 127.0.0.1:19452 to avoid collision with Ubuntu/WSL on port 19450. The old WSL application is inactive.
+- Windows is the ONLY active business data authority. Legacy WSL rows were checked (identical), backed up and disabled. The native Windows tunnel launches Windows Reverfolio directly. See [Windows authority](windows-authority.md).
 - Secrets are not placed in TOML; Data/api-token is generated when the Windows app starts.
-- github.auth = "env" is the safe no-token default on this Windows host. The signed-in Windows GitHub CLI has no available OAuth token; use Windows gh auth login and switch to gh when authorized. Until then, collection.interval = "0" avoids pretending repository traffic has been collected. No credentials are copied.
-- Restart the app to apply startup settings such as listener or interval. UI preferences update TOML and take effect without restart.
+- github.auth = "env" uses an explicitly supplied GITHUB_TOKEN; "gh" uses the authorized native GitHub CLI. Never copy credentials into source or installation templates.
+- The service reloads collection.interval within one minute; listener changes require restart. UI preferences take effect without restart.
+- Provider configuration is nonsecret TOML. Provider secret files remain private under Data/provider-credentials; source status checks report presence without reading those files. See [provider setup](site-sources.md).
 - Cross-compile with GOOS=windows GOARCH=amd64 go build -o bin/reverfolio.exe ./cmd/reverfolio.
 - Reverfolio has no dependency on any publishing tool or browser extension.
 

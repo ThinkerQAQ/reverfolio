@@ -112,11 +112,11 @@ async function act(operation) {
   finally {state.busy=false;document.body.classList.remove("busy");}
 }
 async function refresh(showMessage=true){
-  const [works,report,mentions,tasks,audit,settings,runtime]=await Promise.all([
-    api("/api/works"),api("/api/report"),api("/api/mentions"),api("/api/tasks"),api("/api/audit"),api("/api/settings"),api("/api/runtime")
+  const [works,report,mentions,tasks,audit,settings,runtime,sources]=await Promise.all([
+    api("/api/works"),api("/api/report"),api("/api/mentions"),api("/api/tasks"),api("/api/audit"),api("/api/settings"),api("/api/runtime"),api("/api/site-sources")
   ]);
   const pairs=await Promise.all(works.map(async w=>[w.id,await api("/api/works/"+w.id+"/channels")]));
-  state.data={works,report,mentions,tasks,audit,settings,runtime,channels:new Map(pairs)};
+  state.data={works,report,mentions,tasks,audit,settings,runtime,sources,channels:new Map(pairs)};
   state.lang=pref("interface.language","zh-CN")==="en"?"en":"zh";
   render();
   if(showMessage)notification(T("数据读取成功"));
@@ -198,7 +198,7 @@ function overviewView(){
   stat("验证页面",summary.verified_pages,"仅统计审核通过的原始页面",true)+
   stat("传播事件",summary.third_party_events,"同一事件不重复计数")+
   stat("待审核线索",summary.pending,"需要再次核查原始来源")+'</div>'+
-  githubView+(evidence||history?'<div class="grid-2">'+evidence+history+'</div>':"");
+  githubView+liveSourcesView()+(evidence||history?'<div class="grid-2">'+evidence+history+'</div>':"");
 }
 function input(label,name,type="text",placeholder="",extra=""){
  return '<label class="field"><span>'+T(label)+'</span><input name="'+name+'" type="'+type+'" placeholder="'+E(placeholder)+'" '+extra+'></label>';
@@ -266,7 +266,7 @@ function evidenceView(){
  }).join("");
  return heading("引用与采用","审核第三方引用与实际采用的原始证据")+
  '<div class="toolbar"><input class="search" data-filter placeholder="'+T("输入关键词筛选")+'"><select class="inline-input" id="evidence-filter" aria-label="'+T("筛选")+'">'+[["all","全部"],["pending","待审核"],["verified","已审核"]].map(([value,label])=>'<option value="'+value+'" '+(filter===value?"selected":"")+'>'+T(label)+'</option>').join("")+'</select><span class="muted">'+fmt(state.data.mentions.length)+'</span></div>'+
- '<div class="evidence-list">'+(list||'<div class="panel empty">'+T("无可用数据")+'</div>')+'</div>'+
+ '<div class="evidence-list">'+(list||'<div class="panel empty">'+T("无可用数据")+'</div>')+'</div>'+identityPanel()+
  heading("新建引用线索")+
  '<div class="panel"><form data-form="mention"><div class="form-grid">'+workSelection()+
  select("引用类型","type",Object.entries(labels).map(([id,text])=>[id,text]))+
@@ -279,6 +279,46 @@ function evidenceView(){
  '<label class="field full"><span>'+T("链接地址")+'</span><input type="url" name="url" required placeholder="https://"></label>'+
  '<label class="field full"><span>'+T("短证据说明")+'</span><textarea name="quote" required maxlength="1200"></textarea></label></div>'+
  '<div class="form-actions"><button class="btn btn-primary">'+T("提交待审核")+'</button></div></form></div>';
+}
+function liveSourcesView(){
+ const runs=state.data.report.report.provider_runs||[];
+ if(!runs.length)return '';
+ const metricLabel=name=>({pageviews:settingsLabel(["页面浏览","Pageviews"]),visitor_identifiers:settingsLabel(["访客标识","Visitor identifiers"]),sessions:settingsLabel(["会话","Sessions"]),search_clicks:settingsLabel(["搜索点击","Search clicks"]),search_impressions:settingsLabel(["搜索曝光","Search impressions"]),ctr:settingsLabel(["点击率","CTR"]),average_position:settingsLabel(["平均排名","Average position"])})[name]||name;
+ return heading(settingsLabel(["站点数据源观测","Site analytics observations"]))+'<div class="grid-cards">'+runs.map(r=>{
+  const metrics=new Map();for(const m of r.metrics){const old=metrics.get(m.metric);if(!old)metrics.set(m.metric,{...m});else if(r.provider==='bing')old.value+=m.value;}
+  return '<article class="mini-card"><div class="work-header"><h3>'+E(r.source_id)+'</h3>'+tag(r.state,r.state)+'</div><p class="meta">'+E(r.provider)+' · '+dt(r.captured_at)+'</p>'+(r.problem?'<p>'+E(r.problem)+'</p>':'')+[...metrics.values()].map(m=>'<p><strong>'+E(metricLabel(m.metric))+': '+(m.unit==='ratio'?fmt(m.value*100)+'%':fmt(m.value))+'</strong></p>').join('')+
+  (r.metrics.length?'<p class="meta">'+E(settingsLabel(["保留独立来源及时间范围，不合并成独立读者数。","Sources and periods stay separate; no unique-reader inference."]))+'</p><details><summary>'+E(settingsLabel(["日期、口径与原始观测","Dates, scope and observations"]))+'</summary>'+r.metrics.map(m=>'<p>'+E(metricLabel(m.metric))+': '+fmt(m.value)+' '+E(m.unit)+'</p><p class="meta">'+dt(m.period_start)+' → '+dt(m.period_end)+' · '+E(m.timezone)+'</p><p class="meta">'+E(m.scope)+'</p>').join('')+'</details>':'')+'</article>';
+ }).join('')+'</div>';
+}
+function siteSourcePanel(provider){
+ const all=state.data.sources?.sources||[],sources=all.filter(x=>x.source.provider===provider);
+ const selected=state.sourceEdit&&state.sourceEdit.provider===provider?state.sourceEdit:null;
+ const defaults={auth_mode:provider==='umami'?'browser':'token',browser_endpoint:'http://127.0.0.1:9222',id:provider+'-blog',provider,work_id:state.data.works.find(x=>x.kind==='site')?.id||0,endpoint:provider==='umami'?'https://cloud.umami.is/api':provider==='gsc'?'https://www.googleapis.com/webmasters/v3':'https://ssl.bing.com/webmaster/api.svc/json',property:provider==='umami'?'':provider==='gsc'?'sc-domain:example.com':'https://example.com/',timezone:provider==='gsc'?'America/Los_Angeles':'UTC',lookback_days:7,lag_days:provider==='gsc'?3:1,credential_env:'',enabled:false};
+ const c=selected||sources[0]?.source||defaults;
+ return '<p class="desc">'+E(settingsLabel(["独立连接官方 API。配置保存在 TOML；凭据只保存在本地私有文件或服务环境，不会在查询中返回。","Independent official API connection. TOML stores configuration; credentials remain in private local files or the service environment and are never returned."]))+'</p>'+
+ sources.map(x=>'<div class="list-row"><strong>'+E(x.source.id)+'</strong> · '+tag(x.last_run?.state||(x.source.auth_mode==='browser'?'browser_session':x.credential_loaded?'configured':'credential_missing'))+'<p>'+E(settingsLabel([x.source.auth_mode==='browser'?'使用本机浏览器会话，无需 API Key。':x.credential_loaded?'凭据已保存；以实际采集结果为准。':'尚未保存 API 凭据。',x.source.auth_mode==='browser'?'Uses the local browser session; no API key.':x.credential_loaded?'Credential present; check actual collection result.':'API credentials are missing.']))+'</p>'+(x.last_run?'<p class="meta">'+dt(x.last_run.captured_at)+' · '+E(x.last_run.problem||'')+'</p>':'')+'<button class="btn btn-sm" data-action="edit-source" data-source="'+E(x.source.id)+'">'+E(settingsLabel(["编辑","Edit"]))+'</button> <button class="btn btn-sm" data-action="collect-site-source" data-source="'+E(x.source.id)+'">'+E(settingsLabel(["立即采集","Collect now"]))+'</button></div>').join('')+
+ '<form data-form="site-source"><input type="hidden" name="provider" value="'+E(provider)+'"><div class="form-grid">'+
+ '<label class="field"><span>'+E(settingsLabel(["连接标识","Source ID"]))+'</span><input name="id" value="'+E(c.id)+'" pattern="[a-z][a-z0-9_-]{0,39}" required></label>'+
+ '<label class="field"><span>'+E(settingsLabel(["关联作品","Work"]))+'</span><select name="work_id">'+state.data.works.filter(w=>w.kind==='site'||w.kind==='article').map(w=>'<option value="'+w.id+'" '+(c.work_id===w.id?'selected':'')+'>'+E(w.title)+'</option>').join('')+'</select></label>'+
+ '<label class="field"><span>'+E(settingsLabel(["授权方式","Authentication"]))+'</span><select name="auth_mode"><option value="token" '+(c.auth_mode!=='browser'?'selected':'')+'>'+E(settingsLabel(["API 凭据","API credentials"]))+'</option>'+(provider==='umami'?'<option value="browser" '+(c.auth_mode==='browser'?'selected':'')+'>'+E(settingsLabel(["本机浏览器会话（无 API Key）","Local browser session (no API key)"]))+'</option>':'')+'</select></label><label class="field"><span>'+E(settingsLabel(["浏览器调试地址","Browser debug endpoint"]))+'</span><input name="browser_endpoint" value="'+E(c.browser_endpoint||'http://127.0.0.1:9222')+'"></label>'+
+ '<label class="field full"><span>API Endpoint</span><input name="endpoint" type="url" value="'+E(c.endpoint)+'" '+(provider!=='umami'?'readonly':'')+' required></label>'+
+ '<label class="field full"><span>'+E(settingsLabel([provider==='umami'?'网站 ID':'站点 Property / URL',provider==='umami'?'Website ID':'Site property / URL']))+'</span><input name="property" value="'+E(c.property)+'" required></label>'+
+ '<label class="field"><span>'+E(settingsLabel(["时区","Timezone"]))+'</span><input name="timezone" value="'+E(c.timezone)+'" '+(provider==='gsc'?'readonly':'')+' required></label>'+
+ '<label class="field"><span>'+E(settingsLabel(["回看天数","Lookback days"]))+'</span><input name="lookback_days" type="number" min="1" max="90" value="'+c.lookback_days+'" required></label>'+
+ '<label class="field"><span>'+E(settingsLabel(["数据延迟天数","Data lag days"]))+'</span><input name="lag_days" type="number" min="1" max="30" value="'+c.lag_days+'" required></label>'+
+ '<label class="field"><span>'+E(settingsLabel(["自动采集","Automatic collection"]))+'</span><select name="enabled"><option value="true" '+(c.enabled?'selected':'')+'>'+E(settingsLabel(["启用","Enabled"]))+'</option><option value="false" '+(!c.enabled?'selected':'')+'>'+E(settingsLabel(["关闭","Disabled"]))+'</option></select></label>'+
+ '<label class="field full" data-source-token '+(c.auth_mode==='browser'?'hidden':'')+'><span>'+E(settingsLabel(["凭据环境变量（可选）","Credential environment variable (optional)"]))+'</span><input name="credential_env" value="'+E(c.credential_env)+'" pattern="[A-Z][A-Z0-9_]{0,79}"></label>'+
+ '<label class="field full" data-source-token '+(c.auth_mode==='browser'?'hidden':'')+'><span>'+E(settingsLabel([provider==='gsc'?'OAuth 凭据 JSON 或 Access Token（留空保留）':'API 密钥（留空保留）',provider==='gsc'?'OAuth credential JSON or access token (blank keeps existing)':'API key (blank keeps existing)']))+'</span><input name="credential" type="password" autocomplete="new-password"></label></div>'+
+ '<p class="meta">'+E(settingsLabel([provider==='gsc'?'支持只读 Search Console OAuth refresh token／服务账户 JSON。现有网页登录不等于 API 授权。':provider==='umami'?'浏览器会话方式通过已登录的本机浏览器请求 Umami JSON 接口，不需要 API Key。需要保持浏览器和登录有效。':'使用 Bing Webmaster API Key；统计包含所有搜索垂类，保留原始日期偏移。',provider==='gsc'?'Supports readonly Search Console OAuth refresh tokens or service-account JSON. A web login is not an API grant.':provider==='umami'?'Browser-session mode requests the Umami JSON API through the signed-in local browser, without an API key. The browser and login must remain active.':'Uses a Bing Webmaster API key; includes all verticals and retains original date offsets.']))+'</p><div class="form-actions"><button class="btn btn-primary">'+E(settingsLabel(["保存连接","Save connection"]))+'</button></div></form>';
+}
+function identityPanel(){
+ const aliases=state.data.audit.actor_aliases||[],history=state.data.audit.actor_history||[];
+ const keys=[...new Set(state.data.mentions.map(m=>m.actor_key).filter(Boolean))];
+ return heading(settingsLabel(["作者身份归并","Actor identity groups"]))+
+ '<div class="panel"><p class="desc">'+E(settingsLabel(["只有明确证据表明是同一作者时才关联身份 URL；同名不会自动合并。","Link identity URLs only with explicit same-author evidence; names alone are never merged."]))+'</p>'+
+ '<p>'+E(settingsLabel(["已验证身份组 / 原始身份 URL","Verified groups / identity URLs"]))+': '+fmt(state.data.report.report.verified_actors)+' / '+fmt(state.data.report.report.verified_actor_urls)+'</p>'+
+ aliases.map(a=>'<div class="list-row">'+anchor(a.alias)+' → '+anchor(a.identity_url)+'<p class="meta">'+E(a.reason)+' · '+E(a.reviewer)+'</p><input class="inline-input" data-unlink-reason="'+E(a.alias)+'" aria-label="'+E(settingsLabel(["撤销理由","Unlink reason"]))+'" placeholder="'+E(settingsLabel(["撤销理由","Unlink reason"]))+'"><button class="btn btn-sm" data-action="unlink-identity" data-alias="'+E(a.alias)+'" data-identity="'+E(a.identity_url)+'">'+E(settingsLabel(["撤销关联","Unlink"]))+'</button></div>').join('')+
+ '<form data-form="identity"><div class="form-grid"><label class="field full"><span>'+E(settingsLabel(["主身份 URL","Canonical identity URL"]))+'</span><select name="identity_url" required>'+keys.map(k=>'<option value="'+E(k)+'">'+E(k)+'</option>').join('')+'</select></label><label class="field full"><span>'+E(settingsLabel(["关联身份 URL（每行一个）","Alias URLs (one per line)"]))+'</span><textarea name="aliases" required></textarea></label><label class="field full"><span>'+E(settingsLabel(["关联证据与理由","Evidence and reason"]))+'</span><textarea name="reason" maxlength="1200" required></textarea></label></div><div class="form-actions"><button class="btn btn-primary">'+E(settingsLabel(["关联身份","Link identities"]))+'</button></div></form><details><summary>'+E(settingsLabel(["身份审计记录","Identity audit history"]))+' ('+history.length+')</summary>'+history.map(h=>'<p>'+E(h.alias)+' · '+E(h.from_identity||'—')+' → '+E(h.to_identity||'—')+' · '+E(h.reason)+' · '+dt(h.changed_at)+'</p>').join('')+'</details></div>';
 }
 function tasksView(){
  const items=state.data.tasks.map(task=>{
@@ -355,6 +395,9 @@ async function runClick(button){
  if(action==="show-work"){
   const element=$("detail-"+id);if(element){element.hidden=false;element.open=!element.open;}return;
  }
+ if(action==="unlink-identity"){const reason=[...document.querySelectorAll("[data-unlink-reason]")].find(x=>x.dataset.unlinkReason===button.dataset.alias)?.value?.trim();if(!reason){notification(T("需要填写审核理由"),true);return;}await act(async()=>send("unlink_identity",{alias:button.dataset.alias,expected_identity:button.dataset.identity,reason,reviewer:pref("evidence.reviewer","local-ui")}));return;}
+ if(action==="edit-source"){state.sourceEdit=state.data.sources.sources.find(x=>x.source.id===button.dataset.source)?.source;render();return;}
+ if(action==="collect-site-source"){await act(async()=>send("collect_site_source",{source_id:button.dataset.source}));return;}
  if(action==="collect"){await act(async()=>{await api("/api/works/"+id+"/collect",{method:"POST",headers:{"Idempotency-Key":uuid()}});});return;}
  if(action==="claim"){await act(async()=>{
   const result=await send("claim_discovery_task",{task_id:id,worker:pref("discovery.worker","Reverfolio web UI")});
@@ -396,7 +439,9 @@ async function runForm(form){
  const body=Object.fromEntries(new FormData(form));
  const name=form.dataset.form;
  if(body.work_id)body.work_id=Number(body.work_id);
- if(name==="work"){
+ if(name==="site-source"){const credential=body.auth_mode==="browser"?"":body.credential;delete body.credential;if(body.auth_mode==="browser")body.credential_env="";body.work_id=Number(body.work_id);body.lookback_days=Number(body.lookback_days);body.lag_days=Number(body.lag_days);body.enabled=body.enabled==="true";await act(async()=>send("save_site_source",{source:body,credential,expected_version:state.data.sources.version}));}
+ else if(name==="identity"){body.aliases=body.aliases.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);body.reviewer=pref("evidence.reviewer","local-ui");await act(async()=>send("link_identity",body));}
+ else if(name==="work"){
   if(body.kind==="project"){delete body.canonical_url;}
   else {if(body.repository)body.canonical_url=body.repository;delete body.repository;}
   await act(async()=>{await send("upsert_work",body);});
@@ -425,6 +470,12 @@ document.addEventListener("input",e=>{
  if(e.target.id==="import-json"){state.preview=null;state.importInput=e.target.value;const b=document.querySelector('[data-action="apply-import"]');if(b)b.disabled=true;}
 });
 document.addEventListener("change",e=>{
+ if(e.target.name==="auth_mode" && e.target.form?.dataset.form==="site-source"){
+  const form=e.target.form,browser=e.target.value==="browser";
+  for(const field of form.querySelectorAll("[data-source-token]")){field.hidden=browser;for(const input of field.querySelectorAll("input")){input.disabled=browser;if(browser)input.value="";}}
+  if(form.elements.provider.value==="umami")form.elements.endpoint.value=browser?"https://cloud.umami.is/api":"https://api.umami.is/v1";
+  return;
+ }
  if(e.target.id==="evidence-filter"){state.evidenceFilter=e.target.value;render();return;}
  if(e.target.dataset.settingKey)settingsHandleInput(e.target);
  if(e.target.id==="work-kind"){

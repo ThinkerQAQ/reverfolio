@@ -212,6 +212,7 @@ func (g GitHub) Collect(ctx context.Context, work Work, key string) Snapshot {
 }
 
 type Service struct {
+	Providers      ProviderClient
 	Store          *Store
 	GitHub         GitHub
 	Config         *ConfigManager

@@ -546,7 +546,7 @@ func (s *Store) ClaimTask(ctx context.Context, in ClaimInput) (Task, error) {
 			return Task{}, err
 		}
 		now := stamp(time.Now())
-		if task.State != "pending" && (task.State != "running" || task.LeaseUntil > now) {
+		if task.State != "pending" && task.State != "partial" && task.State != "failed" && (task.State != "running" || task.LeaseUntil > now) {
 			return Task{}, ErrConflict
 		}
 		task.State = "running"
@@ -699,8 +699,9 @@ type SourceSummary struct {
 	Changes    Interval  `json:"last_comparable_changes"`
 }
 type Report struct {
-	Sources []SourceSummary         `json:"sources"`
-	History []HistoricalObservation `json:"history"`
+	ProviderRuns []ProviderRun           `json:"provider_runs"`
+	Sources      []SourceSummary         `json:"sources"`
+	History      []HistoricalObservation `json:"history"`
 
 	GeneratedAt            string    `json:"generated_at"`
 	WorkID                 int64     `json:"work_id"`
@@ -708,6 +709,7 @@ type Report struct {
 	Mentions               []Mention `json:"mentions"`
 	VerifiedPages          int       `json:"verified_pages"`
 	ThirdPartyEvents       int       `json:"third_party_events"`
+	VerifiedActorURLs      int       `json:"verified_actor_urls"`
 	VerifiedActors         int       `json:"verified_actors"`
 	Pending                int       `json:"pending"`
 	HistoricalObservations int       `json:"historical_observations"`
@@ -715,7 +717,7 @@ type Report struct {
 }
 
 func (s *Store) Report(ctx context.Context, workID int64) (Report, error) {
-	result := Report{GeneratedAt: stamp(time.Now()), WorkID: workID, Notes: []string{"Downloads, clones, clicks and visitor identifiers are not verified users.", "Actor counts use explicitly supplied identity URLs; display names are not merged.", "Searches cover recorded queries and sources, not the entire web."}}
+	result := Report{GeneratedAt: stamp(time.Now()), WorkID: workID, Notes: []string{"Downloads, clones, clicks and visitor identifiers are not verified users.", "Actor counts use explicit audited URL groups; display names alone are not merged.", "Searches cover recorded queries and sources, not the entire web."}}
 	var err error
 	result.Works, err = s.Works(ctx)
 	if err != nil {
@@ -748,6 +750,18 @@ func (s *Store) Report(ctx context.Context, workID int64) (Report, error) {
 	if err != nil {
 		return result, err
 	}
+	runs, err := s.ProviderRuns(ctx)
+	if err != nil {
+		return result, err
+	}
+	result.ProviderRuns = []ProviderRun{}
+	seenRuns := map[string]bool{}
+	for _, run := range runs {
+		if !seenRuns[run.SourceID] && (workID == 0 || run.WorkID == workID) {
+			result.ProviderRuns = append(result.ProviderRuns, run)
+			seenRuns[run.SourceID] = true
+		}
+	}
 	result.History = []HistoricalObservation{}
 	for _, row := range audit.History {
 		if workID == 0 || row.WorkID == workID {
@@ -758,6 +772,11 @@ func (s *Store) Report(ctx context.Context, workID int64) (Report, error) {
 	if err != nil {
 		return result, err
 	}
+	identities := map[string]string{}
+	for _, a := range audit.ActorAliases {
+		identities[a.Alias] = a.IdentityURL
+	}
+	actorURLs := map[string]bool{}
 	actors := map[string]bool{}
 	events := map[string]bool{}
 	for _, m := range result.Mentions {
@@ -772,7 +791,12 @@ func (s *Store) Report(ctx context.Context, workID int64) (Report, error) {
 			continue
 		}
 		if m.ActorKey != "" {
-			actors[m.ActorKey] = true
+			actorURLs[m.ActorKey] = true
+			key := m.ActorKey
+			if identity := identities[key]; identity != "" {
+				key = identity
+			}
+			actors[key] = true
 		}
 		key := m.EventKey
 		if key == "" {
@@ -780,6 +804,7 @@ func (s *Store) Report(ctx context.Context, workID int64) (Report, error) {
 		}
 		events[fmt.Sprint(m.WorkID, ":", key)] = true
 	}
+	result.VerifiedActorURLs = len(actorURLs)
 	result.VerifiedActors = len(actors)
 	result.ThirdPartyEvents = len(events)
 	err = s.db.QueryRowContext(ctx, `SELECT count(*) FROM historical_observations WHERE (?=0 OR work_id=?)`, workID, workID).Scan(&result.HistoricalObservations)

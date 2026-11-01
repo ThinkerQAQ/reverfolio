@@ -16,11 +16,10 @@ Both copies were backed up before changing services.
 The legacy WSL service openecho.service was disabled and stopped. Its database
 remains for rollback but is not used by an active service.
 
-The existing reverfolio-tunnel.service retains WSL only as a network transport:
-its MCP command launches native Windows reverfolio.exe via WSL Windows interop,
-using Windows config.toml and the -mcp-stdio flag with collection disabled.
-It never references the former WSL SQLite file. Verified with the official
-Go MCP SDK (20 tools) and a live Reverfolio MCP list_works call (31 works).
+The Windows scheduled task Reverfolio MCP Tunnel runs the native tunnel transport.
+Its MCP command launches native Windows reverfolio.exe using Windows config.toml
+and -mcp-stdio, with no duplicate scheduler. The former WSL tunnel service is stopped
+and disabled. Neither transport nor application uses the former WSL SQLite file.
 
 This is NOT cross-OS access to a SQLite file: only native Windows processes
 open the Windows database and SQLite locking is handled by Windows.
@@ -31,7 +30,7 @@ open the Windows database and SQLite locking is handled by Windows.
 - Windows also serves authenticated /mcp for local programmatic access.
 - WSL 19450 is intentionally inactive.
 - No fallback to WSL data. If Windows is off, MCP cannot access Reverfolio data.
-- Windows GitHub automatic collection remains disabled until authorized.
+- GitHub scheduling follows the existing authorized local configuration. New site providers default to disabled.
 
 ## Backups and credentials
 

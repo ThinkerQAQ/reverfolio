@@ -42,8 +42,14 @@ for operating_system in ('windows', 'linux', 'darwin'):
             for name in ('config.example.toml', 'README.md', 'README.zh-CN.md',
                          'LICENSE', 'THIRD_PARTY_NOTICES.md', 'SECURITY.md'):
                 shutil.copy2(ROOT / name, root / name)
-            (root / 'docs').mkdir()
-            shutil.copy2(ROOT / 'docs/windows-layout.md', root / 'docs/windows-layout.md')
+            # Include only version-controlled documentation, so README links work
+            # in portable archives without collecting local reports or runtime data.
+            tracked_docs = subprocess.check_output(
+                ['git', 'ls-files', 'docs'], cwd=ROOT, text=True).splitlines()
+            for name in tracked_docs:
+                destination = root / name
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(ROOT / name, destination)
             prefix = 'Reverfolio-' + version + '-' + operating_system + '-' + architecture
             if operating_system == 'windows':
                 asset = DIST / (prefix + '.zip')
