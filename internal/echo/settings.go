@@ -37,7 +37,8 @@ type UpdateSettingsInput struct {
 }
 
 type ConfigFile struct {
-	Version int64 `toml:"version"`
+	Sources []SiteSource `toml:"sources"`
+	Version int64        `toml:"version"`
 	Server  struct {
 		Listen string `toml:"listen"`
 	} `toml:"server"`
@@ -230,6 +231,13 @@ func LoadConfig(path string) (ConfigFile, error) {
 			return c, fmt.Errorf("%w: invalid setting %s", ErrInvalid, key)
 		}
 	}
+	seenSources := map[string]bool{}
+	for _, source := range c.Sources {
+		if source.validate() != nil || seenSources[source.ID] {
+			return c, ErrInvalid
+		}
+		seenSources[source.ID] = true
+	}
 	return c, nil
 }
 
@@ -362,7 +370,7 @@ func (m *ConfigManager) RuntimeStatus(_ context.Context) (RuntimeConfigStatus, e
 	}
 	hasConfig := m != nil && m.Path != ""
 	return RuntimeConfigStatus{
-		Version: "0.3.1", Listen: c.Server.Listen, Database: c.Storage.Database,
+		Version: "0.4.0", Listen: c.Server.Listen, Database: c.Storage.Database,
 		CollectionInterval: c.Collection.Interval, GitHubAuthMode: c.GitHub.Auth,
 		GitHubCollectionEnabled: c.Collection.Interval != "0" && c.Collection.Interval != "0s",
 		ConfigFileAvailable:     hasConfig,

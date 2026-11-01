@@ -101,7 +101,8 @@ func (s *Store) GenerateReport(ctx context.Context, id int64) (ReportOutput, err
 	if err != nil {
 		return ReportOutput{}, err
 	}
-	text := fmt.Sprintf("# Reverfolio impact report\n\nGenerated: %s\n\nVerified pages: %d\n\nVerified third-party propagation groups: %d\n\nVerified identity URLs: %d\n\nPending evidence pages: %d\n\nHistorical observations: %d\n\n", r.GeneratedAt, r.VerifiedPages, r.ThirdPartyEvents, r.VerifiedActors, r.Pending, r.HistoricalObservations)
+	text := fmt.Sprintf("# Reverfolio impact report\n\nGenerated: %s\n\nVerified pages: %d\n\nVerified third-party propagation groups: %d\n\nVerified identity groups: %d\n\nPending evidence pages: %d\n\nHistorical observations: %d\n\n", r.GeneratedAt, r.VerifiedPages, r.ThirdPartyEvents, r.VerifiedActors, r.Pending, r.HistoricalObservations)
+	text += fmt.Sprintf("Identity URLs before explicit grouping: %d\n\n", r.VerifiedActorURLs)
 	text += "## GitHub observations\n\n"
 	for _, source := range r.Sources {
 		text += "- " + source.Repository + ": "
@@ -129,6 +130,13 @@ func (s *Store) GenerateReport(ctx context.Context, id int64) (ReportOutput, err
 			if window, ok := latest.Traffic[metric]; ok {
 				text += fmt.Sprintf("  - %s: %d; API window uniques: %d (rolling window, not verified people)\n", metric, window.Count, window.Uniques)
 			}
+		}
+	}
+	text += "\n## Site analytics observations\n\n"
+	for _, run := range r.ProviderRuns {
+		text += fmt.Sprintf("- %s (%s): %s; captured=%s; problem=%s\n", run.SourceID, run.Provider, run.State, stamp(run.CapturedAt), run.Problem)
+		for _, m := range run.Metrics {
+			text += fmt.Sprintf("  - %s: %g %s; %s to %s; timezone=%s; scope=%s\n", m.Metric, m.Value, m.Unit, stamp(m.PeriodStart), stamp(m.PeriodEnd), m.Timezone, m.Scope)
 		}
 	}
 	text += "\n## Historical observations\n\n"
@@ -181,7 +189,7 @@ func addTool[In any](server *mcp.Server, name, description string, readonly bool
 	})
 }
 func (s Service) MCPServer() *mcp.Server {
-	server := mcp.NewServer(&mcp.Implementation{Name: "Reverfolio", Version: "0.3.1"}, nil)
+	server := mcp.NewServer(&mcp.Implementation{Name: "Reverfolio", Version: "0.4.0"}, nil)
 	addTool(server, "list_works", "Read registered repositories and articles.", true, func(ctx context.Context, _ EmptyInput) (any, error) { return s.Store.Works(ctx) })
 	addTool(server, "get_work", "Read one work, channel pages, recent snapshots and interval changes.", true, func(ctx context.Context, in WorkIDInput) (any, error) { return s.Store.Overview(ctx, in.WorkID) })
 	addTool(server, "upsert_work", "Register a project or article. Requires request_id; duplicate identity returns the existing work without changing its title.", false, func(ctx context.Context, in WorkInput) (any, error) { return s.Store.RegisterWork(ctx, in) })
@@ -210,6 +218,11 @@ func (s Service) MCPServer() *mcp.Server {
 		return s.Config.UpdateSettings(ctx, UpdateSettingsInput{RequestID: in.RequestID, Updates: []SettingChange{{Key: in.Key, Value: in.Value, ExpectedVersion: in.ExpectedVersion}}})
 	})
 	addTool(server, "get_collection_status", "Read configured collection interval and credential presence; actual endpoint permission or collection errors remain in snapshots. No secrets returned.", true, func(ctx context.Context, _ EmptyInput) (any, error) { return s.RuntimeStatus(ctx) })
+	addTool(server, "link_identity", "Explicitly group known actor identity URLs with a reason and reviewer; no name-based inference.", false, func(ctx context.Context, in IdentityInput) (any, error) { return s.Store.LinkIdentity(ctx, in) })
+	addTool(server, "unlink_identity", "Detach an identity alias with expected group and audited reason.", false, func(ctx context.Context, in UnlinkIdentityInput) (any, error) { return s.Store.UnlinkIdentity(ctx, in) })
+	addTool(server, "list_site_sources", "Read configured independent Umami/GSC/Bing sources, credential presence and last collection state. No secrets.", true, func(ctx context.Context, _ EmptyInput) (any, error) { return s.SiteSources(ctx) })
+	addTool(server, "save_site_source", "Save a site source with expected config version. Optional credential is write-only and stored locally, never returned.", false, func(ctx context.Context, in SaveSiteSourceInput) (any, error) { return s.SaveSiteSource(ctx, in) })
+	addTool(server, "collect_site_source", "Fetch one configured site analytics provider and persist an idempotent, scoped observation run. Missing credentials are blocked, not zero.", false, func(ctx context.Context, in CollectSiteSourceInput) (any, error) { return s.CollectSiteSource(ctx, in) })
 	addTool(server, "get_audit", "Read historical observations, review transitions and recorded search scopes. Lease secrets are omitted.", true, func(ctx context.Context, _ EmptyInput) (any, error) { return s.Store.Audit(ctx) })
 	return server
 }
@@ -244,6 +257,19 @@ func actionRoute[In any](mux *http.ServeMux, name string, fn func(context.Contex
 }
 func (s Service) registerWorkflow(mux *http.ServeMux) {
 	s.registerOperations(mux)
+	actionRoute(mux, "save_site_source", func(ctx context.Context, in SaveSiteSourceInput) (any, error) { return s.SaveSiteSource(ctx, in) })
+	actionRoute(mux, "collect_site_source", func(ctx context.Context, in CollectSiteSourceInput) (any, error) { return s.CollectSiteSource(ctx, in) })
+	mux.HandleFunc("GET /api/site-sources", func(w http.ResponseWriter, r *http.Request) {
+		v, err := s.SiteSources(r.Context())
+		if err != nil {
+			http.Error(w, "source status unavailable", 500)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(v)
+	})
+	actionRoute(mux, "link_identity", func(ctx context.Context, in IdentityInput) (any, error) { return s.Store.LinkIdentity(ctx, in) })
+	actionRoute(mux, "unlink_identity", func(ctx context.Context, in UnlinkIdentityInput) (any, error) { return s.Store.UnlinkIdentity(ctx, in) })
 	actionRoute(mux, "upsert_work", func(ctx context.Context, in WorkInput) (any, error) { return s.Store.RegisterWork(ctx, in) })
 	actionRoute(mux, "add_channel", func(ctx context.Context, in ChannelInput) (any, error) { return s.Store.AddChannel(ctx, in) })
 	actionRoute(mux, "submit_mention", func(ctx context.Context, in MentionInput) (any, error) { return s.Store.SubmitMention(ctx, in) })

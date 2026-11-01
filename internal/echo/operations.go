@@ -2,6 +2,7 @@ package echo
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -52,9 +53,11 @@ type SearchRun struct {
 	CompletedAt string `json:"completed_at"`
 }
 type Audit struct {
-	Reviews    []Review                `json:"reviews"`
-	SearchRuns []SearchRun             `json:"search_runs"`
-	History    []HistoricalObservation `json:"history"`
+	ActorAliases []ActorAlias            `json:"actor_aliases"`
+	ActorHistory []ActorLinkHistory      `json:"actor_history"`
+	Reviews      []Review                `json:"reviews"`
+	SearchRuns   []SearchRun             `json:"search_runs"`
+	History      []HistoricalObservation `json:"history"`
 }
 
 func (s *Store) Audit(ctx context.Context) (Audit, error) {
@@ -109,7 +112,13 @@ func (s *Store) Audit(ctx context.Context) (Audit, error) {
 		h.ObservedAt, _ = time.Parse(timestampLayout, observed)
 		out.History = append(out.History, h)
 	}
-	return out, rows.Err()
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
+		return out, err
+	}
+	out.ActorAliases, out.ActorHistory, err = s.IdentityAudit(ctx)
+	return out, err
 }
 func (s Service) registerOperations(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/audit", func(w http.ResponseWriter, r *http.Request) {
@@ -144,6 +153,31 @@ func (s Service) registerOperations(mux *http.ServeMux) {
 // duplicate an already persisted observation in the same interval.
 func (s Service) runScheduledCollection(ctx context.Context, fallback time.Duration, followConfig bool, at time.Time, onError func(error)) {
 	interval := fallback
+	var scheduledVersion int64
+	if s.Config != nil && s.Config.Path != "" {
+		config, err := s.Config.Read()
+		if err != nil {
+			onError(fmt.Errorf("could not read collection schedule"))
+			return
+		}
+		scheduledVersion = config.Version
+	}
+	// A configuration change invalidates the remaining batch. An already running
+	// request may finish; the next scheduler tick uses the new configuration.
+	current := func() bool {
+		if ctx.Err() != nil {
+			return false
+		}
+		if scheduledVersion == 0 {
+			return true
+		}
+		config, err := s.Config.Read()
+		if err != nil {
+			onError(fmt.Errorf("could not read collection schedule"))
+			return false
+		}
+		return config.Version == scheduledVersion
+	}
 	if followConfig && s.Config != nil && s.Config.Path != "" {
 		config, err := s.Config.Read()
 		if err != nil {
@@ -170,7 +204,7 @@ func (s Service) runScheduledCollection(ctx context.Context, fallback time.Durat
 	}
 	bucket := at.UTC().Unix() / int64(interval/time.Second)
 	for _, work := range works {
-		if ctx.Err() != nil {
+		if !current() {
 			return
 		}
 		if work.Kind != "project" {
@@ -181,6 +215,33 @@ func (s Service) runScheduledCollection(ctx context.Context, fallback time.Durat
 		cancel()
 		if err != nil && ctx.Err() == nil {
 			onError(fmt.Errorf("scheduled collection failed for work %d", work.ID))
+		}
+	}
+	if s.Config != nil {
+		c, err := s.Config.Read()
+		if err != nil {
+			onError(err)
+			return
+		}
+		for _, source := range c.Sources {
+			if !current() {
+				return
+			}
+			if !source.Enabled {
+				continue
+			}
+			raw, _ := json.Marshal(source)
+			credentialState := "missing"
+			if s.credentialPresent(source) {
+				credentialState = "present"
+			}
+			key := fmt.Sprintf("scheduled:%d:%d:%x:%s", int64(interval/time.Second), bucket, sha256.Sum256(raw), credentialState)
+			child, cancel := context.WithTimeout(ctx, 90*time.Second)
+			_, err := s.CollectSiteSource(child, CollectSiteSourceInput{SourceID: source.ID, RequestID: key})
+			cancel()
+			if err != nil && ctx.Err() == nil {
+				onError(fmt.Errorf("scheduled site collection failed for source %s", source.ID))
+			}
 		}
 	}
 }
@@ -244,7 +305,7 @@ func RestoreDatabase(ctx context.Context, source, destination string) error {
 		err = probe.QueryRowContext(ctx, `PRAGMA user_version`).Scan(&version)
 	}
 	probe.Close()
-	if err != nil || integrity != "ok" || version < 1 || version > 3 {
+	if err != nil || integrity != "ok" || version < 1 || version > 4 {
 		return ErrInvalid
 	}
 	store, err := Open(name)

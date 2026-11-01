@@ -6,7 +6,7 @@ Local-first observability for open-source and content impact.
 
 Reverfolio will connect projects, multilingual articles, distribution channels, metric history, and evidence of external citations or adoption. AI clients can discover evidence through their search tools and submit it through MCP.
 
-**Status: v0.1 development preview on a feature branch; no release published.** GitHub snapshots, article/site registry, bilingual channel links, candidate evidence and review, search tasks, historical numeric observations, MCP, standalone bilingual Web UI, scheduled snapshots, raw-response archiving and backup/restore are implemented. Additional provider connectors and AI search execution are not included.
+**v0.4.0** adds independent Umami, Google Search Console and Bing connectors, explicit actor identity groups, and shared Web/extension/MCP controls. AI clients execute discovery searches; Reverfolio records their scope and evidence.
 
 ## Architecture and data policy
 
@@ -24,7 +24,7 @@ Use feature branches and pull requests. Squash merge only; delete merged branche
 
 ## Windows is the single data source
 
-The Windows instance is the sole data authority for this personal deployment. The Edge/Chrome extension and ChatGPT MCP both run native Windows Reverfolio processes reading Data/state.sqlite. WSL retains only the tunnel transport process and does not run a second Reverfolio data service. The former WSL and Windows database rows matched exactly. See [Windows authority and MCP connection](docs/windows-authority.md).
+The Windows instance is the sole data authority for this personal deployment. The Edge/Chrome extension and ChatGPT MCP both run native Windows Reverfolio processes reading Data/state.sqlite. The tunnel transport also runs natively on Windows; WSL does not run a second data service. The former WSL and Windows database rows matched exactly. See [Windows authority and MCP connection](docs/windows-authority.md).
 
 ## Browser extension (optional)
 
@@ -86,4 +86,10 @@ Interval totals include only known asset deltas and separately count unknown del
 
 Settings → Data sources → GitHub → Automatic collection controls the collection interval, saved in `config.toml`. The running HTTP service reloads the schedule within one minute; disabling it retains existing data. The computer and service must be running. Explicit `-collect-interval` CLI overrides remain fixed until restart. Stdio MCP does not run a duplicate scheduler.
 
-Configure `github.auth = "gh"` to use a valid native GitHub CLI login, or provide `GITHUB_TOKEN` in the service environment. Secrets are never edited in the UI. Runtime/MCP status indicates whether a credential was loaded; snapshots show actual permissions and errors.
+Configure `github.auth = "gh"` to use a valid native GitHub CLI login, or provide `GITHUB_TOKEN` in the service environment. GitHub secrets are not edited in the UI; optional site-provider credentials use a separate write-only control. Runtime/MCP status indicates whether a credential was loaded; snapshots show actual permissions and errors.
+
+## Site providers and identity groups
+
+See [provider setup and authorization](docs/site-sources.md). Each provider retains its own observation window, timezone and failure state. New sources are disabled by default. Operators supply credentials locally after explicitly authorizing access; an AI client must not generate, download or inspect credentials merely because a browser is signed in. Umami browser mode uses the signed-in local browser for restricted read-only JSON statistics without exporting cookies or API keys.
+
+Identity links require explicit same-author evidence, reviewer and reason. Names alone do not merge identities; unlinking retains audit history. Schema 4 adds identity and provider tables without rewriting original observations. Back up the database before upgrading.

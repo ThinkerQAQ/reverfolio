@@ -14,3 +14,7 @@ Pinned GitHub Actions: actions/checkout and actions/setup-go (MIT). They are CI 
 
 
 Windows icon resource generation uses the pinned build-time tool github.com/akavel/rsrc v0.10.2 (MIT, Copyright 2013-2020 The rsrc Authors). The committed COFF resource files contain the project's original icon artwork, not third-party assets. Source and license: https://github.com/akavel/rsrc/tree/v0.10.2 .
+
+## Browser-session transport
+
+- `github.com/coder/websocket` v1.8.15 — ISC license. Used for the narrow, read-only Chromium DevTools network transport. Upstream: https://github.com/coder/websocket. No arbitrary JavaScript evaluation, cookie export or existing-tab control is exposed by this integration.

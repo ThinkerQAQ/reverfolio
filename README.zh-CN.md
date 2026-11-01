@@ -4,7 +4,7 @@
 
 本地运行的开源与内容影响力观测工具。关联开源项目、文章中英文版本、多平台分发页面、指标历史，以及第三方引用和使用证据。
 
-**当前状态：v0.1 开发预览，尚未发布 Release。** 已实现 GitHub 指标快照、文章／网站与项目统一登记、中英文及分发渠道关联、传播候选证据与人工审核、搜索任务与审计、历史数值指标导入、MCP、本地 Web、定时采集、过滤后的 GitHub 原始响应归档和 SQLite 备份恢复。
+**v0.4.0** 新增独立的 Umami、Google Search Console、Bing 数据源和作者身份归并，网页、扩展与 MCP 共享操作。实际 AI 搜索由客户端执行，应用保存检索范围和证据。
 
 架构采用 Go 单服务＋SQLite＋内嵌 Web UI＋MCP。AI 客户端负责用自身工具搜索，Reverfolio 负责保存任务、线索、审核与统计；**不包含自动 AI 搜索执行器**。历史二手报告只能生成待审核线索，必须补充原网页或原始 API 证据并明确人工审核，才能计入已确认传播。GitHub 下载、浏览、去重访客与实际使用者分别计量，不相互推断。
 
@@ -14,7 +14,7 @@
 
 ## Windows 单一数据源
 
-当前个人部署以 Windows 的 Data/state.sqlite 为唯一业务数据库。Edge/Chrome 扩展、Windows 网页和 ChatGPT MCP 都由原生 Windows Reverfolio 进程访问数据；WSL 只保留隧道转发进程，不再启动第二份 Reverfolio 服务。2026-10-31 逐表逐行核对结果完全一致，无需重复导入。详见 [Windows 单一数据源与 MCP 架构](docs/windows-authority.md)。
+当前个人部署以 Windows 的 Data/state.sqlite 为唯一业务数据库。Edge/Chrome 扩展、Windows 网页和 ChatGPT MCP 都由原生 Windows Reverfolio 进程访问数据；隧道也在 Windows 原生运行；WSL 不再启动第二份数据服务。2026-10-31 逐表逐行核对结果完全一致，无需重复导入。详见 [Windows 单一数据源与 MCP 架构](docs/windows-authority.md)。
 
 ## 浏览器扩展（可选）
 
@@ -62,4 +62,10 @@ go run ./cmd/reverfolio -restore /private/backup.sqlite -db /private/new-state.s
 
 在「设置 → 数据采集 → GitHub → 自动采集计划」调整频率，配置保存到 `config.toml`，本地 HTTP 服务在一分钟内生效；关闭计划不会删除已有数据。需要电脑与服务保持运行。显式 `-collect-interval` 命令行参数优先，修改它需要重启；stdio MCP 不启动重复采集。
 
-`github.auth = "gh"` 使用 Windows 原生 GitHub CLI 的有效登录；也支持服务环境中的 `GITHUB_TOKEN`。界面不编辑密钥。运行状态及 MCP 只显示凭据是否已加载，实际权限和错误保留在采集快照。
+`github.auth = "gh"` 使用 Windows 原生 GitHub CLI 的有效登录；也支持服务环境中的 `GITHUB_TOKEN`。GitHub 密钥不在界面编辑；站点数据源另有只写凭据输入。运行状态及 MCP 只显示凭据是否已加载，实际权限和错误保留在采集快照。
+
+## 站点数据源和身份归并
+
+参见[配置和授权说明](docs/site-sources.md)。三个数据源分别保留统计窗口、时区和失败状态，不混加指标。新数据源默认关闭。凭据由操作者在明确授权后于本机提供；浏览器已登录不代表允许 AI 生成、下载或读取凭据。Umami 浏览器会话模式只请求受限的只读 JSON 统计接口，不导出 Cookie，不需要 API Key。
+
+身份归并必须有明确的同一作者证据、理由和审核人，不按同名合并；撤销保留审计历史。schema 4 增加身份和数据源表，不重写原始观测；升级前备份数据库。
