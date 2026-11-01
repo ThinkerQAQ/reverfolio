@@ -761,7 +761,7 @@ document.addEventListener("change",async e=>{
 const hash=location.hash.replace(/^#/,"");
 if(nav.some(x=>x[0]===hash))state.view=hash;
 shellRender();
-refresh(false).catch(err=>notification(extensionMode?"本地服务连接失败：请启动 C:\\software\\Coding\\reverfolio\\Start-Reverfolio.cmd。"+(err.message||""):err.message,true));
+refresh(false).catch(err=>notification(extensionMode?"本地服务连接失败：请在安装目录运行 Start-Reverfolio.cmd。"+(err.message||""):err.message,true));
 
 window.addEventListener("hashchange",()=>{
  const view=location.hash.replace(/^#/,"");
