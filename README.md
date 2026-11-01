@@ -4,7 +4,21 @@
 
 Local-first observability for open-source and content impact.
 
-Reverfolio will connect projects, multilingual articles, distribution channels, metric history, and evidence of external citations or adoption. AI clients can discover evidence through their search tools and submit it through MCP.
+Reverfolio connects projects, multilingual articles, syndication channels, metric history, and reviewed evidence of external citations or adoption. AI clients can search for public evidence and submit it to the local MCP server for explicit review.
+
+## Install and try it
+
+**[Download the latest release](https://github.com/ThinkerQAQ/reverfolio/releases/latest)** · **[English quick start](docs/quickstart.md)** · **[中文快速入门](docs/quickstart.zh-CN.md)** · [Security](SECURITY.md)
+
+- **Windows (x64 / ARM64):** unzip the portable release, run `Install-Reverfolio.ps1`, then `Start-Reverfolio.cmd`, and visit <http://127.0.0.1:19452>. An optional Edge/Chrome extension ships in the Windows archive.
+- **Linux / macOS (x64 / ARM64):** extract the correct archive, copy `config.example.toml` to `config.toml`, run `./bin/reverfolio -config ./config.toml`, and visit <http://127.0.0.1:18440>. Browser-extension native-host auto-install is currently Windows-only.
+- **No publishing dependencies:** new users can add a website through RSS/Atom/Sitemap, register GitHub repositories, then optionally authorize their own provider APIs. Personal data and API keys remain in local `Data/`; **there is no public ChatGPT plugin one-click installer**. The source is [MIT-licensed](LICENSE), with original [third-party license texts](THIRD_PARTY_NOTICES.md) in the release archives.
+
+**Available now:** GitHub repository traffic/release-download observations; Umami, GSC, and Bing site metrics when authorized; independent website article discovery; direct DEV.to account/article API metrics; reviewed public citations; sourced history, charts, export, and 39 MCP tools. **Not yet available:** automatic scheduling of all platform accounts, universal creator-analytics APIs, verified counts of distinct human users, or public directory installation of the private ChatGPT app.
+
+## Recent release history
+
+**v0.9.2** completes public distribution documentation: clear English/Chinese quick starts, current repository governance, verified Windows/native and macOS/Linux CLI installation scope, and real bundled upstream license texts in every release archive. No analytics or schema changes. [Release notes](docs/release-notes-v0.9.2.md).
 
 **v0.9.1** improves DEV.to canonical identity: recognize already-registered article channels, suggest (never silently merge) matching paths across historical website domains, and require an explicit selected Work or explicit new-Work confirmation. Available in Web UI, extension and MCP. [Guide](docs/platform-api.md).
 
@@ -22,7 +36,7 @@ Reverfolio will connect projects, multilingual articles, distribution channels, 
 
 **v0.6.0** adds [impact charts and usage guidance](docs/impact-dashboard.md): GitHub daily traffic, release/platform breakdowns, site trends, exact article URL attribution, and PNG/SVG/CSV exports. Web, extension and MCP share the same observations.
 
-Future work: [cross-platform follower, article-read and engagement metrics](docs/social-impact-architecture.md) are **designed but not implemented**. The proposed optional SyndiRelay read-only metrics bridge retains Reverfolio’s independent data storage and deployment.
+Platform API coverage: **DEV.to account and article metrics are implemented directly**, without a SyndiRelay runtime. Other platforms require documented, authorized official read APIs and are not claimed supported by default. The older [social impact proposal](docs/social-impact-architecture.md) is marked historical and superseded by the [API-only implementation](docs/platform-api.md).
 
 ## Architecture and data policy
 
@@ -38,17 +52,17 @@ Use feature branches and pull requests. Squash merge only; delete merged branche
 
 [MIT](LICENSE). Third-party code must retain its applicable notices. No third-party application source has been imported during bootstrap.
 
-## Windows is the single data source
+## Deployment example: a single native Windows data source
 
-The Windows instance is the sole data authority for this personal deployment. The Edge/Chrome extension and ChatGPT MCP both run native Windows Reverfolio processes reading Data/state.sqlite. The tunnel transport also runs natively on Windows; WSL does not run a second data service. The former WSL and Windows database rows matched exactly. See [Windows authority and MCP connection](docs/windows-authority.md).
+For an existing Windows installation, the Web UI, Edge/Chrome extension and local/remote MCP are intended to share **one** native Windows `Data/state.sqlite`; do not run a second writable copy in WSL. Each other self-hosting user chooses their own local data directory and credentials. See [Windows authority and MCP connection](docs/windows-authority.md).
 
-## Browser extension (optional)
+## Browser extension (optional; Windows portable distribution)
 
-The optional Reverfolio browser extension is in extension/. It loads the FULL native dashboard and its controls in an Edge/Chrome side panel or a browser tab, using exactly the same app source and styles as the local Web UI. It connects to the single Windows local origin 127.0.0.1:19452; there is no service-priority selection or launcher popup. Windows files go in C:\software\Coding\reverfolio\extension. To upgrade from v0.1 unpacked, remove the old extension and load the directory again using Edge edge://extensions > Developer mode > Load unpacked. See [installation steps](extension/README.md). It is independent of BlogCTL and does not read or store GitHub/MCP credentials.
+The optional Windows-packaged Reverfolio browser extension is in `extension/`. It loads the full native dashboard and its controls in an Edge/Chrome side panel or a browser tab, using exactly the same app source and styles as the local Web UI. It connects to the single Windows local origin 127.0.0.1:19452; there is no service-priority selection or launcher popup. Windows files go in C:\software\Coding\reverfolio\extension. To upgrade from v0.1 unpacked, remove the old extension and load the directory again using Edge edge://extensions > Developer mode > Load unpacked. See [installation steps](extension/README.md). It is independent of BlogCTL and does not read or store GitHub/MCP credentials.
 
 ## Configuration and Windows layout
 
-Windows: C:\software\Coding\reverfolio\. The executable is in bin/reverfolio.exe, SQLite state in Data/state.sqlite and local settings in config.toml. See [Windows layout](docs/windows-layout.md). The former WSL copy is backed up and inactive; only Windows receives new data.
+Windows example (choose your own permanent folder): `C:\software\Coding\reverfolio\`. The executable is in `bin/reverfolio.exe`, SQLite state in Data/state.sqlite and local settings in config.toml. See [Windows layout](docs/windows-layout.md). The former WSL copy is backed up and inactive; only Windows receives new data.
 
 ## Run locally
 
