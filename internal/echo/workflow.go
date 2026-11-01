@@ -139,6 +139,48 @@ func (s *Store) GenerateReport(ctx context.Context, id int64) (ReportOutput, err
 			text += fmt.Sprintf("  - %s: %g %s; %s to %s; timezone=%s; scope=%s\n", m.Metric, m.Value, m.Unit, stamp(m.PeriodStart), stamp(m.PeriodEnd), m.Timezone, m.Scope)
 		}
 	}
+	// A platform account is not a Work: report the account and publication
+	// dimensions separately, with source/time, not as one "unique reach" sum.
+	platformData, platformErr := (Service{Store: s}).PlatformDashboard(ctx)
+	if platformErr != nil {
+		return ReportOutput{}, platformErr
+	}
+	text += "\n## Creator platform observations (official APIs)\n\n"
+	for _, a := range platformData.Accounts {
+		if id != 0 {
+			associated := false
+			for _, p := range platformData.Publications {
+				if p.Publication.AccountID == a.Account.ID && p.Publication.WorkID == id {
+					associated = true
+				}
+			}
+			if !associated {
+				continue
+			}
+		}
+		text += fmt.Sprintf("- %s @%s: account-level followers are not unique readers across platforms\n", a.Account.Platform, a.Account.Username)
+		for _, point := range a.Latest {
+			text += fmt.Sprintf("  - account %s: %d; source=%s; observed=%s\n", point.Metric, point.Value, point.Source, point.ObservedAt)
+		}
+		if len(a.Latest) == 0 {
+			text += "  - account statistics: not yet collected\n"
+		}
+		if a.LastRun != nil {
+			text += fmt.Sprintf("  - last collection: %s; captured=%s; problems=%d\n", a.LastRun.State, a.LastRun.CapturedAt, len(a.LastRun.Problems))
+		}
+	}
+	for _, pub := range platformData.Publications {
+		if id != 0 && pub.Publication.WorkID != id {
+			continue
+		}
+		text += fmt.Sprintf("- publication: %s; work_id=%d; platform=%s\n", pub.Publication.URL, pub.Publication.WorkID, pub.Publication.AccountID)
+		if len(pub.Latest) == 0 {
+			text += "  - metrics: not yet collected\n"
+		}
+		for _, point := range pub.Latest {
+			text += fmt.Sprintf("  - %s: %d; source=%s; observed=%s (cumulative platform events, not unique people)\n", point.Metric, point.Value, point.Source, point.ObservedAt)
+		}
+	}
 	text += "\n## Historical observations\n\n"
 	for _, row := range r.History {
 		text += fmt.Sprintf("- %s: %g %s; scope=%s; source=%s; observed=%s\n", row.Metric, row.Value, row.Unit, row.Scope, row.Source, stamp(row.ObservedAt))
@@ -158,6 +200,12 @@ func publicError(err error) error {
 	switch {
 	case errors.Is(err, ErrOriginalSource):
 		return errors.New("original-page or API evidence is required before verification")
+	case errors.Is(err, ErrPlatformAuth):
+		return errors.New("DEV.to API authorization failed: check your personal API key in Platform accounts")
+	case errors.Is(err, ErrPlatformRateLimited):
+		return errors.New("DEV.to API rate limited; retry later")
+	case errors.Is(err, ErrPlatformUnavailable):
+		return errors.New("DEV.to API temporarily unavailable")
 	case errors.Is(err, ErrInvalid):
 		return ErrInvalid
 	case errors.Is(err, ErrNotFound):
@@ -189,7 +237,14 @@ func addTool[In any](server *mcp.Server, name, description string, readonly bool
 	})
 }
 func (s Service) MCPServer() *mcp.Server {
-	server := mcp.NewServer(&mcp.Implementation{Name: "Reverfolio", Version: "0.8.0"}, nil)
+	server := mcp.NewServer(&mcp.Implementation{Name: "Reverfolio", Version: "0.9.0"}, nil)
+	// API-only platform integration. API keys are entered into the LOCAL UI
+	// exclusively; never expose the secret-bearing connection action via MCP.
+	addTool(server, "list_platform_accounts", "Read connected creator accounts (never credentials) and permission readiness.", true, func(ctx context.Context, _ EmptyInput) (any, error) { return s.PlatformAccounts(ctx) })
+	addTool(server, "preview_devto", "Read a connected DEV.to account's published articles from the official Forem API without writing. Requires locally configured API key.", true, func(ctx context.Context, in DEVToPreviewInput) (any, error) { return s.DEVToPreview(ctx, in) })
+	addTool(server, "import_devto", "Confirm selected authenticated DEV.to published articles, link canonical works and record public publication channels. Requires request_id.", false, func(ctx context.Context, in ImportDEVToInput) (any, error) { return s.DEVToImport(ctx, in) })
+	addTool(server, "collect_devto", "Read DEV.to official API follower and article counters for previously imported publications and persist sourced snapshots. Requires request_id.", false, func(ctx context.Context, in CollectDEVToInput) (any, error) { return s.DEVToCollect(ctx, in) })
+	addTool(server, "get_platform_dashboard", "Read account and article platform metrics and trends. Missing API fields are not zeros.", true, func(ctx context.Context, _ EmptyInput) (any, error) { return s.PlatformDashboard(ctx) })
 	addTool(server, "list_website_sources", "Read registered external website sources and their last confirmed imports. Works independently of Inkerio and SyndiRelay.", true, func(ctx context.Context, _ EmptyInput) (any, error) { return s.Store.WebsiteSources(ctx) })
 	addTool(server, "preview_website", "Read publicly accessible RSS/Atom/sitemap article candidates from a supplied website. HTTPS/HTTP public hosts only; does not write anything.", true, func(ctx context.Context, in WebsitePreviewInput) (any, error) { return s.PreviewWebsite(ctx, in) })
 	addTool(server, "import_website", "Refetch a website and register only selected article URLs previously previewed; stores provenance and is idempotent by request_id.", false, func(ctx context.Context, in WebsiteImportInput) (any, error) { return s.ImportWebsite(ctx, in) })
@@ -251,6 +306,15 @@ func actionRoute[In any](mux *http.ServeMux, name string, fn func(context.Contex
 		output, err := fn(r.Context(), input)
 		if err != nil {
 			code := 500
+			if errors.Is(err, ErrPlatformAuth) {
+				code = 422
+			}
+			if errors.Is(err, ErrPlatformRateLimited) {
+				code = 429
+			}
+			if errors.Is(err, ErrPlatformUnavailable) {
+				code = 503
+			}
 			if errors.Is(err, ErrInvalid) {
 				code = 400
 			}
@@ -276,6 +340,19 @@ func (s Service) registerWorkflow(mux *http.ServeMux) {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(v)
+	})
+	actionRoute(mux, "connect_devto", func(ctx context.Context, in ConnectDEVToInput) (any, error) { return s.DEVToConnect(ctx, in) })
+	actionRoute(mux, "preview_devto", func(ctx context.Context, in DEVToPreviewInput) (any, error) { return s.DEVToPreview(ctx, in) })
+	actionRoute(mux, "import_devto", func(ctx context.Context, in ImportDEVToInput) (any, error) { return s.DEVToImport(ctx, in) })
+	actionRoute(mux, "collect_devto", func(ctx context.Context, in CollectDEVToInput) (any, error) { return s.DEVToCollect(ctx, in) })
+	mux.HandleFunc("GET /api/platform-dashboard", func(w http.ResponseWriter, r *http.Request) {
+		data, err := s.PlatformDashboard(r.Context())
+		if err != nil {
+			http.Error(w, "platform statistics unavailable", 500)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(data)
 	})
 	actionRoute(mux, "preview_website", func(ctx context.Context, in WebsitePreviewInput) (any, error) { return s.PreviewWebsite(ctx, in) })
 	actionRoute(mux, "import_website", func(ctx context.Context, in WebsiteImportInput) (any, error) { return s.ImportWebsite(ctx, in) })

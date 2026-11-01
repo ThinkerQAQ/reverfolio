@@ -214,6 +214,7 @@ func (g GitHub) Collect(ctx context.Context, work Work, key string) Snapshot {
 }
 
 type Service struct {
+	DEVTo          DEVToClient
 	Websites       WebsiteDiscoverer
 	Providers      ProviderClient
 	Store          *Store

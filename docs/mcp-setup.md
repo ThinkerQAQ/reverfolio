@@ -16,7 +16,7 @@ ChatGPT cannot reach another person's `127.0.0.1` directly. A remote ChatGPT int
 
 After a server upgrade, if the chat is still missing tools, open **Plugins → Reverfolio → Manage → Refresh tools**, then start a **new chat**. Old chats may retain their previous tool snapshot. Verify the read-only `get_dashboard` and `list_site_sources` tools there.
 
-## 2. The complete 34-tool MCP contract
+## 2. The complete 39-tool MCP contract
 
 | Domain | Tools |
 |---|---|
@@ -27,6 +27,10 @@ After a server upgrade, if the chat is still missing tools, open **Plugins → R
 | Settings, history and reports (6) | `list_settings`, `update_setting`, `update_settings`, `import_history`, `get_audit`, `generate_report` |
 
 All writes require unique `request_id` values; several also use `expected_version` for optimistic concurrency. Preview imports with `dry_run` and explicitly selected work IDs. Review candidate evidence against original web/API sources before marking it verified.
+
+## DEV.to platform metrics (official API)
+
+Five new MCP tools: `list_platform_accounts`, `preview_devto`, `import_devto`, `collect_devto`, `get_platform_dashboard`. Personal API keys are entered only into the local Creator platforms UI, not accepted or displayed through MCP. [Guide](platform-api.md).
 
 ## 3. First-use workflow
 
@@ -53,7 +57,7 @@ On an installed Windows instance (read-only):
 python scripts/check_mcp_contract.py --binary "C:\software\Coding\reverfolio\bin\reverfolio.exe" --config "C:\software\Coding\reverfolio\config.toml"
 ```
 
-The checker performs a real MCP handshake and requires the **exact 34-tool inventory**. It reads dashboard/provider/runtime/report data without printing credentials or raw reports. Fixture mode exercises work/channel registration, task leasing, evidence submission/review, reporting, catalog export and import preview through MCP.
+The checker performs a real MCP handshake and requires the **exact 39-tool inventory**. It reads dashboard/provider/runtime/report data without printing credentials or raw reports. Fixture mode exercises work/channel registration, task leasing, evidence submission/review, reporting, catalog export and import preview through MCP.
 
 ## 5. Security and portable deployment
 

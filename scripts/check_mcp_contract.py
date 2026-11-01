@@ -17,11 +17,11 @@ import threading
 from datetime import datetime, timezone
 
 ROOT = Path(__file__).resolve().parent.parent
-EXPECTED = set("""add_channel claim_discovery_task collect_site_source collect_source
-complete_discovery_task create_discovery_task export_catalog generate_report get_audit
-get_collection_status get_dashboard get_trends get_work import_catalog import_history import_website
-link_identity link_propagation_event list_catalog list_discovery_tasks list_mentions
-list_settings list_site_sources list_website_sources list_works preview_website review_mention save_site_source
+EXPECTED = set("""add_channel claim_discovery_task collect_site_source collect_source collect_devto
+complete_discovery_task create_discovery_task export_catalog generate_report get_platform_dashboard get_audit
+get_collection_status get_dashboard get_trends get_work import_devto import_catalog import_history import_website
+link_identity link_propagation_event list_platform_accounts list_catalog list_discovery_tasks list_mentions
+list_settings list_site_sources list_website_sources list_works preview_devto preview_website review_mention save_site_source
 set_monitoring submit_mention unlink_identity update_setting update_settings
 upsert_work""".split())
 

@@ -106,8 +106,8 @@ func Open(path string) (*Store, error) {
 	if err = db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil {
 		return fail(err)
 	}
-	if version > 6 {
-		return fail(fmt.Errorf("database schema %d is newer than supported version 6", version))
+	if version > 7 {
+		return fail(fmt.Errorf("database schema %d is newer than supported version 7", version))
 	}
 	if version == 0 {
 		tx, err := db.Begin()
@@ -141,6 +141,9 @@ func Open(path string) (*Store, error) {
 		return fail(err)
 	}
 	if err = store.migrateWebSources(); err != nil {
+		return fail(err)
+	}
+	if err = store.migratePlatformMetrics(); err != nil {
 		return fail(err)
 	}
 	return store, nil
