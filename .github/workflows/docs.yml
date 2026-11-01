@@ -15,6 +15,8 @@ jobs:
         run: git diff --check $(git hash-object -t tree /dev/null) HEAD
       - name: Check local documentation links
         run: python3 scripts/check_docs.py
+      - name: Check portable publication export
+        run: python3 -m unittest discover -s scripts -p "test_publications_to_catalog.py"
       - name: Check extension manifest, icons, localized UI and mock interactions
         run: |
           node scripts/check_extension.mjs

@@ -105,18 +105,18 @@ function notification(message,error=false) {
   const x=$("notice");x.textContent=message;x.className="notice active"+(error?" error":"");
   window.clearTimeout(notification.timer);notification.timer=setTimeout(()=>x.className="notice",7000);
 }
-async function act(operation) {
+async function act(operation,successMessage=T("已保存并更新")) {
   if(state.busy)return;state.busy=true;document.body.classList.add("busy");
-  try {await operation();await refresh(false);notification(T("已保存并更新"));}
+  try {await operation();await refresh(false);notification(successMessage);}
   catch(err){notification(String(err.message||err),true);}
   finally {state.busy=false;document.body.classList.remove("busy");}
 }
 async function refresh(showMessage=true){
-  const [works,report,mentions,tasks,audit,settings,runtime,sources]=await Promise.all([
-    api("/api/works"),api("/api/report"),api("/api/mentions"),api("/api/tasks"),api("/api/audit"),api("/api/settings"),api("/api/runtime"),api("/api/site-sources")
+  const [works,report,mentions,tasks,audit,settings,runtime,sources,catalog]=await Promise.all([
+    api("/api/works"),api("/api/report"),api("/api/mentions"),api("/api/tasks"),api("/api/audit"),api("/api/settings"),api("/api/runtime"),api("/api/site-sources"),api("/api/catalog")
   ]);
   const pairs=await Promise.all(works.map(async w=>[w.id,await api("/api/works/"+w.id+"/channels")]));
-  state.data={works,report,mentions,tasks,audit,settings,runtime,sources,channels:new Map(pairs)};
+  state.data={works,report,mentions,tasks,audit,settings,runtime,sources,catalog,channels:new Map(pairs)};
   state.lang=pref("interface.language","zh-CN")==="en"?"en":"zh";
   render();
   if(showMessage)notification(T("数据读取成功"));
@@ -212,9 +212,11 @@ function workSelection(){
 function worksView(){
  const cards=state.data.works.map(w=>{
   const p=projects().find(x=>x.work_id===w.id);
+  const catalogEntry=state.data.catalog.find(x=>x.work.id===w.id);
   const pages=state.data.channels.get(w.id)||[];
   const url=w.kind==="project"?"https://github.com/"+w.repository:w.canonical_url;
   return '<article class="mini-card filterable" data-search="'+E([w.title,w.repository,w.canonical_url].join(" ").toLowerCase())+'"><div class="work-header"><h3>'+anchor(url,w.title)+'</h3>'+tag(T(w.kind==="project"?"GitHub 项目":w.kind==="site"?"网站":"文章"))+'</div>'+
+   '<div class="btn-row"><button class="btn btn-sm" data-action="toggle-monitoring" data-id="'+w.id+'">'+E(settingsLabel([catalogEntry?.enabled?"暂停自动监测":"启用自动监测",catalogEntry?.enabled?"Pause monitoring":"Enable monitoring"]))+'</button><span class="muted">'+E(settingsLabel(["导入来源：","Imported from: "]))+E(catalogEntry?.origins?.length?catalogEntry.origins.map(o=>o.source_id+" / "+o.external_id+" ("+o.producer+")").join("; "):settingsLabel(["手动登记或旧记录；未记录导入来源","Manual or legacy record; import origin unavailable"]))+'</span></div>'+
    '<p class="meta">'+E(w.kind==="project"?w.repository:w.canonical_url)+'</p><div class="work-stats">'+
    (p?'<span>'+downloadLabel()+': <strong>'+fmt(p.downloads)+'</strong></span><span>'+T("近期克隆")+': <strong>'+fmt(p.clones)+'</strong></span>':'')+
    '<span>'+T("渠道数")+': <strong>'+fmt(pages.length)+'</strong></span></div>'+
@@ -222,13 +224,25 @@ function worksView(){
    (p?downloadDetails(p):'')+'<details class="work-detail" id="detail-'+w.id+'" hidden><summary>'+T("统计详情")+'</summary><pre>'+E(JSON.stringify(p?.latest||{channels:pages},null,2))+'</pre></details></article>';
  }).join("");
  return '<div class="toolbar"><input class="search" data-filter placeholder="'+T("输入关键词筛选")+'" aria-label="'+T("项目检索")+'"><div class="muted">'+T("已登记作品")+': '+fmt(state.data.works.length)+'</div></div>'+
- '<div class="grid-cards">'+cards+'</div>'+
+ catalogPanel()+'<div class="grid-cards">'+cards+'</div>'+
  heading("新增项目或文章")+
  '<div class="panel"><form data-form="work"><div class="form-grid">'+
  select("作品类型","kind",[["project","GitHub 项目"],["article","文章"],["site","网站"]],'id="work-kind"')+
  input("标题","title","text","", "required maxlength='200'")+
  '<label class="field full" id="work-id-field"><span>'+T("仓库路径")+'</span><input name="repository" placeholder="owner/repository" required></label>'+
  '</div><div class="form-actions"><button class="btn btn-primary" type="submit">'+T("新建")+'</button></div></form></div>';
+}
+function catalogPanel(){
+ const preview=state.catalogPreview;
+ return '<details class="panel" '+(preview||state.catalogInput?'open':'')+'><summary>'+E(settingsLabel(["导入作品与发布链接 / 使用说明","Import works & publication links / Guide"]))+'</summary>'+
+ '<p class="desc">'+E(settingsLabel(["先登记作品，再关联原文、语言版本和公开分发链接。监测开关只控制自动采集，不删除历史；已有作品的标题和监测选择不会被导入覆盖。","Register works, then associate originals, language editions and public distribution links. Monitoring controls automatic collection without deleting history. Imports preserve existing titles and monitoring choices."]))+'</p>'+
+ '<p>'+E(settingsLabel(["JSON 文件只包含公开作品与链接，不包含账号配置、草稿或凭据。先预览，再勾选要导入的作品；相同标题不会自动合并。","JSON contains public works and links only, never account configuration, drafts or credentials. Preview, then select works to import; matching titles never merge works."]))+'</p>'+
+ '<label class="field"><span>'+E(settingsLabel(["选择目录 JSON 文件","Choose catalog JSON"]))+'</span><input type="file" id="catalog-file" accept=".json,application/json"></label>'+
+ '<label class="field"><span>'+E(settingsLabel(["目录 JSON（也可直接粘贴）","Catalog JSON (or paste here)"]))+'</span><textarea id="catalog-json" rows="8" placeholder="schema_version: 1">'+E(state.catalogInput||'')+'</textarea></label>'+
+ '<div class="btn-row"><button class="btn" data-action="preview-catalog">'+E(settingsLabel(["预览候选作品","Preview candidates"]))+'</button></div>'+
+ (preview?'<div class="table-wrap"><table class="data-table"><thead><tr><th>'+E(settingsLabel(["选择","Select"]))+'</th><th>'+E(settingsLabel(["作品","Work"]))+'</th><th>'+E(settingsLabel(["处理","Action"]))+'</th><th>'+E(settingsLabel(["公开链接数","Public links"]))+'</th></tr></thead><tbody>'+preview.rows.map(r=>'<tr><td><input type="checkbox" data-catalog-choice="'+E(r.external_id)+'" aria-label="'+E(r.title)+'"></td><td>'+E(r.title)+'<small> · '+E(r.external_id)+'</small></td><td>'+E(settingsLabel([r.state==='new'?'新增':'已有；补充链接',r.state==='new'?'New':'Existing; add links']))+'</td><td>'+r.channel_count+'</td></tr>').join('')+'</tbody></table></div><button class="btn btn-primary" data-action="apply-catalog">'+E(settingsLabel(["导入勾选作品","Import selected works"]))+'</button>':'')+
+ '<hr><label class="field"><span>'+E(settingsLabel(["导出来源标识（用于区分不同目录）","Export source ID (distinguishes catalogs)"]))+'</span><input id="catalog-export-source" placeholder="my-catalog" pattern="[a-z][a-z0-9_-]{0,39}"></label><button class="btn" data-action="export-catalog">'+E(settingsLabel(["导出作品及链接","Export works and links"]))+'</button>'+
+ '<p class="meta">'+E(settingsLabel(["来源记录表示谁提交了这组关联，不等于链接已核验或第三方采用。新目录中 enabled=false 的作品默认暂停自动监测。","Provenance records who supplied a mapping, not link verification or third-party adoption. New entries with enabled=false start with monitoring paused."]))+'</p></details>';
 }
 function channelsView(){
  const rows=state.data.works.flatMap(w=>(state.data.channels.get(w.id)||[]).map(p=>({work:w,...p})));
@@ -392,6 +406,27 @@ async function runClick(button){
  }
  if(action.startsWith("settings-")){await settingsHandleAction(button);return;}
  if(action==="refresh"){await act(async()=>{});return;}
+ if(action==="toggle-monitoring"){
+  const entry=state.data.catalog.find(x=>x.work.id===id);
+  await act(async()=>send("set_monitoring",{work_id:id,enabled:!entry.enabled,expected_version:entry.version}));return;
+ }
+ if(action==="preview-catalog"){
+  const text=$("catalog-json").value;state.catalogInput=text;
+  const manifest=JSON.parse(text);
+  await act(async()=>{const result=await send("import_catalog",{dry_run:true,manifest,selected_ids:[]});state.catalogPreview={...result,manifest,text};},settingsLabel(["预览完成，未写入数据","Preview complete; no data saved"]));return;
+ }
+ if(action==="apply-catalog"){
+  const preview=state.catalogPreview;
+  if(!preview||$("catalog-json").value!==preview.text)throw Error(settingsLabel(["请重新预览","Preview again"]));
+  const selected=[...document.querySelectorAll("[data-catalog-choice]:checked")].map(x=>x.dataset.catalogChoice);
+  if(!selected.length)throw Error(settingsLabel(["请先勾选作品","Select works first"]));
+  await act(async()=>{await send("import_catalog",{dry_run:false,manifest:preview.manifest,selected_ids:selected});state.catalogPreview=null;});return;
+ }
+ if(action==="export-catalog"){
+  const source=$("catalog-export-source").value.trim();
+  const manifest=await api("/api/catalog/export?source_id="+encodeURIComponent(source));
+  blobSave(new Blob([JSON.stringify(manifest,null,2)],{type:"application/json"}),"reverfolio-catalog.json");return;
+ }
  if(action==="show-work"){
   const element=$("detail-"+id);if(element){element.hidden=false;element.open=!element.open;}return;
  }
@@ -465,11 +500,18 @@ document.addEventListener("submit",e=>{
  const form=e.target.closest("form[data-form]");if(form){e.preventDefault();runForm(form).catch(err=>notification(err.message,true));}
 });
 document.addEventListener("input",e=>{
+ if(e.target.id==="catalog-json"){state.catalogInput=e.target.value;state.catalogPreview=null;const button=document.querySelector('[data-action="apply-catalog"]');if(button)button.disabled=true;}
+
  if(e.target.matches("[data-filter]"))applyFilter(e.target);
  if(e.target.id==="settings-search"||e.target.dataset.settingKey)settingsHandleInput(e.target);
  if(e.target.id==="import-json"){state.preview=null;state.importInput=e.target.value;const b=document.querySelector('[data-action="apply-import"]');if(b)b.disabled=true;}
 });
-document.addEventListener("change",e=>{
+document.addEventListener("change",async e=>{
+ if(e.target.id==="catalog-file"){
+  const file=e.target.files?.[0];if(!file)return;
+  if(file.size>1024*1024){notification("Catalog exceeds 1 MiB",true);return;}
+  state.catalogInput=await file.text();state.catalogPreview=null;render();return;
+ }
  if(e.target.name==="auth_mode" && e.target.form?.dataset.form==="site-source"){
   const form=e.target.form,browser=e.target.value==="browser";
   for(const field of form.querySelectorAll("[data-source-token]")){field.hidden=browser;for(const input of field.querySelectorAll("input")){input.disabled=browser;if(browser)input.value="";}}

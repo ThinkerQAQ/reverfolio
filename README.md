@@ -6,7 +6,7 @@ Local-first observability for open-source and content impact.
 
 Reverfolio will connect projects, multilingual articles, distribution channels, metric history, and evidence of external citations or adoption. AI clients can discover evidence through their search tools and submit it through MCP.
 
-**v0.4.0** adds independent Umami, Google Search Console and Bing connectors, explicit actor identity groups, and shared Web/extension/MCP controls. AI clients execute discovery searches; Reverfolio records their scope and evidence.
+**v0.5.0** adds portable work catalogs, monitoring preferences and independent Umami, Google Search Console and Bing connectors, explicit actor identity groups, and shared Web/extension/MCP controls. AI clients execute discovery searches; Reverfolio records their scope and evidence.
 
 ## Architecture and data policy
 
@@ -93,3 +93,7 @@ Configure `github.auth = "gh"` to use a valid native GitHub CLI login, or provid
 See [provider setup and authorization](docs/site-sources.md). Each provider retains its own observation window, timezone and failure state. New sources are disabled by default. Operators supply credentials locally after explicitly authorizing access; an AI client must not generate, download or inspect credentials merely because a browser is signed in. Umami browser mode uses the signed-in local browser for restricted read-only JSON statistics without exporting cookies or API keys.
 
 Identity links require explicit same-author evidence, reviewer and reason. Names alone do not merge identities; unlinking retains audit history. Schema 4 adds identity and provider tables without rewriting original observations. Back up the database before upgrading.
+
+## Works and publishing integration
+
+Choose which works to monitor, preview and import public publication links, and inspect their recorded origin. No publishing tool is required. See the [portable catalog and usage guide](docs/portable-catalog.md). Imports preserve existing titles and monitoring choices; first-run databases are empty.
