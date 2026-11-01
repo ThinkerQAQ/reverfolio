@@ -152,7 +152,7 @@ The HTTP API uses a separate private token in `Data/api-token` unless `REVERFOLI
 
 These cases are optional and independent. Start with the Quick Start before connecting external data.
 
-### 3.1. Case 1: Import articles from your own website
+### 4.1. Case 1: Import articles from your own website
 
 1. Open **Discover websites** and enter the public website or feed URL you control.
 2. Preview discovered RSS, Atom or Sitemap candidates. Check the titles and URLs; discovery does not itself register a publication.
