@@ -192,3 +192,5 @@ body:has(.settings-full-page) .workspace-main{max-width:none;width:100%}
 .reverfolio-extension .activity-grid{grid-template-columns:1fr;gap:9px}
 .reverfolio-extension .activity-card{padding:12px;gap:9px}
 .reverfolio-extension .activity-stat-row strong{font-size:18px}
+
+.chart-panel{min-width:0;margin-bottom:18px}.chart-panel svg{display:block;width:100%;height:auto;min-height:160px}.chart-panel h3{margin:0}.chart-panel .btn-row{flex-wrap:wrap}.chart-panel .work-header{gap:12px;flex-wrap:wrap}

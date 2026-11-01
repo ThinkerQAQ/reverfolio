@@ -17,6 +17,7 @@ for src, dest in (
     ('src="/assets/favicon.svg"', 'src="./favicon.svg"'),
     ('href="/assets/app.css"', 'href="./app.css"'),
     ('src="/assets/app.js"', 'src="./app.js"'),
+    ('src="/assets/dashboard.js"', 'src="./dashboard.js"'),
     ('src="/assets/settings.js"', 'src="./settings.js"'),
 ):
     if src not in html:
@@ -35,6 +36,6 @@ html = html.replace(
     1,
 )
 (DEST / "index.html").write_text(html, encoding="utf-8")
-for name in ("app.css", "app.js", "settings.js", "favicon.svg"):
+for name in ("app.css", "app.js", "settings.js", "dashboard.js", "favicon.svg"):
     (DEST / name).write_bytes((SOURCE / name).read_bytes())
 print("Reverfolio extension UI synchronized with main embedded Web UI")

@@ -189,7 +189,7 @@ func addTool[In any](server *mcp.Server, name, description string, readonly bool
 	})
 }
 func (s Service) MCPServer() *mcp.Server {
-	server := mcp.NewServer(&mcp.Implementation{Name: "Reverfolio", Version: "0.5.0"}, nil)
+	server := mcp.NewServer(&mcp.Implementation{Name: "Reverfolio", Version: "0.6.0"}, nil)
 	addTool(server, "list_works", "Read registered repositories and articles.", true, func(ctx context.Context, _ EmptyInput) (any, error) { return s.Store.Works(ctx) })
 	addTool(server, "get_work", "Read one work, channel pages, recent snapshots and interval changes.", true, func(ctx context.Context, in WorkIDInput) (any, error) { return s.Store.Overview(ctx, in.WorkID) })
 	addTool(server, "upsert_work", "Register a project or article. Requires request_id; duplicate identity returns the existing work without changing its title.", false, func(ctx context.Context, in WorkInput) (any, error) { return s.Store.RegisterWork(ctx, in) })
@@ -225,6 +225,7 @@ func (s Service) MCPServer() *mcp.Server {
 	}) (any, error) {
 		return s.Store.ExportCatalog(ctx, in.SourceID)
 	})
+	addTool(server, "get_dashboard", "Read scoped chart data, latest attempts and latest successful observations; counts are not verified users.", true, func(ctx context.Context, _ EmptyInput) (any, error) { return s.Store.Dashboard(ctx) })
 	addTool(server, "get_collection_status", "Read configured collection interval and credential presence; actual endpoint permission or collection errors remain in snapshots. No secrets returned.", true, func(ctx context.Context, _ EmptyInput) (any, error) { return s.RuntimeStatus(ctx) })
 	addTool(server, "link_identity", "Explicitly group known actor identity URLs with a reason and reviewer; no name-based inference.", false, func(ctx context.Context, in IdentityInput) (any, error) { return s.Store.LinkIdentity(ctx, in) })
 	addTool(server, "unlink_identity", "Detach an identity alias with expected group and audited reason.", false, func(ctx context.Context, in UnlinkIdentityInput) (any, error) { return s.Store.UnlinkIdentity(ctx, in) })
@@ -264,6 +265,15 @@ func actionRoute[In any](mux *http.ServeMux, name string, fn func(context.Contex
 	})
 }
 func (s Service) registerWorkflow(mux *http.ServeMux) {
+	mux.HandleFunc("GET /api/dashboard", func(w http.ResponseWriter, r *http.Request) {
+		v, err := s.Store.Dashboard(r.Context())
+		if err != nil {
+			http.Error(w, "dashboard unavailable", 500)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(v)
+	})
 	actionRoute(mux, "set_monitoring", func(ctx context.Context, in MonitoringInput) (any, error) { return s.Store.SetMonitoring(ctx, in) })
 	actionRoute(mux, "import_catalog", func(ctx context.Context, in CatalogImportInput) (any, error) { return s.Store.ImportCatalog(ctx, in) })
 	mux.HandleFunc("GET /api/catalog", func(w http.ResponseWriter, r *http.Request) {

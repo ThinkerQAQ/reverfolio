@@ -124,11 +124,12 @@ Import my-catalog.json through the UI. Re-exporting updated publication records 
 again adds new links without duplicating works or changing local monitoring choices.
 Any publisher can emit catalog v1 directly and omit this conversion script.
 
-## Optional automatic delivery design
+## Optional automatic publisher delivery
 
-A future publisher adapter should be disabled by default and use an independently configured
-receiver endpoint and scoped local authentication. Queue only completed public publication
-events locally, after publishing succeeds; send them outside the publishing transaction.
-Use stable work IDs and request IDs, bounded retries/backoff and a visible pending/error state.
-A timeout must leave a retryable event, never turn a successful publication into a failure.
-Removing the adapter must leave both applications' data usable.
+[SyndiRelay](https://github.com/ThinkerQAQ/syndirelay) supplies an optional publisher-side adapter.
+It is disabled by default. Configure its local Reverfolio endpoint, a local token file reference,
+a stable source ID, the primary canonical language and whether newly registered works are monitored.
+After a confirmed public publish/update, its durable local outbox sends catalog v1 metadata.
+Receiver downtime does not change the publishing result. Stable request IDs make retry safe;
+existing work monitoring choices remain unchanged. Both applications remain independently usable.
+The manual file adapter above remains available to other publishers.
