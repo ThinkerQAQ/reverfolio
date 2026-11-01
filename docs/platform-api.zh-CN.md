@@ -26,7 +26,7 @@ Reverfolio v0.9.0。**不需要 Inkerio、SyndiRelay 或浏览器 Cookie**，只
 ## 数据独立与权限
 
 - SQLite v7 新增平台账号、发布文章、采集任务和指标观测表；旧作品、GSC/Bing/Umami 与 GitHub 历史都保留。
-- 私有密钥：安装目录 `Data/platform-credentials/devto_<account_id>.secret`，文件权限 0600。不进入公开 Release、JSON 报告、Git 或 SyndiRelay。
+- 私有密钥：安装目录 `Data/platform-credentials/devto_<account_id>.secret`，POSIX 文件权限 0600；Windows 采用安装目录继承的本机 ACL，应将安装目录限制为仅授权用户可读。不进入公开 Release、JSON 报告、Git 或 SyndiRelay。
 - **密钥连接只允许本地 Web UI 或扩展写入**，不会成为可由 ChatGPT 传入密钥的 MCP Tool。MCP 只提供 `list_platform_accounts`、`preview_devto`、`import_devto`、`collect_devto`、`get_platform_dashboard`。
 - HTTP 为 `GET /api/platform-dashboard`、`POST /api/actions/connect_devto`、`preview_devto`、`import_devto`、`collect_devto`，全部继续遵循原本本地鉴权。
 - 不读取其他用户的私人统计数据；不使用浏览器 Cookie、不逆向请求、不自动发布文章；可撤销 DEV.to API Key 后停止新的指标采集。

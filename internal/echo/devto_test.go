@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -97,8 +98,13 @@ func TestDEVToOfficialAPIE2EMCPAndHTTP(t *testing.T) {
 	}
 	secret := service.platformCredentialPath(account.ID)
 	info, err := os.Stat(secret)
-	if err != nil || info.Mode().Perm() != 0600 {
-		t.Fatalf("credential mode %+v %v", info, err)
+	if err != nil || !info.Mode().IsRegular() {
+		t.Fatalf("credential must be a regular private runtime file: %+v %v", info, err)
+	}
+	// Windows os.FileMode reports the readonly attribute, not POSIX ACL
+	// permissions. POSIX systems must enforce owner-only 0600.
+	if runtime.GOOS != "windows" && info.Mode().Perm() != 0600 {
+		t.Fatalf("credential requires 0600 on POSIX: %v", info.Mode().Perm())
 	}
 	preview := callMCP[DEVToPreview](t, session, "preview_devto", DEVToPreviewInput{AccountID: account.ID})
 	if len(preview.Articles) != 3 || preview.Articles[0].ExistingWorkID != original.ID {

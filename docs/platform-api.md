@@ -21,7 +21,7 @@ Reverfolio **v0.9.0** supports the documented [Forem API V1](https://developers.
 ## Privacy and interfaces
 
 - SQLite **schema v7** adds creator account identities, confirmed published articles, collection attempts, and metric history. Existing GitHub, Umami, GSC, Bing and work catalog data are unchanged.
-- Keys are saved only in private `Data/platform-credentials/devto_<account_id>.secret` (mode 0600), never echoed to MCP, dashboard, JSON exports, or source control.
+- Keys are saved only in private `Data/platform-credentials/devto_<account_id>.secret` (mode 0600 on POSIX; on Windows the file inherits the installation directory ACL, which should be user-restricted), never echoed to MCP, dashboard, JSON exports, or source control.
 - Enrollment intentionally requires the authenticated local UI or browser extension. **MCP does not accept a raw API key.** Five new tools: `list_platform_accounts`, `preview_devto`, `import_devto`, `collect_devto`, `get_platform_dashboard`.
 - Local HTTP: `GET /api/platform-dashboard` and `POST /api/actions/{connect_devto,preview_devto,import_devto,collect_devto}`. All routes retain the existing local authorization policy.
 - The application never reads authenticated website HTML, bypasses platform access controls, or treats summed follower relationships as unique persons.
