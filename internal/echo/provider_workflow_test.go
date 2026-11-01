@@ -50,6 +50,18 @@ func TestMCPSiteProviderSharesHTTPObservations(t *testing.T) {
 	if response.StatusCode != 200 || len(shared.Sources) != 1 || shared.Sources[0].LastRun.ID != run.ID {
 		t.Fatal("HTTP and MCP observations differ")
 	}
+	chart := callMCP[Dashboard](t, session, "get_dashboard", EmptyInput{})
+	if len(chart.Providers) != 1 || chart.Providers[0].ID != run.ID {
+		t.Fatal("MCP dashboard is missing the same site provider observation")
+	}
+	catalog := callMCP[[]CatalogEntry](t, session, "list_catalog", EmptyInput{})
+	if len(catalog) != 1 || catalog[0].Work.ID != work.ID {
+		t.Fatal("MCP catalog is missing the registered site")
+	}
+	readStatus := callMCP[SiteSourcesStatus](t, session, "list_site_sources", EmptyInput{})
+	if len(readStatus.Sources) != 1 || !readStatus.Sources[0].CredentialLoaded || readStatus.Sources[0].LastRun.ID != run.ID {
+		t.Fatal("MCP site source read does not reflect persisted collection")
+	}
 	report := callMCP[ReportOutput](t, session, "generate_report", WorkIDInput{WorkID: work.ID})
 	if len(report.Report.ProviderRuns) != 1 {
 		t.Fatal("provider report missing")
