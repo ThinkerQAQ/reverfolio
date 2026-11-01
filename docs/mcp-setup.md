@@ -57,7 +57,7 @@ The checker performs a real MCP handshake and requires the **exact 31-tool inven
 ## 5. Security and portable deployment
 
 - Keep `Data/`, `config.toml`, generated browser capabilities, credentials, personal reports and original source data **out of Git and release archives**.
-- Windows uses one native data authority at `C:\software\Coding\reverfolio\Data\state.sqlite`; no automatic WSL fallback. Every other user must initialize their own config and database.
+- The developer’s Windows installation at `C:\software\Coding\reverfolio` uses one native `Data/state.sqlite`; there is no automatic WSL fallback. Other users can choose their own installation path and must initialize their own config and database.
 - Native Messaging starts the browser's **local service** silently, but never returns API keys or SQLite content. It is not the MCP protocol.
 - The local HTTP `/mcp` endpoint requires a bearer token and binds to loopback. Remote connections need their own secured bridge/tunnel—never publicly expose the loopback port directly.
 - The public plugin-directory review process is separate from shipping self-hosted MCP source and installers.

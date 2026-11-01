@@ -65,7 +65,7 @@ python scripts/check_mcp_contract.py --binary "C:\software\Coding\reverfolio\bin
 
 ## 5. 数据安全与公开范围
 
-- Windows 本地只采用 `C:\software\Coding\reverfolio\Data\state.sqlite`；既有 WSL 数据已停用，不自动回退。其他用户必须使用自己的 `Data/` 和 `config.toml`。
+- 开发者当前的 Windows 安装目录示例为 `C:\software\Coding\reverfolio`，其业务数据库仅位于 Windows 的 `Data/state.sqlite`（既有 WSL 副本已停用）。其他用户可选择自己的安装路径，必须独立配置 `Data/` 和 `config.toml`。
 - 扩展的 Native Messaging 主机用于**静默启动服务**，与 MCP 是不同通道；不会把浏览器 Cookie、GitHub 密钥或 SQLite 经 Native Messaging 发送。
 - HTTP `/mcp` 需要 Bearer 认证并仅监听回环地址；远程隧道必须单独受保护，不能把本地端口直接裸露到互联网。
 - 发布包与 Git 仓库不得包含 `Data/`、`config.toml`、Token／API Key、真实个人报表与第三方服务的私有数据。
