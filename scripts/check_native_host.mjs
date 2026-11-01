@@ -23,6 +23,9 @@ assert.match(win,/HideWindow:\s*true/);
 const launcher=read("scripts/windows/Start-Reverfolio-Hidden.vbs");
 assert.match(launcher,/shell\.Run command, 0, False/i);
 assert.match(launcher,/healthz/,"Existing service should not be started twice");
+for(const path of ["scripts/windows/Install-Reverfolio.ps1","scripts/windows/Register-ReverfolioNativeHost.ps1","scripts/windows/Run-Reverfolio.ps1","scripts/windows/Initialize-ReverfolioExtension.ps1"]){
+ assert.ok(!/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(read(path)),"Control character in Windows script: "+path);
+}
 const install=read("scripts/windows/Register-ReverfolioNativeHost.ps1");
 assert.match(install,/allowed_origins/);
 assert.match(install,/com\.reverfolio\.bridge/);
