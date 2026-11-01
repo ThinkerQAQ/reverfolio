@@ -28,6 +28,7 @@ type Work struct {
 	RepositoryID *int64 `json:"github_id,omitempty"`
 }
 type Asset struct {
+	ReleaseTag           string    `json:"release_tag,omitempty"`
 	Category             string    `json:"category"`
 	ClassificationReason string    `json:"classification_reason"`
 	ID                   int64     `json:"id"`

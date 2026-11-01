@@ -21,6 +21,7 @@ DIST.mkdir(exist_ok=True)
 subprocess.run(['python3', 'scripts/build_extension_ui.py'], cwd=ROOT, check=True)
 subprocess.run(['node', 'scripts/check_extension.mjs'], cwd=ROOT, check=True)
 subprocess.run(['node', 'scripts/check_download_ui.mjs'], cwd=ROOT, check=True)
+subprocess.run(['node', 'scripts/check_dashboard.mjs'], cwd=ROOT, check=True)
 subprocess.run(['go', 'test', './...'], cwd=ROOT, check=True)
 subprocess.run(['python3', 'scripts/check_docs.py'], cwd=ROOT, check=True)
 assets = []

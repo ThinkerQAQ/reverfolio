@@ -83,6 +83,7 @@ func (g GitHub) Collect(ctx context.Context, work Work, key string) Snapshot {
 	for page := 1; page <= 100; page++ {
 		var releases []struct {
 			ID     int64   `json:"id"`
+			Tag    string  `json:"tag_name"`
 			Draft  bool    `json:"draft"`
 			Assets []Asset `json:"assets"`
 		}
@@ -113,6 +114,7 @@ func (g GitHub) Collect(ctx context.Context, work Work, key string) Snapshot {
 						fail("releases", fmt.Errorf("invalid asset"))
 						break
 					}
+					a.ReleaseTag = release.Tag
 					snap.Assets = append(snap.Assets, a)
 				}
 				if len(assets) < 100 {

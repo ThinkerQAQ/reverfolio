@@ -81,7 +81,7 @@ func (p ProviderClient) browserRequest(ctx context.Context, c SiteSource, endpoi
 		return "browser_source_not_allowed"
 	}
 	expected, _ := url.Parse(endpoint)
-	if expected == nil || expected.Scheme != "https" || expected.Host != "cloud.umami.is" || expected.Path != "/api/websites/"+c.Property+"/stats" {
+	if expected == nil || expected.Scheme != "https" || expected.Host != "cloud.umami.is" || !oneOf(expected.Path, "/api/websites/"+c.Property+"/stats", "/api/websites/"+c.Property+"/pageviews", "/api/websites/"+c.Property+"/metrics") {
 		return "browser_api_not_allowed"
 	}
 	debug := c.BrowserEndpoint

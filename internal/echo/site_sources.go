@@ -26,6 +26,7 @@ var sourceIDPattern = regexp.MustCompile(`^[a-z][a-z0-9_-]{0,39}$`)
 var credentialEnvPattern = regexp.MustCompile(`^[A-Z][A-Z0-9_]{0,79}$`)
 
 type SiteSource struct {
+	DetailEnabled   bool   `json:"detail_enabled" toml:"detail_enabled"`
 	AuthMode        string `json:"auth_mode" toml:"auth_mode"`
 	BrowserEndpoint string `json:"browser_endpoint" toml:"browser_endpoint"`
 	ID              string `json:"id" toml:"id"`
@@ -93,6 +94,8 @@ type CollectSiteSourceInput struct {
 	SourceID  string `json:"source_id"`
 }
 type ProviderMetric struct {
+	PageURL     string    `json:"page_url,omitempty"`
+	WorkID      int64     `json:"work_id,omitempty"`
 	Metric      string    `json:"metric"`
 	Value       float64   `json:"value"`
 	Unit        string    `json:"unit"`
@@ -103,16 +106,18 @@ type ProviderMetric struct {
 	SourceDate  string    `json:"source_date,omitempty"`
 }
 type ProviderRun struct {
-	ID         int64            `json:"id"`
-	SourceID   string           `json:"source_id"`
-	Provider   string           `json:"provider"`
-	WorkID     int64            `json:"work_id"`
-	RequestID  string           `json:"request_id"`
-	ConfigHash string           `json:"config_hash"`
-	CapturedAt time.Time        `json:"captured_at"`
-	State      string           `json:"state"`
-	Problem    string           `json:"problem,omitempty"`
-	Metrics    []ProviderMetric `json:"metrics"`
+	Details       []ProviderMetric `json:"details,omitempty"`
+	DetailProblem string           `json:"detail_problem,omitempty"`
+	ID            int64            `json:"id"`
+	SourceID      string           `json:"source_id"`
+	Provider      string           `json:"provider"`
+	WorkID        int64            `json:"work_id"`
+	RequestID     string           `json:"request_id"`
+	ConfigHash    string           `json:"config_hash"`
+	CapturedAt    time.Time        `json:"captured_at"`
+	State         string           `json:"state"`
+	Problem       string           `json:"problem,omitempty"`
+	Metrics       []ProviderMetric `json:"metrics"`
 }
 type SiteSourceStatus struct {
 	Source           SiteSource   `json:"source"`
@@ -253,7 +258,10 @@ func (s Service) SaveSiteSource(ctx context.Context, in SaveSiteSourceInput) (Si
 	return s.SiteSources(ctx)
 }
 func (s *Store) ProviderRuns(ctx context.Context) ([]ProviderRun, error) {
-	rows, err := s.db.QueryContext(ctx, `SELECT id,payload FROM provider_runs ORDER BY id DESC LIMIT 200`)
+	return s.providerRunsQuery(ctx, `SELECT id,payload FROM provider_runs ORDER BY id DESC LIMIT 200`)
+}
+func (s *Store) providerRunsQuery(ctx context.Context, query string) ([]ProviderRun, error) {
+	rows, err := s.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -349,6 +357,12 @@ func (s Service) CollectSiteSource(ctx context.Context, in CollectSiteSourceInpu
 			run.Problem = problem
 		} else if len(metrics) == 0 {
 			run.State = "empty"
+		}
+	}
+	if source.DetailEnabled && (run.State == "complete" || run.State == "empty") {
+		run.Details, run.DetailProblem = s.Providers.collectDetails(ctx, source, credential, run.CapturedAt)
+		if err := s.Store.attributeDetails(ctx, run.Details, source.WorkID); err != nil {
+			return run, err
 		}
 	}
 	encoded, _ := json.Marshal(run)

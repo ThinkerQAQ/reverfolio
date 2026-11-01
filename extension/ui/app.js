@@ -112,11 +112,11 @@ async function act(operation,successMessage=T("已保存并更新")) {
   finally {state.busy=false;document.body.classList.remove("busy");}
 }
 async function refresh(showMessage=true){
-  const [works,report,mentions,tasks,audit,settings,runtime,sources,catalog]=await Promise.all([
-    api("/api/works"),api("/api/report"),api("/api/mentions"),api("/api/tasks"),api("/api/audit"),api("/api/settings"),api("/api/runtime"),api("/api/site-sources"),api("/api/catalog")
+  const [works,report,mentions,tasks,audit,settings,runtime,sources,catalog,dashboard]=await Promise.all([
+    api("/api/works"),api("/api/report"),api("/api/mentions"),api("/api/tasks"),api("/api/audit"),api("/api/settings"),api("/api/runtime"),api("/api/site-sources"),api("/api/catalog"),api("/api/dashboard")
   ]);
   const pairs=await Promise.all(works.map(async w=>[w.id,await api("/api/works/"+w.id+"/channels")]));
-  state.data={works,report,mentions,tasks,audit,settings,runtime,sources,catalog,channels:new Map(pairs)};
+  state.data={works,report,mentions,tasks,audit,settings,runtime,sources,catalog,dashboard,channels:new Map(pairs)};
   state.lang=pref("interface.language","zh-CN")==="en"?"en":"zh";
   render();
   if(showMessage)notification(T("数据读取成功"));
@@ -198,7 +198,7 @@ function overviewView(){
   stat("验证页面",summary.verified_pages,"仅统计审核通过的原始页面",true)+
   stat("传播事件",summary.third_party_events,"同一事件不重复计数")+
   stat("待审核线索",summary.pending,"需要再次核查原始来源")+'</div>'+
-  githubView+liveSourcesView()+(evidence||history?'<div class="grid-2">'+evidence+history+'</div>':"");
+  impactDashboardView()+githubView+liveSourcesView()+(evidence||history?'<div class="grid-2">'+evidence+history+'</div>':"");
 }
 function input(label,name,type="text",placeholder="",extra=""){
  return '<label class="field"><span>'+T(label)+'</span><input name="'+name+'" type="'+type+'" placeholder="'+E(placeholder)+'" '+extra+'></label>';
@@ -313,6 +313,7 @@ function siteSourcePanel(provider){
  sources.map(x=>'<div class="list-row"><strong>'+E(x.source.id)+'</strong> · '+tag(x.last_run?.state||(x.source.auth_mode==='browser'?'browser_session':x.credential_loaded?'configured':'credential_missing'))+'<p>'+E(settingsLabel([x.source.auth_mode==='browser'?'使用本机浏览器会话，无需 API Key。':x.credential_loaded?'凭据已保存；以实际采集结果为准。':'尚未保存 API 凭据。',x.source.auth_mode==='browser'?'Uses the local browser session; no API key.':x.credential_loaded?'Credential present; check actual collection result.':'API credentials are missing.']))+'</p>'+(x.last_run?'<p class="meta">'+dt(x.last_run.captured_at)+' · '+E(x.last_run.problem||'')+'</p>':'')+'<button class="btn btn-sm" data-action="edit-source" data-source="'+E(x.source.id)+'">'+E(settingsLabel(["编辑","Edit"]))+'</button> <button class="btn btn-sm" data-action="collect-site-source" data-source="'+E(x.source.id)+'">'+E(settingsLabel(["立即采集","Collect now"]))+'</button></div>').join('')+
  '<form data-form="site-source"><input type="hidden" name="provider" value="'+E(provider)+'"><div class="form-grid">'+
  '<label class="field"><span>'+E(settingsLabel(["连接标识","Source ID"]))+'</span><input name="id" value="'+E(c.id)+'" pattern="[a-z][a-z0-9_-]{0,39}" required></label>'+
+ '<label class="field"><span>'+E(settingsLabel(["采集日明细与页面归属","Collect daily and page details"]))+'</span><select name="detail_enabled"><option value="false" '+(!c.detail_enabled?'selected':'')+'>'+E(settingsLabel(["仅汇总","Summary only"]))+'</option><option value="true" '+(c.detail_enabled?'selected':'')+'>'+E(settingsLabel(["启用明细","Enable details"]))+'</option></select></label>'+
  '<label class="field"><span>'+E(settingsLabel(["关联作品","Work"]))+'</span><select name="work_id">'+state.data.works.filter(w=>w.kind==='site'||w.kind==='article').map(w=>'<option value="'+w.id+'" '+(c.work_id===w.id?'selected':'')+'>'+E(w.title)+'</option>').join('')+'</select></label>'+
  '<label class="field"><span>'+E(settingsLabel(["授权方式","Authentication"]))+'</span><select name="auth_mode"><option value="token" '+(c.auth_mode!=='browser'?'selected':'')+'>'+E(settingsLabel(["API 凭据","API credentials"]))+'</option>'+(provider==='umami'?'<option value="browser" '+(c.auth_mode==='browser'?'selected':'')+'>'+E(settingsLabel(["本机浏览器会话（无 API Key）","Local browser session (no API key)"]))+'</option>':'')+'</select></label><label class="field"><span>'+E(settingsLabel(["浏览器调试地址","Browser debug endpoint"]))+'</span><input name="browser_endpoint" value="'+E(c.browser_endpoint||'http://127.0.0.1:9222')+'"></label>'+
  '<label class="field full"><span>API Endpoint</span><input name="endpoint" type="url" value="'+E(c.endpoint)+'" '+(provider!=='umami'?'readonly':'')+' required></label>'+
@@ -474,7 +475,7 @@ async function runForm(form){
  const body=Object.fromEntries(new FormData(form));
  const name=form.dataset.form;
  if(body.work_id)body.work_id=Number(body.work_id);
- if(name==="site-source"){const credential=body.auth_mode==="browser"?"":body.credential;delete body.credential;if(body.auth_mode==="browser")body.credential_env="";body.work_id=Number(body.work_id);body.lookback_days=Number(body.lookback_days);body.lag_days=Number(body.lag_days);body.enabled=body.enabled==="true";await act(async()=>send("save_site_source",{source:body,credential,expected_version:state.data.sources.version}));}
+ if(name==="site-source"){const credential=body.auth_mode==="browser"?"":body.credential;delete body.credential;if(body.auth_mode==="browser")body.credential_env="";body.work_id=Number(body.work_id);body.lookback_days=Number(body.lookback_days);body.lag_days=Number(body.lag_days);body.enabled=body.enabled==="true";body.detail_enabled=body.detail_enabled==="true";await act(async()=>send("save_site_source",{source:body,credential,expected_version:state.data.sources.version}));}
  else if(name==="identity"){body.aliases=body.aliases.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);body.reviewer=pref("evidence.reviewer","local-ui");await act(async()=>send("link_identity",body));}
  else if(name==="work"){
   if(body.kind==="project"){delete body.canonical_url;}

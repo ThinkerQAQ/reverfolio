@@ -22,7 +22,7 @@ a rollback failure is reported explicitly. Credentials and TOML are separate fil
 crash between their writes is not an atomic transaction; verify source status after recovery.
 
 - Umami: browser authentication uses `https://cloud.umami.is/api` and a local CDP endpoint.
-  Keep the authorized browser signed in. Only allowlisted read-only stats requests are made in a
+  Keep the authorized browser signed in. Only allowlisted read-only stats, daily series and page-ranking requests are made in a
   temporary background target; it is closed afterwards. No Cookie export or arbitrary page scripts.
   Missing/expired sessions are recorded as failures. Token authentication is also available
   for operators who already have an authorized API credential.
@@ -64,3 +64,7 @@ MCP adds `list_site_sources`, `save_site_source`, `collect_site_source`, `link_i
 and `unlink_identity`. HTTP adds `GET /api/site-sources` and matching
 `POST /api/actions/{action}` operations. Writes use unique request IDs; source edits use
 `expected_version`. Source credentials are write-only and are never returned by these interfaces.
+
+## Daily and page detail
+
+Enable `detail_enabled` per source to collect independent drilldowns. A failed drilldown retains the successful property summary and any completed detail responses, with a separate detail problem. See [dashboard semantics](impact-dashboard.md).

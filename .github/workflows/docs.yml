@@ -20,6 +20,9 @@ jobs:
       - name: Check extension manifest, icons, localized UI and mock interactions
         run: |
           node scripts/check_extension.mjs
+          node scripts/check_dashboard.mjs
+          node scripts/check_download_ui.mjs
+          node --check extension/ui/dashboard.js
           node --check extension/background.js
           node --check extension/ui/app.js
           python3 scripts/build_extension_ui.py

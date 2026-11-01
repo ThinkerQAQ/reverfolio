@@ -6,7 +6,7 @@ Local-first observability for open-source and content impact.
 
 Reverfolio will connect projects, multilingual articles, distribution channels, metric history, and evidence of external citations or adoption. AI clients can discover evidence through their search tools and submit it through MCP.
 
-**v0.5.0** adds portable work catalogs, monitoring preferences and independent Umami, Google Search Console and Bing connectors, explicit actor identity groups, and shared Web/extension/MCP controls. AI clients execute discovery searches; Reverfolio records their scope and evidence.
+**v0.6.0** adds [impact charts and usage guidance](docs/impact-dashboard.md): GitHub daily traffic, release/platform breakdowns, site trends, exact article URL attribution, and PNG/SVG/CSV exports. Web, extension and MCP share the same observations.
 
 ## Architecture and data policy
 
