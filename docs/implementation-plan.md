@@ -96,3 +96,7 @@ Live provider activation requires explicit authorization and remains deployment-
 
 Connected AI clients execute discovery queries; automatic full-web search and definitive
 software-user attribution are not implemented. Historical progress sections above record earlier states.
+
+## Next stage: platform followers, article reads and engagement (proposed, 2026-11-01)
+
+P1–P5 and the existing GitHub / Umami / GSC / Bing dashboards are implemented as of v0.7.1. The next P6 slice is **not yet implemented**: design linked from [English RFC](social-impact-architecture.md) and [中文方案](social-impact-architecture.zh-CN.md). Preserve the existing one-way, optional SyndiRelay publication outbox; add independent authorized read-only metrics adapters, strict account/publication attribution and a separate idempotent metrics outbox, with Reverfolio owning metrics and reporting. Build DEV.to official API as the first slice; other platforms require platform-by-platform validation. Never infer unique people from totals across providers.

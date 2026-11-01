@@ -16,6 +16,8 @@ Reverfolio will connect projects, multilingual articles, distribution channels, 
 
 **v0.6.0** adds [impact charts and usage guidance](docs/impact-dashboard.md): GitHub daily traffic, release/platform breakdowns, site trends, exact article URL attribution, and PNG/SVG/CSV exports. Web, extension and MCP share the same observations.
 
+Future work: [cross-platform follower, article-read and engagement metrics](docs/social-impact-architecture.md) are **designed but not implemented**. The proposed optional SyndiRelay read-only metrics bridge retains Reverfolio’s independent data storage and deployment.
+
 ## Architecture and data policy
 
 One local Go service, SQLite, embedded Web UI and an MCP endpoint share the same business operations. An AI client performs searches using its own authorized tools; Reverfolio records the task, candidate link and review decision. A `secondary_report` mention cannot be verified without original `web` or `api` evidence and explicit review. Reference pages, verified identity URLs, grouped propagation events, GitHub downloads, visitors and actual software users are different metrics.

@@ -14,6 +14,8 @@
 
 **v0.6.0** 新增[统计图与使用说明](docs/impact-dashboard.md)：GitHub 每日流量、版本／平台下载分布、网站趋势、按网址精确归属文章，以及 PNG／SVG／CSV 导出。网页、扩展与 MCP 共用观测数据。
 
+后续阶段的[跨平台粉丝／阅读／互动指标方案](docs/social-impact-architecture.zh-CN.md)已完成设计，**尚未实现**；将复用 SyndiRelay 的可选平台认证与只读适配器，通过独立指标 Outbox 交接，Reverfolio 仍保持独立。
+
 架构采用 Go 单服务＋SQLite＋内嵌 Web UI＋MCP。AI 客户端负责用自身工具搜索，Reverfolio 负责保存任务、线索、审核与统计；**不包含自动 AI 搜索执行器**。历史二手报告只能生成待审核线索，必须补充原网页或原始 API 证据并明确人工审核，才能计入已确认传播。GitHub 下载、浏览、去重访客与实际使用者分别计量，不相互推断。
 
 通过功能分支和 PR 开发，仅使用 Squash Merge，合并后删除分支。规则执行情况见[仓库治理](docs/governance.md)。真实账号配置、凭据、个人统计和历史调查资料保存在运行数据目录中，不提交到代码库。
