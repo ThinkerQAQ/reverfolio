@@ -1,5 +1,7 @@
 # 跨平台创作影响力：账号粉丝、文章阅读与互动指标
 
+> **更新（v0.9.0）：本文件保留为历史方案，不再代表当前实施架构。** 根据后续评审决定，Reverfolio **直接接入可授权的官方平台 API**，SyndiRelay 仅可选同步公开发布链接；**不依赖发布适配器运行、也不抓取浏览器登录后台**。DEV.to 直连 API、账号/文章指标、SQLite schema v7、MCP 和 UI 已实现；Hashnode 等平台尚待官方接口字段验证。下方 Metrics Outbox、schema v6 与依赖分发器的提案**不再计划实施**。以 [当前官方 API 实施说明](platform-api.zh-CN.md) 为准。
+
 状态：**设计方案，尚未实现**（2026-11-01）。本设计延续 [实施计划 P6](implementation-plan.md)，不改变现有 GitHub、Umami、GSC、Bing 采集方式。
 
 ## 结论与边界

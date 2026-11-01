@@ -1,5 +1,7 @@
 # Cross-platform creator impact: account followers, article reads and engagement
 
+> **Update (v0.9.0): historical design only; superseded by direct official APIs.** Reverfolio independently connects to authorized platform APIs; SyndiRelay is optional for public publication-link handoff only. Do **not** implement the metrics outbox, schema-v6 proposal, browser-session scraping or publisher-runtime dependency described below. DEV.to account/publication metrics, SQLite schema v7, UI and MCP are implemented. Hashnode and other platform adapters are still pending official API verification. See the [current API-only implementation guide](platform-api.md).
+
 **Status: proposed, not yet implemented** (2026-11-01). This extends [P6 in the implementation plan](implementation-plan.md) without changing the existing GitHub, Umami, Google Search Console or Bing collectors. Full design and contracts: [中文设计方案](social-impact-architecture.zh-CN.md).
 
 ## Ownership

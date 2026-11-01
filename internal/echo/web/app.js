@@ -4,7 +4,7 @@
 const LANG = {
   "影响力观察工作台":"Impact observatory","本地服务":"Local service","已连接":"Connected","工作台":"Workspace",
   "本地优先 · 数据私有":"Local-first · Private data","刷新":"Refresh",
-  "影响力总览":"Impact overview","项目管理":"Projects","网站发现":"Discover websites","分发渠道":"Channels","传播路径":"Propagation paths","引用与采用":"Evidence & adoption",
+  "影响力总览":"Impact overview","项目管理":"Projects","网站发现":"Discover websites","平台账号":"Creator platforms","分发渠道":"Channels","传播路径":"Propagation paths","引用与采用":"Evidence & adoption",
   "发现任务":"Discovery tasks","历史统计":"History & metrics","设置":"Settings",
   "统一查看项目、文章与真实传播证据":"Track projects, articles and verified impact",
   "管理开源仓库与文章":"Manage repositories and articles",
@@ -71,6 +71,7 @@ const nav = [
   ["overview","◫","影响力总览","统一查看项目、文章与真实传播证据"],
   ["works","▦","项目管理","管理开源仓库与文章"],
   ["websites","⌘","网站发现","无需 Inkerio 或 SyndiRelay，从 RSS、Atom、Sitemap 发现任意网站的公开文章"],
+  ["platforms","◉","平台账号","使用官方 API 读取作者账号、文章及统计，绝不抓取网页登录页面"],
   ["channels","≋","分发渠道","查看中文、英文以及公开平台的文章链接"],
   ["propagation","⇢","传播路径","按作品查看原文、语言版本、分发链接与经核实的第三方传播"],
   ["evidence","◇","引用与采用","审核第三方引用与实际采用的原始证据"],
@@ -78,7 +79,7 @@ const nav = [
   ["history","▤","历史统计","查看统计来源与导入历史数据"],
   ["settings","⚙","设置","查看本地连接、权限与语言偏好"]
 ];
-const state = {lang:(localStorage.getItem("reverfolio.lang") || localStorage.getItem("openecho.lang"))==="en"?"en":"zh",view:"overview",data:null,leases:new Map(),preview:null,importInput:"",busy:false,settingsQuery:"",settingsSelected:"",settingsExpanded:new Set(),settingsDraft:{},evidenceFilter:null,propagationWork:null,offlineMessage:"",websitePreview:null,websiteURL:""};
+const state = {lang:(localStorage.getItem("reverfolio.lang") || localStorage.getItem("openecho.lang"))==="en"?"en":"zh",view:"overview",data:null,leases:new Map(),preview:null,importInput:"",busy:false,settingsQuery:"",settingsSelected:"",settingsExpanded:new Set(),settingsDraft:{},evidenceFilter:null,propagationWork:null,offlineMessage:"",websitePreview:null,websiteURL:"",devtoPreview:null};
 const $ = id => document.getElementById(id);
 const T = key => state.lang==="en" ? (LANG[key] || key) : key;
 const E = value => String(value ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -162,11 +163,11 @@ async function act(operation,successMessage=T("已保存并更新")) {
 async function refresh(showMessage=true){
  try{
   await ensureLocalService();
-  const [works,report,mentions,tasks,audit,settings,runtime,sources,catalog,dashboard,websites]=await Promise.all([
-    api("/api/works"),api("/api/report"),api("/api/mentions"),api("/api/tasks"),api("/api/audit"),api("/api/settings"),api("/api/runtime"),api("/api/site-sources"),api("/api/catalog"),api("/api/dashboard"),api("/api/website-sources")
+  const [works,report,mentions,tasks,audit,settings,runtime,sources,catalog,dashboard,websites,platformDashboard]=await Promise.all([
+    api("/api/works"),api("/api/report"),api("/api/mentions"),api("/api/tasks"),api("/api/audit"),api("/api/settings"),api("/api/runtime"),api("/api/site-sources"),api("/api/catalog"),api("/api/dashboard"),api("/api/website-sources"),api("/api/platform-dashboard")
   ]);
   const pairs=await Promise.all(works.map(async w=>[w.id,await api("/api/works/"+w.id+"/channels")]));
-  state.data={works,report,mentions,tasks,audit,settings,runtime,sources,catalog,dashboard,websites,channels:new Map(pairs)};
+  state.data={works,report,mentions,tasks,audit,settings,runtime,sources,catalog,dashboard,websites,platformDashboard,channels:new Map(pairs)};
   state.offlineMessage="";
   state.lang=pref("interface.language","zh-CN")==="en"?"en":"zh";
   render();
@@ -200,7 +201,7 @@ function shellRender(){
 function render(){
   shellRender();if(!state.data){$("view").innerHTML=state.offlineMessage?offlineView():'<div class="loading">Loading…</div>';return;}
   document.body.classList.toggle("compact-layout",pref("appearance.compact")==="true");
-  const pages={overview:overviewView,works:worksView,websites:websiteSourcesView,channels:channelsView,propagation:propagationView,evidence:evidenceView,tasks:tasksView,history:historyView,settings:settingsView};
+  const pages={overview:overviewView,works:worksView,websites:websiteSourcesView,platforms:platformsView,channels:channelsView,propagation:propagationView,evidence:evidenceView,tasks:tasksView,history:historyView,settings:settingsView};
   $("view").innerHTML=pages[state.view]();
 }
 const heading=(title,sub="",right="")=>'<div class="section-header"><div><h2>'+T(title)+'</h2>'+(sub?'<p>'+T(sub)+'</p>':"")+'</div>'+right+'</div>';
@@ -254,12 +255,16 @@ function overviewView(){
   (summary.history||[]).filter(r=>["search_impressions","search_clicks","pageviews_approx","visitor_identifiers"].includes(r.metric)).slice(0,6)
    .map(r=>'<div class="list-row"><div class="status-line"><strong>'+E(r.metric)+'</strong><span class="muted">'+fmt(r.value)+'</span></div><div class="subtle">'+E(r.scope)+'</div></div>').join("")+
   '<p class="kpi-note">'+T("历史统计不自动变成实时数据")+'</p></div></div>':"";
+ const platform=state.data.platformDashboard||{accounts:[],publications:[]};
+ const platformSummary=platform.accounts.length?
+  heading(settingsLabel(["创作者平台观察","Creator platform observations"]),settingsLabel(["账号关注与文章浏览严格分开，缺失不等于零","Account subscriptions and article views are separate; missing is not zero"]),'<button class="btn btn-sm" data-action="navigate" data-view="platforms">'+E(settingsLabel(["查看平台详情","View platform details"]))+'</button>')+
+  '<div class="activity-grid">'+platform.accounts.map(a=>'<article class="activity-card"><strong>'+anchor(a.account.profile_url,a.account.platform+' · @'+a.account.username)+'</strong><div class="activity-stat-row"><div><span>'+E(settingsLabel(["粉丝","Followers"]))+'</span><strong>'+metricValue(a.latest,"followers")+'</strong></div><div><span>'+E(settingsLabel(["已关联文章","Linked posts"]))+'</span><strong>'+fmt(platform.publications.filter(p=>p.publication.account_id===a.account.id).length)+'</strong></div></div><p class="meta">'+dt(a.last_run?.captured_at)+'</p>'+metricHistory(a.history,"followers",settingsLabel(["粉丝历史","Follower history"]))+'</article>').join('')+'</div>':'';
  return '<div class="toolbar"><div class="muted">'+T("历史统计不自动变成实时数据")+'</div><div class="btn-row"><button class="btn btn-sm" data-action="export-md">Markdown</button><button class="btn btn-sm" data-action="export-json">JSON</button></div></div><div class="stat-grid">'+
   stat("已登记作品",works.length,"包括项目、文章及网站")+
   stat("验证页面",summary.verified_pages,"仅统计审核通过的原始页面",true)+
   stat("传播事件",summary.third_party_events,"同一事件不重复计数")+
   stat("待审核线索",summary.pending,"需要再次核查原始来源")+'</div>'+
-  impactDashboardView()+githubView+liveSourcesView()+(evidence||history?'<div class="grid-2">'+evidence+history+'</div>':"");
+  impactDashboardView()+platformSummary+githubView+liveSourcesView()+(evidence||history?'<div class="grid-2">'+evidence+history+'</div>':"");
 }
 function input(label,name,type="text",placeholder="",extra=""){
  return '<label class="field"><span>'+T(label)+'</span><input name="'+name+'" type="'+type+'" placeholder="'+E(placeholder)+'" '+extra+'></label>';
@@ -283,6 +288,49 @@ function websiteSourcesView(){
  heading("已添加的网站来源","查看已经确认导入过作品的网站来源")+
  '<div class="panel">'+(sources.length?sources.map(s=>'<div class="list-row"><div class="status-line"><strong>'+anchor(s.url)+'</strong><span>'+tr("已导入作品","Imported works")+': '+fmt(s.imported_works)+'</span></div><p class="meta">'+tr("最后扫描","Last scan")+': '+dt(s.last_scanned_at)+' · '+tr("候选","Candidates")+': '+fmt(s.last_item_count)+'</p><div class="btn-row"><button class="btn btn-sm" data-action="rescan-website" data-website="'+E(s.url)+'">'+tr("重新发现新文章","Rescan articles")+'</button></div></div>').join(''):'<p class="muted">'+tr("尚无网站来源，输入你的博客网址开始。","No website sources yet. Enter your blog URL to begin.")+'</p>')+'</div>'+
  '<p class="kpi-note">'+tr("已添加来源不会自动代表所有文章都已导入；RSS、Atom 与 Sitemap 的覆盖范围以网站实际提供为准。","A registered source does not guarantee complete coverage. Discovery is limited to the feeds and sitemaps the site actually publishes.")+'</p>';
+}
+// Official APIs only. Platform tokens are write-only; the browser never stores
+// them in localStorage, a shared catalog, or the embedded extension's files.
+function metricPoint(points,name){return (points||[]).find(x=>x.metric===name);}
+function metricValue(points,name){const v=metricPoint(points,name);return v?fmt(v.value):"—";}
+function metricHistory(points,name,title){
+ const values=(points||[]).filter(p=>p.metric===name).slice(0,30).reverse();
+ if(values.length<2)return '<p class="meta">'+E(settingsLabel(["至少两次成功采集后展示趋势；缺失不是零。","Two successful observations are needed for a trend. Missing is not zero."]))+'</p>';
+ const min=Math.min(...values.map(p=>p.value)),max=Math.max(...values.map(p=>p.value));
+ const path=values.map((p,i)=>{
+   const x=8+i*274/Math.max(1,values.length-1),y=54-(p.value-min)*42/Math.max(1,max-min);
+   return x.toFixed(1)+","+y.toFixed(1);
+ }).join(" ");
+ return '<div class="platform-chart"><svg viewBox="0 0 290 66" role="img" aria-label="'+E(title)+'"><polyline points="'+path+'" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linejoin="round"></polyline></svg><div class="meta">'+dt(values[0].observed_at)+' → '+dt(values.at(-1).observed_at)+' · '+E(settingsLabel(["初始","Start"]))+': '+fmt(values[0].value)+' → '+E(settingsLabel(["最新","Latest"]))+': '+fmt(values.at(-1).value)+'</div></div>';
+}
+function platformsView(){
+ const tr=(zh,en)=>settingsLabel([zh,en]),all=state.data.platformDashboard||{accounts:[],publications:[]};
+ const preview=state.devtoPreview;
+ const header=heading(tr("平台账号与统计","Creator platform accounts"),tr("只连接有官方 API 且你明确授权的平台；账号粉丝与文章浏览分别统计。","Only official, authorized APIs. Account followers and article views are different counters."));
+ const connection='<div class="panel"><h3>'+E(tr("连接 DEV.to（Forem 官方 API）","Connect DEV.to (official Forem API)"))+'</h3>'+
+ '<p class="desc">'+E(tr("在 DEV.to 创建个人 API Key 后粘贴到这里。密钥仅写入本地 Data/platform-credentials，不会进入公开数据库导出、网页响应或分发工具。","Generate a personal API key in DEV.to and paste it here. It is stored only in private local Data/platform-credentials; never exported to reports or shared with the publisher."))+
+ ' '+anchor("https://developers.forem.com/api",tr("官方 API 文档","Official API docs"))+'</p>'+
+ '<form data-form="devto-connect"><div class="form-grid"><label class="field full"><span>'+E(tr("DEV.to API Key（只写入，不回显）","DEV.to API key (write-only)"))+'</span><input name="api_key" type="password" autocomplete="new-password" required minlength="8" maxlength="4096"></label></div><div class="form-actions"><button class="btn btn-primary" type="submit">'+E(tr("验证并连接账号","Verify and connect account"))+'</button></div></form></div>';
+ const accountPanels=all.accounts.map(x=>{
+  const a=x.account,publications=all.publications.filter(p=>p.publication.account_id===a.id);
+  const followers=metricPoint(x.latest,"followers");
+  return '<div class="panel"><div class="section-header"><div><h2>'+anchor(a.profile_url,"DEV.to · @"+a.username)+'</h2><p>'+E(tr("已导入文章","Imported articles"))+': '+fmt(publications.length)+' · '+E(tr("连接状态","Credential"))+': '+E(a.credential_present?tr("本地密钥已保存","Local key present"):tr("需要重新授权","Missing key"))+'</p></div><div class="btn-row"><button class="btn btn-sm" data-action="preview-devto" data-account="'+E(a.id)+'">'+E(tr("读取已发布文章","Discover published posts"))+'</button><button class="btn btn-primary btn-sm" data-action="collect-devto" data-account="'+E(a.id)+'">'+E(tr("采集粉丝与文章统计","Collect followers & views"))+'</button></div></div>'+
+ '<div class="stat-grid">'+stat(tr("关注关系数","Follower relationships"),followers?followers.value:null,tr("当前平台快照；不是跨平台去重人数","Platform snapshot; not unique people"))+
+ stat(tr("已关联文章","Linked publications"),publications.length,tr("仅统计确认导入的作品","Confirmed articles only"))+
+ stat(tr("采集指标条目","Collected metric points"),publications.reduce((n,v)=>n+v.latest.length,0),tr("每个指标附真实来源与观测时间","Each metric has a source and observed time"))+'</div>'+
+ metricHistory(x.history,"followers",tr("粉丝历史趋势","Follower history trend"))+
+ (x.last_run?'<p class="meta">'+E(tr("最近采集","Last capture"))+': '+dt(x.last_run.captured_at)+' · '+E(x.last_run.state)+' · '+E((x.last_run.problems||[]).join("; "))+'</p>':'<p class="meta">'+E(tr("尚无成功采集记录","No collection runs yet"))+'</p>')+
+ (publications.length?'<div class="table-wrap"><table class="data-table"><thead><tr><th>'+E(tr("已发布文章","Published article"))+'</th><th>'+E(tr("浏览","Views"))+'</th><th>'+E(tr("互动","Reactions"))+'</th><th>'+E(tr("评论","Comments"))+'</th><th>'+E(tr("数据时间／来源","Observed / source"))+'</th></tr></thead><tbody>'+
+ publications.slice().sort((a,b)=>(metricPoint(b.latest,"views")?.value??-1)-(metricPoint(a.latest,"views")?.value??-1)).map(p=>'<tr><td>'+anchor(p.publication.url,p.publication.title)+'</td><td>'+metricValue(p.latest,"views")+'</td><td>'+metricValue(p.latest,"reactions")+'</td><td>'+metricValue(p.latest,"comments")+'</td><td>'+E(p.latest.length?dt(p.latest[0].observed_at)+" · "+p.latest[0].source:tr("尚未采集","Not collected"))+'</td></tr>').join("")+'</tbody></table></div>':'<p class="muted">'+E(tr("尚未确认导入任何 DEV.to 文章；先读取并选择你的已发布文章。","No articles imported yet. Discover and select your published articles first."))+'</p>')+
+ '</div>';
+ }).join("");
+ const previewView=preview?'<div class="panel">'+heading(tr("DEV.to 已发布文章候选","Published DEV.to articles"),tr("只有勾选的文章才会登记；canonical URL 命中本地原文时，自动关联而非重复新增。","Only selected articles are registered. Matching canonical URLs link to existing works."))+
+ (preview.truncated?'<p class="meta">'+E(tr("本次最多返回 500 篇，请分批管理；不会声称覆盖全部文章。","Capped at 500; this is not a complete historical inventory."))+'</p>':'')+
+ '<div class="table-wrap"><table class="data-table"><thead><tr><th>'+E(tr("选择","Select"))+'</th><th>'+E(tr("文章与发布地址","Article & URL"))+'</th><th>'+E(tr("关联状态","Link status"))+'</th><th>'+E(tr("已有浏览","Reported views"))+'</th></tr></thead><tbody>'+
+ preview.articles.map(a=>'<tr><td><input type="checkbox" data-devto-choice="'+a.id+'" aria-label="'+E(a.title)+'" '+(a.imported_work_id?'disabled':'')+'></td><td>'+E(a.title)+'<p class="meta">'+anchor(a.url)+'</p>'+(a.canonical_url&&a.canonical_url!==a.url?'<p class="meta">'+E(tr("原文","Canonical"))+': '+anchor(a.canonical_url)+'</p>':'')+'</td><td>'+E(a.imported_work_id?tr("已导入","Imported"):a.existing_work_id?tr("匹配现有作品","Matches existing work"):tr("新作品","New work"))+'</td><td>'+fmt(a.views)+'</td></tr>').join("")+
+ '</tbody></table></div><div class="form-actions"><button class="btn btn-primary" data-action="import-devto" data-account="'+E(preview.account_id)+'">'+E(tr("导入勾选文章","Import selected articles"))+'</button></div></div>':'';
+ return header+connection+(accountPanels||'<div class="panel empty">'+E(tr("尚未连接平台账号。可先连接 DEV.to，完全不需要 SyndiRelay。","No platform accounts connected. Start with DEV.to; SyndiRelay is not required."))+'</div>')+previewView+
+ '<p class="kpi-note">'+E(tr("当前仅支持 DEV.to 官方 API。没有官方授权统计 API 的平台不会调用私有接口、抓取登录态或伪造数据。浏览量不是独立读者，粉丝量不可跨平台去重。","DEV.to official API is the first supported provider. No unofficial scraping or private endpoints. Views are not unique readers; followers cannot be deduplicated across platforms."))+'</p>';
 }
 function worksView(){
  const cards=state.data.works.map(w=>{
@@ -525,6 +573,24 @@ async function runClick(button){
   return;
  }
  if(action==="refresh"){await act(async()=>{});return;}
+ if(action==="preview-devto"){
+  const accountID=button.dataset.account;
+  await act(async()=>{
+   state.devtoPreview=await api("/api/actions/preview_devto",{method:"POST",body:JSON.stringify({account_id:accountID})});
+  },settingsLabel(["文章候选已读取，尚未导入","Articles discovered; no import yet"]));return;
+ }
+ if(action==="import-devto"){
+  const p=state.devtoPreview;if(!p)throw Error(settingsLabel(["先读取已发布文章","Discover articles first"]));
+  const ids=[...document.querySelectorAll("[data-devto-choice]:checked")].map(x=>Number(x.dataset.devtoChoice));
+  if(!ids.length)throw Error(settingsLabel(["请先勾选文章","Select articles first"]));
+  await act(async()=>{
+   await send("import_devto",{account_id:p.account_id,selected_article_ids:ids});
+   state.devtoPreview=null;
+  },settingsLabel(["已关联选中的文章","Selected articles linked"]));return;
+ }
+ if(action==="collect-devto"){
+  await act(async()=>send("collect_devto",{account_id:button.dataset.account}),settingsLabel(["已读取官方指标，请核查采集状态","Official metrics read; check collection status"]));return;
+ }
  if(action==="rescan-website"){
   state.websiteURL=button.dataset.website;
   await act(async()=>{
@@ -609,7 +675,14 @@ async function runForm(form){
  const body=Object.fromEntries(new FormData(form));
  const name=form.dataset.form;
  if(body.work_id)body.work_id=Number(body.work_id);
- if(name==="website-preview"){
+ if(name==="devto-connect"){
+  await act(async()=>{
+   await send("connect_devto",body);
+   state.devtoPreview=null;
+   form.reset();
+  },settingsLabel(["已验证 DEV.to 账号，密钥仅保存在本地","DEV.to account connected; key saved locally"]));
+ }
+ else if(name==="website-preview"){
   state.websiteURL=body.website_url;
   await act(async()=>{
    state.websitePreview=await api("/api/actions/preview_website",{method:"POST",body:JSON.stringify({website_url:state.websiteURL})});

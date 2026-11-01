@@ -26,7 +26,7 @@ ChatGPT 无法直接连接别人电脑上的 `127.0.0.1`。远程使用需要**�
 2. **新建对话**以获得最新工具目录；旧对话可能保留连接时的工具快照。
 3. 在新对话测试只读 `get_dashboard`、`list_site_sources`。不要删除重装数据，不要建立第二份 Windows／WSL 数据库。
 
-## 2. 34 个 MCP 工具
+## 2. 39 个 MCP 工具
 
 | 领域 | 工具 |
 |---|---|
@@ -37,6 +37,10 @@ ChatGPT 无法直接连接别人电脑上的 `127.0.0.1`。远程使用需要**�
 | 设置／历史／报告（6） | `list_settings`、`update_setting`、`update_settings`、`import_history`、`get_audit`、`generate_report` |
 
 所有写操作均采用 `request_id`，部分操作另要求 `expected_version`，防止重复与并发冲突。导入必须先 `dry_run` 并明确勾选 `selected_ids`；审核原始证据必须人工确认，AI 不能把未经核验的链接自动计为传播。
+
+## DEV.to 平台统计（官方 API）
+
+新增 5 个 MCP 工具：`list_platform_accounts`、`preview_devto`、`import_devto`、`collect_devto`、`get_platform_dashboard`。账号 API Key 只通过本地 UI「平台账号」写入，不会通过 MCP 接收或回显。[详细说明](platform-api.zh-CN.md)。
 
 ## 3. 第一次怎样用
 
@@ -62,7 +66,7 @@ python3 scripts/check_mcp_contract.py --fixture
 python scripts/check_mcp_contract.py --binary "C:\software\Coding\reverfolio\bin\reverfolio.exe" --config "C:\software\Coding\reverfolio\config.toml"
 ```
 
-脚本真实握手并调用 `tools/list`，要求精确 34 个工具；检查统计、网站数据源、运行状态、报告。fixture 模式还通过 MCP 协议跑完整的合成作品、渠道、发现任务、证据、审核、报告与导入预览。
+脚本真实握手并调用 `tools/list`，要求精确 39 个工具；检查统计、网站数据源、运行状态、报告。fixture 模式还通过 MCP 协议跑完整的合成作品、渠道、发现任务、证据、审核、报告与导入预览。
 
 ## 5. 数据安全与公开范围
 

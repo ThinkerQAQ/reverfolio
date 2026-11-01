@@ -6,6 +6,8 @@ Local-first observability for open-source and content impact.
 
 Reverfolio will connect projects, multilingual articles, distribution channels, metric history, and evidence of external citations or adoption. AI clients can discover evidence through their search tools and submit it through MCP.
 
+**v0.9.0** adds [API-only DEV.to creator analytics](docs/platform-api.md): connect via private API key, preview and link published posts, collect official followers/views/reactions/comments and review trends in the Web UI, extension and 39-tool MCP. No SyndiRelay dependency or browser scraping; unsupported platforms remain unavailable.
+
 **v0.8.0** introduces independent [RSS/Atom/Sitemap website discovery](docs/website-discovery.md): preview public article candidates, explicitly select URLs to register, deduplicate existing works, save source provenance and rescan existing sources. Three new MCP tools, native Web UI and Edge/Chrome extension are synchronized; no Inkerio or SyndiRelay is required. Platform account/article metrics remain planned separately.
 
 **v0.7.1** validates the [31-tool MCP contract](docs/mcp-setup.md) end to end, fixes stale ChatGPT discovery by documenting **Refresh tools → New chat**, and packages an isolated, cross-platform MCP acceptance checker. Existing data and credential storage are unchanged.

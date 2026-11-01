@@ -100,3 +100,10 @@ software-user attribution are not implemented. Historical progress sections abov
 ## Next stage: platform followers, article reads and engagement (proposed, 2026-11-01)
 
 P1–P5 and the existing GitHub / Umami / GSC / Bing dashboards are implemented as of v0.7.1. The next P6 slice is **not yet implemented**: design linked from [English RFC](social-impact-architecture.md) and [中文方案](social-impact-architecture.zh-CN.md). Preserve the existing one-way, optional SyndiRelay publication outbox; add independent authorized read-only metrics adapters, strict account/publication attribution and a separate idempotent metrics outbox, with Reverfolio owning metrics and reporting. Build DEV.to official API as the first slice; other platforms require platform-by-platform validation. Never infer unique people from totals across providers.
+
+
+## Implementation checkpoint — v0.9.0 (2026-11-01)
+
+**Implemented:** Direct, officially authenticated DEV.to/Forem API integration in Reverfolio itself, without a SyndiRelay runtime dependency: user identity verification, authored published-article discovery, explicit select-to-import and existing canonical Work linkage, account follower counts, publication views/reactions/comments with source timestamps, independent SQLite schema v7, creator-platform Web/extension dashboard, 39 MCP tools and combined Markdown impact report. Credentials are local write-only UI inputs and private files; MCP never accepts raw platform API keys.
+
+**Not implemented:** Hashnode GraphQL adapter and metric-schema validation, all other content-platform metric adapters, scheduled DEV.to/website account polling, full public-directory ChatGPT plugin review, or any notion of unique cross-platform readers. The preceding 'proposed' section described an earlier design before this direct-API-only decision; do not implement its proposed SyndiRelay metrics outbox or browser-scraping fallback. More details: [official API policy](platform-api.md) / [中文](platform-api.zh-CN.md).
