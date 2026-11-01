@@ -20,4 +20,36 @@ context.state.data.dashboard={projects:[],providers:[{source_id:"fixture",provid
 const dashboard=context.impactDashboardView();
 assert.match(dashboard,/provider_http_503/);
 assert.match(dashboard,/exact normalized URLs/);
-console.log("Charts preserve zero, missing days, failure state, scoped attribution and downloadable CSV.");
+assert.match(html,/viewBox="0 0 760 266"/,"SVG export must include the descriptive footer");
+assert.match(html,/<desc>UTC<\/desc>/);
+context.state.chartRange="7";
+context.state.data.dashboard.projects=[{
+ work:{id:1,title:"Demo",repository:"demo/one"},
+ attempt_at:"2026-10-20T00:00:00Z",attempt_state:"complete",
+ traffic:{},days:{views:[],clones:[]},popular:{},
+ observations:[
+  {at:"2026-10-20T00:00:00Z",stars:4},
+  {at:"2026-10-01T00:00:00Z",stars:3}
+ ],
+ changes:{from:"2026-10-01T00:00:00Z",to:"2026-10-20T00:00:00Z",known_downloads:{total:2,packages:1},unknown_assets:1}
+}];
+const chartHTML=context.impactDashboardView();
+assert.match(chartHTML,/Observed download change/);
+assert.match(chartHTML,/unknown change/);
+const chartValues=vm.runInContext("Array.from(chartRows.values())",context);
+assert.ok(chartValues.some(rows=>rows.length===1&&rows[0].value===4),"Seven days must mean calendar dates, not the last seven snapshots");
+assert.ok(!chartValues.some(rows=>rows.some(r=>r.value===3)),"Do not leak out-of-range cumulative samples");
+context.state.data.works=[{id:12,title:"Article",kind:"article"}];
+context.state.chartWork="12";
+context.state.data.dashboard.providers=[
+ {source_id:"matching",work_id:11,provider:"umami",state:"complete",captured_at:"2026-10-20",metrics:[],details:[{work_id:12,metric:"pageviews",value:5,page_url:"https://example.org/article",period_start:"2026-10-01",period_end:"2026-10-20"}]},
+ {source_id:"matching",work_id:11,provider:"umami",state:"failed",captured_at:"2026-10-21",problem:"provider_timeout",metrics:[],details:[]},
+ {source_id:"unrelated",work_id:11,provider:"umami",state:"complete",captured_at:"2026-10-20",metrics:[],details:[{work_id:13,metric:"pageviews",value:6,page_url:"https://example.org/other",period_start:"2026-10-01",period_end:"2026-10-20"}]}
+];
+const articleHTML=context.providerCharts(context.state.data.dashboard.providers);
+assert.match(articleHTML,/matching/);
+assert.match(articleHTML,/provider_timeout/,"Keep latest failed attempt alongside successful attributed data");
+assert.ok(!articleHTML.includes("unrelated"),"Article filter must not display unrelated provider data");
+context.state.chartWork="13";
+assert.match(context.providerCharts([]),/No site observations/);
+console.log("Charts preserve zero, missing days, true calendar ranges, article scope, interval deltas, explanatory SVG and downloadable CSV.");
