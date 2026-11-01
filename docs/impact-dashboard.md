@@ -28,3 +28,10 @@ The read-only HTTP endpoint is `GET /api/dashboard`; MCP exposes the same data a
 - The GitHub known download change card is defined by the two latest comparable **complete** release observations. Unknown asset changes are shown separately; it is not an all-time increase or installed-user count.
 - SVG and 2x PNG exports include chart headings and source/scope notes inside the image. CSV uses the precise plotted rows; neither format creates measurements for missing dates.
 - On Windows, replace only the executable and extension UI assets during upgrade. Preserve Data/, config.toml and installed extension local-auth.js; local SQLite remains the source of truth.
+
+## v0.7.0: verifiable propagation paths
+
+- Select one work from the Propagation paths navigation to trace its canonical URL, first-party language links and registered off-site distribution. The flow is **association**, not proof that a visitor read or used the work. It never invents publish dates for channel URLs because the current channel schema does not have those timestamps.
+- The verified third-party stage includes only `origin=third_party` and `state=verified` mentions, deduplicated on `event_key` when supplied. Other states remain accessible in Evidence review and are not treated as confirmed impact.
+- The related timeline uses actual original evidence observation dates (falling back to discovery dates where not recorded) and review timestamps. It does not claim the original creation or publication time of the external content.
+- Independent publishing apps may send **only** public URL metadata to the secured local catalog import endpoint. SyndiRelay v0.1.193 and later can optionally use a durable local outbox; Reverfolio remains standalone and requires no publishing runtime.

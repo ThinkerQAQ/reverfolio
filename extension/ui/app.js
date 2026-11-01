@@ -4,11 +4,12 @@
 const LANG = {
   "影响力观察工作台":"Impact observatory","本地服务":"Local service","已连接":"Connected","工作台":"Workspace",
   "本地优先 · 数据私有":"Local-first · Private data","刷新":"Refresh",
-  "影响力总览":"Impact overview","项目管理":"Projects","分发渠道":"Channels","引用与采用":"Evidence & adoption",
+  "影响力总览":"Impact overview","项目管理":"Projects","分发渠道":"Channels","传播路径":"Propagation paths","引用与采用":"Evidence & adoption",
   "发现任务":"Discovery tasks","历史统计":"History & metrics","设置":"Settings",
   "统一查看项目、文章与真实传播证据":"Track projects, articles and verified impact",
   "管理开源仓库与文章":"Manage repositories and articles",
   "查看中文、英文以及公开平台的文章链接":"Published links across languages and platforms",
+  "按作品查看原文、语言版本、分发链接与经核实的第三方传播":"Explore canonical works, translations, distribution channels and verified third-party impact",
   "审核第三方引用与实际采用的原始证据":"Verify original evidence of citations and adoption",
   "管理 AI 辅助检索及审计记录":"Manage AI-assisted search and search audit",
   "查看统计来源与导入历史数据":"Review observations and import history",
@@ -66,12 +67,13 @@ const nav = [
   ["overview","◫","影响力总览","统一查看项目、文章与真实传播证据"],
   ["works","▦","项目管理","管理开源仓库与文章"],
   ["channels","≋","分发渠道","查看中文、英文以及公开平台的文章链接"],
+  ["propagation","⇢","传播路径","按作品查看原文、语言版本、分发链接与经核实的第三方传播"],
   ["evidence","◇","引用与采用","审核第三方引用与实际采用的原始证据"],
   ["tasks","⌕","发现任务","管理 AI 辅助检索及审计记录"],
   ["history","▤","历史统计","查看统计来源与导入历史数据"],
   ["settings","⚙","设置","查看本地连接、权限与语言偏好"]
 ];
-const state = {lang:(localStorage.getItem("reverfolio.lang") || localStorage.getItem("openecho.lang"))==="en"?"en":"zh",view:"overview",data:null,leases:new Map(),preview:null,importInput:"",busy:false,settingsQuery:"",settingsSelected:"",settingsExpanded:new Set(),settingsDraft:{},evidenceFilter:null};
+const state = {lang:(localStorage.getItem("reverfolio.lang") || localStorage.getItem("openecho.lang"))==="en"?"en":"zh",view:"overview",data:null,leases:new Map(),preview:null,importInput:"",busy:false,settingsQuery:"",settingsSelected:"",settingsExpanded:new Set(),settingsDraft:{},evidenceFilter:null,propagationWork:null};
 const $ = id => document.getElementById(id);
 const T = key => state.lang==="en" ? (LANG[key] || key) : key;
 const E = value => String(value ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -139,7 +141,7 @@ function shellRender(){
 function render(){
   shellRender();if(!state.data){$("view").innerHTML='<div class="loading">Loading…</div>';return;}
   document.body.classList.toggle("compact-layout",pref("appearance.compact")==="true");
-  const pages={overview:overviewView,works:worksView,channels:channelsView,evidence:evidenceView,tasks:tasksView,history:historyView,settings:settingsView};
+  const pages={overview:overviewView,works:worksView,channels:channelsView,propagation:propagationView,evidence:evidenceView,tasks:tasksView,history:historyView,settings:settingsView};
   $("view").innerHTML=pages[state.view]();
 }
 const heading=(title,sub="",right="")=>'<div class="section-header"><div><h2>'+T(title)+'</h2>'+(sub?'<p>'+T(sub)+'</p>':"")+'</div>'+right+'</div>';
@@ -257,6 +259,44 @@ function channelsView(){
  select("语言","language",[["zh-CN","简体中文"],["en","English"]])+
  '<label class="field full"><span>'+T("链接地址")+'</span><input type="url" name="url" required placeholder="https://"></label></div>'+
  '<div class="form-actions"><button class="btn btn-primary">'+T("新建")+'</button></div></form></div>';
+}
+function propagationView(){
+ const works=state.data.works||[],channels=state.data.channels||new Map(),mentions=state.data.mentions||[];
+ const siteHost=url=>{try{return new URL(url).hostname.toLowerCase();}catch{return "";}};
+ const canonical=w=>w.kind==="project"?"https://github.com/"+w.repository:w.canonical_url;
+ const eligible=works.filter(w=>canonical(w) && ((channels.get(w.id)||[]).length || mentions.some(m=>m.work_id===w.id)));
+ const impact=w=>(channels.get(w.id)||[]).length+3*mentions.filter(m=>m.work_id===w.id&&m.state==="verified"&&m.origin==="third_party").length;
+ eligible.sort((a,b)=>impact(b)-impact(a)||a.id-b.id);
+ const active=eligible.find(w=>String(w.id)===String(state.propagationWork))||eligible[0];
+ const label=(zh,en)=>settingsLabel([zh,en]);
+ const introduction=heading(label("传播路径","Propagation paths"),label("公开链接只是作品关联；只有经审核的第三方原始证据才代表已核实传播。","Public URLs are associations; only reviewed original third-party evidence confirms propagation."));
+ if(!eligible.length)return introduction+'<div class="panel empty">'+E(label("尚无可展示的公开渠道或引用证据。","No linked public URLs or evidence yet."))+'</div>';
+ const selected='<label class="field propagation-picker"><span>'+E(label("选择作品","Select work"))+'</span><select id="propagation-select" aria-label="'+E(label("选择作品","Select work"))+'">'+eligible.map(w=>'<option value="'+w.id+'"'+(w.id===active.id?" selected":"")+'>'+E(w.title)+'</option>').join("")+'</select></label>';
+ const allChannels=channels.get(active.id)||[],home=canonical(active),host=siteHost(home);
+ const firstParty=allChannels.filter(c=>siteHost(c.url)===host&&c.url!==home);
+ const distributed=allChannels.filter(c=>siteHost(c.url)!==host);
+ const verified=mentions.filter(m=>m.work_id===active.id&&m.origin==="third_party"&&m.state==="verified");
+ const groups=new Set(),events=[];
+ for(const m of verified){
+  const key=m.event_key||"mention-"+m.id;
+  if(groups.has(key))continue;
+  groups.add(key);
+  const observed=(m.evidence||[]).map(x=>x.observed_at).filter(Boolean).sort()[0]||m.discovered_at;
+  events.push({...m,observed});
+ }
+ events.sort((a,b)=>String(a.observed||"").localeCompare(String(b.observed||"")));
+ const missing='<p class="meta">'+E(label("尚无已登记记录，不代表实际为零。","Nothing registered; this does not imply zero activity."))+'</p>';
+ const linked=items=>items.length?'<ul class="propagation-links">'+items.map(c=>'<li><span class="propagation-lang">'+E(c.language||"—")+'</span> '+anchor(c.url,c.platform||siteHost(c.url))+'<small>'+E(c.url)+'</small></li>').join("")+'</ul>':missing;
+ const pathNode=(name,count,content)=>'<section class="propagation-node"><div class="propagation-node-head"><h3>'+E(name)+'</h3><strong>'+fmt(count)+'</strong></div>'+content+'</section>';
+ const source=pathNode(label("原文／主项目","Canonical work"),1,'<div class="propagation-main-link">'+anchor(home,active.title)+'</div><p class="meta">'+E(host)+'</p>');
+ const originals=pathNode(label("同站语言版本","First-party language versions"),firstParty.length,linked(firstParty));
+ const channelsNode=pathNode(label("外部分发链接","External distribution URLs"),distributed.length,linked(distributed));
+ const evidence=pathNode(label("已核实第三方事件","Verified third-party events"),events.length,events.length?'<p class="meta">'+E(label("基于审核状态与事件标识去重，不是独立读者数。","Deduplicated by review state and event key; not an audience count."))+'</p>':missing);
+ const timeline=events.length?'<ol class="propagation-timeline">'+events.map(m=>'<li><time>'+E(label("首次观测","First observed"))+' · '+dt(m.observed)+'</time><div><strong>'+E(m.actor_name||label("未知作者","Unknown author"))+' · '+E(m.type)+'</strong><p>'+anchor(m.url,m.url)+'</p><small>'+E(label("审核时间","Verified at"))+' · '+dt(m.verified_at)+'</small></div></li>').join("")+'</ol>':'<p class="panel meta">'+E(label("暂无经审核的第三方传播事件；这不表示没有人引用。","No verified third-party propagation recorded; absence is not proof of no citations."))+'</p>';
+ return introduction+'<div class="panel">'+selected+'<p class="meta">'+E(label("流程展示的是关联关系，不按发布日期排序：渠道尚未记录发布时间。","This is an association map, not a publication chronology: channel publish dates are not stored."))+'</p></div>'+
+ '<div class="propagation-flow">'+source+originals+channelsNode+evidence+'</div>'+
+ heading(label("第三方传播观测时间线","Third-party evidence timeline"),label("仅展示审核通过的原始证据；日期为首次观测和审核时间，不是原始发布时间。","Reviewed original evidence only; dates describe observation and verification, not original publication."))+
+ timeline;
 }
 function evidenceView(){
  const works=state.data.works;
@@ -519,6 +559,7 @@ document.addEventListener("change",async e=>{
   if(form.elements.provider.value==="umami")form.elements.endpoint.value=browser?"https://cloud.umami.is/api":"https://api.umami.is/v1";
   return;
  }
+ if(e.target.id==="propagation-select"){state.propagationWork=e.target.value;render();return;}
  if(e.target.id==="evidence-filter"){state.evidenceFilter=e.target.value;render();return;}
  if(e.target.dataset.settingKey)settingsHandleInput(e.target);
  if(e.target.id==="work-kind"){
