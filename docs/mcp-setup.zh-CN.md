@@ -26,11 +26,11 @@ ChatGPT 无法直接连接别人电脑上的 `127.0.0.1`。远程使用需要**�
 2. **新建对话**以获得最新工具目录；旧对话可能保留连接时的工具快照。
 3. 在新对话测试只读 `get_dashboard`、`list_site_sources`。不要删除重装数据，不要建立第二份 Windows／WSL 数据库。
 
-## 2. 31 个 MCP 工具
+## 2. 34 个 MCP 工具
 
 | 领域 | 工具 |
 |---|---|
-| 作品／目录（8） | `list_works`、`get_work`、`upsert_work`、`add_channel`、`list_catalog`、`set_monitoring`、`import_catalog`、`export_catalog` |
+| 作品／目录（11） | `list_works`、`get_work`、`upsert_work`、`add_channel`、`list_catalog`、`set_monitoring`、`import_catalog`、`export_catalog`、`list_website_sources`、`preview_website`、`import_website` |
 | GitHub／网站指标（7） | `collect_source`、`get_trends`、`get_dashboard`、`get_collection_status`、`list_site_sources`、`save_site_source`、`collect_site_source` |
 | 引用／身份（6） | `submit_mention`、`list_mentions`、`review_mention`、`link_propagation_event`、`link_identity`、`unlink_identity` |
 | AI 搜索任务（4） | `create_discovery_task`、`list_discovery_tasks`、`claim_discovery_task`、`complete_discovery_task` |
@@ -40,12 +40,13 @@ ChatGPT 无法直接连接别人电脑上的 `127.0.0.1`。远程使用需要**�
 
 ## 3. 第一次怎样用
 
-1. **注册作品**：GitHub 仓库使用 `kind=project` 和 `repository=owner/name`，文章使用 `kind=article` 和准确的公开 `canonical_url`；也可以导入标准公开作品清单。
-2. **登记分发**：用 `add_channel` 关联具体的中英文、Medium、DEV、掘金等实际发布 URL；SyndiRelay 的可选本地交接仅同步成功发布的公开元数据。
-3. **配置指标**：GitHub 使用自己授权的 `gh` 登录或服务环境变量；Umami／GSC／Bing 各自独立配置属性、认证和采集范围，详见 [网站数据源](site-sources.md)。缺失凭据时保留历史，但新采集应显示未授权／失败，不能伪造为 0。
-4. **采集与查询**：调用 `collect_source` 或 `collect_site_source`；用 `get_dashboard`、`get_trends` 查看实际观测区间、来源、缺失日、下载量和页面归属。
-5. **发现传播**：AI 客户端用自己的浏览器或搜索工具执行检索，MCP 管理任务和记录候选，`review_mention` 通过后才进入已核实统计。Reverfolio **没有**自行执行全网搜索的内置 Agent。
-6. **报告和审计**：`generate_report` 获取 Markdown，`get_audit` 查看审核及来源历史。Release 下载量不是安装用户数，跨渠道的去重访客不合并。
+1. **通用网站自动发现**：在「网站发现」输入任意公开博客或 RSS/Atom URL，先预览再勾选导入；可复扫来源，不依赖博客框架。详见[操作说明](website-discovery.zh-CN.md)。
+2. **注册作品**：GitHub 仓库使用 `kind=project` 和 `repository=owner/name`，文章使用 `kind=article` 和准确的公开 `canonical_url`；也可以导入标准公开作品清单。
+3. **登记分发**：用 `add_channel` 关联具体的中英文、Medium、DEV、掘金等实际发布 URL；SyndiRelay 的可选本地交接仅同步成功发布的公开元数据。
+4. **配置指标**：GitHub 使用自己授权的 `gh` 登录或服务环境变量；Umami／GSC／Bing 各自独立配置属性、认证和采集范围，详见 [网站数据源](site-sources.md)。缺失凭据时保留历史，但新采集应显示未授权／失败，不能伪造为 0。
+5. **采集与查询**：调用 `collect_source` 或 `collect_site_source`；用 `get_dashboard`、`get_trends` 查看实际观测区间、来源、缺失日、下载量和页面归属。
+6. **发现传播**：AI 客户端用自己的浏览器或搜索工具执行检索，MCP 管理任务和记录候选，`review_mention` 通过后才进入已核实统计。Reverfolio **没有**自行执行全网搜索的内置 Agent。
+7. **报告和审计**：`generate_report` 获取 Markdown，`get_audit` 查看审核及来源历史。Release 下载量不是安装用户数，跨渠道的去重访客不合并。
 
 ## 4. 验收命令
 
@@ -61,7 +62,7 @@ python3 scripts/check_mcp_contract.py --fixture
 python scripts/check_mcp_contract.py --binary "C:\software\Coding\reverfolio\bin\reverfolio.exe" --config "C:\software\Coding\reverfolio\config.toml"
 ```
 
-脚本真实握手并调用 `tools/list`，要求精确 31 个工具；检查统计、网站数据源、运行状态、报告。fixture 模式还通过 MCP 协议跑完整的合成作品、渠道、发现任务、证据、审核、报告与导入预览。
+脚本真实握手并调用 `tools/list`，要求精确 34 个工具；检查统计、网站数据源、运行状态、报告。fixture 模式还通过 MCP 协议跑完整的合成作品、渠道、发现任务、证据、审核、报告与导入预览。
 
 ## 5. 数据安全与公开范围
 

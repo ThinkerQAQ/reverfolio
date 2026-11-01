@@ -63,14 +63,14 @@ func TestMCPWorkflowAndSharedHTTPState(t *testing.T) {
 	// This inventory represents the published MCP contract. Prior versions
 	// registered 31 tools while a stale ChatGPT app snapshot showed only 21.
 	// Fail CI if future tool additions/removals are not reviewed here.
-	const wantTools = "add_channel,claim_discovery_task,collect_site_source,collect_source,complete_discovery_task,create_discovery_task,export_catalog,generate_report,get_audit,get_collection_status,get_dashboard,get_trends,get_work,import_catalog,import_history,link_identity,link_propagation_event,list_catalog,list_discovery_tasks,list_mentions,list_settings,list_site_sources,list_works,review_mention,save_site_source,set_monitoring,submit_mention,unlink_identity,update_setting,update_settings,upsert_work"
+	const wantTools = "add_channel,claim_discovery_task,collect_site_source,collect_source,complete_discovery_task,create_discovery_task,export_catalog,generate_report,get_audit,get_collection_status,get_dashboard,get_trends,get_work,import_catalog,import_history,import_website,link_identity,link_propagation_event,list_catalog,list_discovery_tasks,list_mentions,list_settings,list_site_sources,list_website_sources,list_works,preview_website,review_mention,save_site_source,set_monitoring,submit_mention,unlink_identity,update_setting,update_settings,upsert_work"
 	gotTools := make([]string, 0, len(tools.Tools))
 	for _, tool := range tools.Tools {
 		gotTools = append(gotTools, tool.Name)
 	}
 	sort.Strings(gotTools)
 	if strings.Join(gotTools, ",") != wantTools {
-		t.Fatalf("MCP tools/list differs from the 31-tool contract: got %v", gotTools)
+		t.Fatalf("MCP tools/list differs from the versioned tool contract: got %v", gotTools)
 	}
 	work := callMCP[Work](t, session, "upsert_work", WorkInput{RequestID: "article", Kind: "article", Title: "Concurrency sample", CanonicalURL: "https://example.org/article?utm_source=fixture#part"})
 	if work.Kind != "article" || work.CanonicalURL != "https://example.org/article" {

@@ -4,10 +4,11 @@
 const LANG = {
   "影响力观察工作台":"Impact observatory","本地服务":"Local service","已连接":"Connected","工作台":"Workspace",
   "本地优先 · 数据私有":"Local-first · Private data","刷新":"Refresh",
-  "影响力总览":"Impact overview","项目管理":"Projects","分发渠道":"Channels","传播路径":"Propagation paths","引用与采用":"Evidence & adoption",
+  "影响力总览":"Impact overview","项目管理":"Projects","网站发现":"Discover websites","分发渠道":"Channels","传播路径":"Propagation paths","引用与采用":"Evidence & adoption",
   "发现任务":"Discovery tasks","历史统计":"History & metrics","设置":"Settings",
   "统一查看项目、文章与真实传播证据":"Track projects, articles and verified impact",
   "管理开源仓库与文章":"Manage repositories and articles",
+  "无需 Inkerio 或 SyndiRelay，从 RSS、Atom、Sitemap 发现任意网站的公开文章":"Find public articles via RSS, Atom and sitemaps; no publishing tool required",
   "查看中文、英文以及公开平台的文章链接":"Published links across languages and platforms",
   "按作品查看原文、语言版本、分发链接与经核实的第三方传播":"Explore canonical works, translations, distribution channels and verified third-party impact",
   "审核第三方引用与实际采用的原始证据":"Verify original evidence of citations and adoption",
@@ -69,6 +70,7 @@ const LANG = {
 const nav = [
   ["overview","◫","影响力总览","统一查看项目、文章与真实传播证据"],
   ["works","▦","项目管理","管理开源仓库与文章"],
+  ["websites","⌘","网站发现","无需 Inkerio 或 SyndiRelay，从 RSS、Atom、Sitemap 发现任意网站的公开文章"],
   ["channels","≋","分发渠道","查看中文、英文以及公开平台的文章链接"],
   ["propagation","⇢","传播路径","按作品查看原文、语言版本、分发链接与经核实的第三方传播"],
   ["evidence","◇","引用与采用","审核第三方引用与实际采用的原始证据"],
@@ -76,7 +78,7 @@ const nav = [
   ["history","▤","历史统计","查看统计来源与导入历史数据"],
   ["settings","⚙","设置","查看本地连接、权限与语言偏好"]
 ];
-const state = {lang:(localStorage.getItem("reverfolio.lang") || localStorage.getItem("openecho.lang"))==="en"?"en":"zh",view:"overview",data:null,leases:new Map(),preview:null,importInput:"",busy:false,settingsQuery:"",settingsSelected:"",settingsExpanded:new Set(),settingsDraft:{},evidenceFilter:null,propagationWork:null,offlineMessage:""};
+const state = {lang:(localStorage.getItem("reverfolio.lang") || localStorage.getItem("openecho.lang"))==="en"?"en":"zh",view:"overview",data:null,leases:new Map(),preview:null,importInput:"",busy:false,settingsQuery:"",settingsSelected:"",settingsExpanded:new Set(),settingsDraft:{},evidenceFilter:null,propagationWork:null,offlineMessage:"",websitePreview:null,websiteURL:""};
 const $ = id => document.getElementById(id);
 const T = key => state.lang==="en" ? (LANG[key] || key) : key;
 const E = value => String(value ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -160,11 +162,11 @@ async function act(operation,successMessage=T("已保存并更新")) {
 async function refresh(showMessage=true){
  try{
   await ensureLocalService();
-  const [works,report,mentions,tasks,audit,settings,runtime,sources,catalog,dashboard]=await Promise.all([
-    api("/api/works"),api("/api/report"),api("/api/mentions"),api("/api/tasks"),api("/api/audit"),api("/api/settings"),api("/api/runtime"),api("/api/site-sources"),api("/api/catalog"),api("/api/dashboard")
+  const [works,report,mentions,tasks,audit,settings,runtime,sources,catalog,dashboard,websites]=await Promise.all([
+    api("/api/works"),api("/api/report"),api("/api/mentions"),api("/api/tasks"),api("/api/audit"),api("/api/settings"),api("/api/runtime"),api("/api/site-sources"),api("/api/catalog"),api("/api/dashboard"),api("/api/website-sources")
   ]);
   const pairs=await Promise.all(works.map(async w=>[w.id,await api("/api/works/"+w.id+"/channels")]));
-  state.data={works,report,mentions,tasks,audit,settings,runtime,sources,catalog,dashboard,channels:new Map(pairs)};
+  state.data={works,report,mentions,tasks,audit,settings,runtime,sources,catalog,dashboard,websites,channels:new Map(pairs)};
   state.offlineMessage="";
   state.lang=pref("interface.language","zh-CN")==="en"?"en":"zh";
   render();
@@ -198,7 +200,7 @@ function shellRender(){
 function render(){
   shellRender();if(!state.data){$("view").innerHTML=state.offlineMessage?offlineView():'<div class="loading">Loading…</div>';return;}
   document.body.classList.toggle("compact-layout",pref("appearance.compact")==="true");
-  const pages={overview:overviewView,works:worksView,channels:channelsView,propagation:propagationView,evidence:evidenceView,tasks:tasksView,history:historyView,settings:settingsView};
+  const pages={overview:overviewView,works:worksView,websites:websiteSourcesView,channels:channelsView,propagation:propagationView,evidence:evidenceView,tasks:tasksView,history:historyView,settings:settingsView};
   $("view").innerHTML=pages[state.view]();
 }
 const heading=(title,sub="",right="")=>'<div class="section-header"><div><h2>'+T(title)+'</h2>'+(sub?'<p>'+T(sub)+'</p>':"")+'</div>'+right+'</div>';
@@ -267,6 +269,20 @@ function select(label,name,items,extra=""){
 }
 function workSelection(){
  return '<label class="field"><span>'+T("选择作品")+'</span><select name="work_id" required>'+selectWorks()+'</select></label>';
+}
+function websiteSourcesView(){
+ const sources=state.data.websites||[],p=state.websitePreview;
+ const tr=(zh,en)=>E(settingsLabel([zh,en]));
+ return heading("网站发现","无需 Inkerio 或 SyndiRelay，从 RSS、Atom、Sitemap 发现任意网站的公开文章")+
+ '<div class="panel"><p class="desc">'+tr("添加任意公开博客网址或 RSS/Atom 地址。仅请求该网站的公开 Feed 与 Sitemap，预览后才会登记文章。不扫描登录页面，也不自动确认 Sitemap 页面一定是文章。","Add any public blog URL or RSS/Atom feed. We only request that site's public feed and sitemap. Nothing is imported until you select articles. Sitemap pages are unverified candidates.")+'</p>'+
+ '<form data-form="website-preview"><div class="form-grid"><label class="field full"><span>'+tr("博客网站或 Feed URL","Website or feed URL")+'</span><input type="url" name="website_url" id="website-source-input" value="'+E(state.websiteURL||p?.website_url||"")+'" placeholder="https://example.org/" required maxlength="4096"></label></div><div class="form-actions"><button class="btn btn-primary" type="submit">'+tr("发现文章","Discover articles")+'</button></div></form></div>'+
+ (p?'<div class="panel"><div class="section-header"><div><h2>'+tr("发现结果","Discovered candidates")+' · '+fmt(p.candidates?.length||0)+'</h2><p>'+anchor(p.website_url)+' · '+tr("仅勾选确实属于你的作品","Only select your own published articles")+'</p></div></div>'+
+ (p.candidates?.length?'<div class="table-wrap"><table class="data-table"><thead><tr><th>'+tr("导入","Import")+'</th><th>'+tr("标题／URL","Title / URL")+'</th><th>'+tr("发现来源","Discovery source")+'</th><th>'+tr("状态","Status")+'</th></tr></thead><tbody>'+
+ p.candidates.map(c=>'<tr><td><input type="checkbox" data-website-choice="'+E(c.url)+'" aria-label="'+E(c.title)+'"></td><td><strong>'+E(c.title)+'</strong><p class="meta evidence-url">'+anchor(c.url)+'</p></td><td>'+tag(c.format)+'<p class="meta">'+tr(c.title_source==="feed"?"来自 Feed 标题":"根据 Sitemap URL 生成的候选标题",c.title_source==="feed"?"Feed title":"Title inferred from URL; verify manually")+'</p></td><td>'+tag(c.existing_work_id?tr("已登记","Already registered"):tr("未登记","New"))+'</td></tr>').join('')+'</tbody></table></div><div class="form-actions"><button class="btn btn-primary" data-action="import-website">'+tr("导入勾选文章","Import selected articles")+'</button></div>':'<p class="muted">'+tr("未找到可导入的文章。可以直接输入 RSS/Atom 订阅地址，或手动登记文章链接。","No articles found. Try entering a direct RSS/Atom URL or register articles manually.")+'</p>')+
+ (p.truncated?'<p class="meta">'+tr("候选数量已达到本次上限，更多文章可通过其他 Feed 分批导入。","Candidate limit reached. Import more from additional feeds.")+'</p>':'')+'</div>':'')+
+ heading("已添加的网站来源","查看已经确认导入过作品的网站来源")+
+ '<div class="panel">'+(sources.length?sources.map(s=>'<div class="list-row"><div class="status-line"><strong>'+anchor(s.url)+'</strong><span>'+tr("已导入作品","Imported works")+': '+fmt(s.imported_works)+'</span></div><p class="meta">'+tr("最后扫描","Last scan")+': '+dt(s.last_scanned_at)+' · '+tr("候选","Candidates")+': '+fmt(s.last_item_count)+'</p><div class="btn-row"><button class="btn btn-sm" data-action="rescan-website" data-website="'+E(s.url)+'">'+tr("重新发现新文章","Rescan articles")+'</button></div></div>').join(''):'<p class="muted">'+tr("尚无网站来源，输入你的博客网址开始。","No website sources yet. Enter your blog URL to begin.")+'</p>')+'</div>'+
+ '<p class="kpi-note">'+tr("已添加来源不会自动代表所有文章都已导入；RSS、Atom 与 Sitemap 的覆盖范围以网站实际提供为准。","A registered source does not guarantee complete coverage. Discovery is limited to the feeds and sitemaps the site actually publishes.")+'</p>';
 }
 function worksView(){
  const cards=state.data.works.map(w=>{
@@ -509,6 +525,22 @@ async function runClick(button){
   return;
  }
  if(action==="refresh"){await act(async()=>{});return;}
+ if(action==="rescan-website"){
+  state.websiteURL=button.dataset.website;
+  await act(async()=>{
+   state.websitePreview=await api("/api/actions/preview_website",{method:"POST",body:JSON.stringify({website_url:state.websiteURL})});
+  },settingsLabel(["已更新发现候选，尚未导入","Candidates refreshed; nothing imported"]));return;
+ }
+ if(action==="import-website"){
+  const p=state.websitePreview;
+  if(!p)throw Error(settingsLabel(["请先预览网站","Preview the website first"]));
+  const selected=[...document.querySelectorAll("[data-website-choice]:checked")].map(x=>x.dataset.websiteChoice);
+  if(!selected.length)throw Error(settingsLabel(["请先勾选文章","Select articles first"]));
+  await act(async()=>{
+   await send("import_website",{website_url:p.website_url,selected_urls:selected});
+   state.websitePreview=null;
+  },settingsLabel(["作品已导入，保留原有数据","Articles registered; existing data preserved"]));return;
+ }
  if(action==="toggle-monitoring"){
   const entry=state.data.catalog.find(x=>x.work.id===id);
   await act(async()=>send("set_monitoring",{work_id:id,enabled:!entry.enabled,expected_version:entry.version}));return;
@@ -577,7 +609,13 @@ async function runForm(form){
  const body=Object.fromEntries(new FormData(form));
  const name=form.dataset.form;
  if(body.work_id)body.work_id=Number(body.work_id);
- if(name==="site-source"){const credential=body.auth_mode==="browser"?"":body.credential;delete body.credential;if(body.auth_mode==="browser")body.credential_env="";body.work_id=Number(body.work_id);body.lookback_days=Number(body.lookback_days);body.lag_days=Number(body.lag_days);body.enabled=body.enabled==="true";body.detail_enabled=body.detail_enabled==="true";await act(async()=>send("save_site_source",{source:body,credential,expected_version:state.data.sources.version}));}
+ if(name==="website-preview"){
+  state.websiteURL=body.website_url;
+  await act(async()=>{
+   state.websitePreview=await api("/api/actions/preview_website",{method:"POST",body:JSON.stringify({website_url:state.websiteURL})});
+  },settingsLabel(["发现完成，尚未写入作品","Discovery complete; no works imported"]));
+ }
+ else if(name==="site-source"){const credential=body.auth_mode==="browser"?"":body.credential;delete body.credential;if(body.auth_mode==="browser")body.credential_env="";body.work_id=Number(body.work_id);body.lookback_days=Number(body.lookback_days);body.lag_days=Number(body.lag_days);body.enabled=body.enabled==="true";body.detail_enabled=body.detail_enabled==="true";await act(async()=>send("save_site_source",{source:body,credential,expected_version:state.data.sources.version}));}
  else if(name==="identity"){body.aliases=body.aliases.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);body.reviewer=pref("evidence.reviewer","local-ui");await act(async()=>send("link_identity",body));}
  else if(name==="work"){
   if(body.kind==="project"){delete body.canonical_url;}
@@ -603,6 +641,7 @@ document.addEventListener("submit",e=>{
  const form=e.target.closest("form[data-form]");if(form){e.preventDefault();runForm(form).catch(err=>notification(err.message,true));}
 });
 document.addEventListener("input",e=>{
+ if(e.target.id==="website-source-input"){state.websiteURL=e.target.value;state.websitePreview=null;}
  if(e.target.id==="catalog-json"){state.catalogInput=e.target.value;state.catalogPreview=null;const button=document.querySelector('[data-action="apply-catalog"]');if(button)button.disabled=true;}
 
  if(e.target.matches("[data-filter]"))applyFilter(e.target);
