@@ -32,6 +32,8 @@ jobs:
           fi
       - run: go test -race ./...
       - run: go vet ./...
+      - name: Verify all resolved dependency licenses can be bundled
+        run: python scripts/bundle_dependency_licenses.py --check
       - run: go build ./cmd/reverfolio
-      - name: Verify real MCP protocol and 31-tool contract with an isolated database
+      - name: Verify real MCP protocol and 39-tool contract with an isolated database
         run: python scripts/check_mcp_contract.py --fixture

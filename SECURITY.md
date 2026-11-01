@@ -1,6 +1,6 @@
 # Reverfolio Security
 
-Reverfolio is a loopback-only, personal-use influence-monitoring service. Keep the database, screenshots, imported reports, browser profiles, and credential files private. Report issues privately to contact@mail.thinkerqaq.com.
+Reverfolio is a loopback-only, **self-hosted** project and content-impact service. Users keep their SQLite database, screenshots, imported reports, browser profiles, and credential files on their own machines. Report vulnerabilities privately to **contact@mail.thinkerqaq.com**; never publish working token values, private databases, or reproduction steps that expose another user's data in an Issue.
 
 ## Local web app
 
@@ -8,7 +8,7 @@ Reverfolio is a loopback-only, personal-use influence-monitoring service. Keep t
 - The general HTTP API and MCP accept a separate Bearer credential from Data/api-token. The MCP tunnel has its own transport configuration. Do not expose either publicly.
 - The server binds only to a loopback IP and validates the incoming Host to reduce DNS rebinding risks.
 
-## Browser extension v0.2
+## Edge/Chrome extension (optional, Windows portable setup)
 
 - The extension renders the same management UI code as the local Web app, but its own chrome-extension:// origin cannot reuse same-site browser cookies.
 - Chromium may omit the Origin header even for legitimate extension requests. The server therefore REQUIRES a separate random, installation-specific key for EVERY extension API request. It verifies a suitable Fetch Metadata mode and either the pinned origin or extension-host-permission transport.
@@ -22,4 +22,6 @@ Reverfolio is a loopback-only, personal-use influence-monitoring service. Keep t
 
 - Make SQLite backups before upgrades. Credentials, private database files, profiles, logs and user-provided evidence must not be committed to GitHub.
 - Keep binary dependency licenses and notices for every packaged release.
-- CI currently has account-level constraints; successful local checks are not equivalent to successful hosted CI.
+- Release builds include the original upstream dependency license texts in `THIRD_PARTY_LICENSES.txt`; their presence is checked during packaging. Security review and platform-specific smoke tests remain separate from license compliance.
+- Linux, Windows and macOS GitHub Actions tests plus documentation checks gate protected `main`. Passing CI is not equivalent to proving runtime behavior on every supported machine.
+- DEV.to API keys are saved in a per-installation private file in `Data/platform-credentials`, and are entered only through the local UI; the MCP tool set cannot accept a raw enrollment key. Use Windows directory ACLs or POSIX owner-only file permissions to protect local data.

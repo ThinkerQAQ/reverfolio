@@ -4,6 +4,20 @@
 
 本地运行的开源与内容影响力观测工具。关联开源项目、文章中英文版本、多平台分发页面、指标历史，以及第三方引用和使用证据。
 
+## 下载与安装
+
+**[下载最新正式版](https://github.com/ThinkerQAQ/reverfolio/releases/latest)** · **[中文快速入门](docs/quickstart.zh-CN.md)** · **[English quick start](docs/quickstart.md)** · [安全说明](SECURITY.md)
+
+- **Windows（x64 / ARM64）：**解压对应发行包，先运行 `Install-Reverfolio.ps1`，再运行 `Start-Reverfolio.cmd`，打开 <http://127.0.0.1:19452>。Windows 包自带可选 Edge／Chrome 扩展。
+- **Linux / macOS（x64 / ARM64）：**解压对应压缩包，复制 `config.example.toml` 为 `config.toml`，运行 `./bin/reverfolio -config ./config.toml`，打开 <http://127.0.0.1:18440>。这些平台目前**未提供浏览器原生宿主的一键自动安装**。
+- **真正独立：**无需 SyndiRelay 或特定博客引擎。新用户从 RSS／Atom／Sitemap 发现文章，或直接登记 GitHub 仓库；拥有对应平台账号时再自行授权。SQLite、凭据都保存在本人本机 `Data/`，发行包不含他人统计数据。**ChatGPT 私有开发版插件并不是已上架的一键安装插件**。
+
+**已实现：**GitHub 访问／Release 下载、授权的 Umami／GSC／Bing 网站数据、通用博客文章发现、DEV.to 官方账号／文章统计、引用审核、历史趋势图／导出、39 个 MCP 工具。**未实现：**全部内容平台的定时采集、无官方 API 的平台私有统计、去重真人粉丝识别、公开插件目录安装。
+
+## 近期版本更新
+
+**v0.9.2** 完成开源交付收尾：双语快速安装、更新真实公开仓库治理信息、明确三平台安装边界，并在所有发行包中附带实际依赖许可证全文。**不增加采集平台、不变更 SQLite schema 或现有数据。** [发行说明](docs/release-notes-v0.9.2.md)。
+
 **v0.9.1** 修复 DEV.to 文章跨域 canonical URL 关联：可识别现有英文渠道；旧博客域名路径一致时只建议作品，需明确确认，避免生成重复 Work。支持按文章指定归属的 Web UI、扩展与 MCP 导入，保留 v0.9.0 及以前的数据。详见 [DEV.to 官方 API 说明](docs/platform-api.zh-CN.md)。
 
 **v0.9.0** 新增 [DEV.to 官方 API 账号与文章统计](docs/platform-api.zh-CN.md)：本地配置个人 API Key，关联已发布文章与原文，采集粉丝、浏览、点赞、评论的历史快照；网页、扩展和 39 个 MCP 工具共用 SQLite。无需 SyndiRelay，不抓取登录页面。其他平台必须先确认有合法官方接口。
@@ -20,7 +34,7 @@
 
 **v0.6.0** 新增[统计图与使用说明](docs/impact-dashboard.md)：GitHub 每日流量、版本／平台下载分布、网站趋势、按网址精确归属文章，以及 PNG／SVG／CSV 导出。网页、扩展与 MCP 共用观测数据。
 
-后续阶段的[跨平台粉丝／阅读／互动指标方案](docs/social-impact-architecture.zh-CN.md)已完成设计，**尚未实现**；将复用 SyndiRelay 的可选平台认证与只读适配器，通过独立指标 Outbox 交接，Reverfolio 仍保持独立。
+平台支持现状：**DEV.to 已使用官方 API 直连实现账号、文章和互动指标**，不依赖 SyndiRelay；其他内容平台必须先核实稳定的官方授权 API。之前的[跨平台统计方案](docs/social-impact-architecture.zh-CN.md)已标记为历史提案，以[最新 API 实现说明](docs/platform-api.zh-CN.md)为准。
 
 架构采用 Go 单服务＋SQLite＋内嵌 Web UI＋MCP。AI 客户端负责用自身工具搜索，Reverfolio 负责保存任务、线索、审核与统计；**不包含自动 AI 搜索执行器**。历史二手报告只能生成待审核线索，必须补充原网页或原始 API 证据并明确人工审核，才能计入已确认传播。GitHub 下载、浏览、去重访客与实际使用者分别计量，不相互推断。
 
@@ -28,9 +42,9 @@
 
 采用 [MIT](LICENSE) 许可证。引入第三方代码时保留适用的版权和许可声明。
 
-## Windows 单一数据源
+## Windows 原生部署示例
 
-当前个人部署以 Windows 的 Data/state.sqlite 为唯一业务数据库。Edge/Chrome 扩展、Windows 网页和 ChatGPT MCP 都由原生 Windows Reverfolio 进程访问数据；隧道也在 Windows 原生运行；WSL 不再启动第二份数据服务。2026-10-31 逐表逐行核对结果完全一致，无需重复导入。详见 [Windows 单一数据源与 MCP 架构](docs/windows-authority.md)。
+在 Windows 安装中，Web UI、Edge／Chrome 扩展及 MCP 应访问同一个原生 `Data/state.sqlite`，不要让 WSL 再启动第二份可写数据库。其他用户自行选择本机安装目录及凭据，**不需要复制开发者的数据、隧道或配置**。详见 [Windows 单一数据源与 MCP 架构](docs/windows-authority.md)。
 
 ## 浏览器扩展（可选）
 
@@ -38,7 +52,7 @@ Reverfolio 独立扩展位于 extension/，**直接在 Edge/Chrome 侧边栏运�
 
 ## Windows 目录约定
 
-Windows 安装目录：C:\software\Coding\reverfolio\（拼写为 reverfolio）。可执行文件位于 bin/reverfolio.exe，SQLite 数据位于 Data/state.sqlite，非敏感运行配置和界面设置保存在 config.toml。详情参见 [Windows 目录结构](docs/windows-layout.md)。此前 WSL 数据库已校验一致并停用；后续统一使用 Windows 数据。
+Windows 安装目录示例：`C:\software\Coding\reverfolio\`（用户可自行选择固定目录）。可执行文件位于 bin/reverfolio.exe，SQLite 数据位于 Data/state.sqlite，非敏感运行配置和界面设置保存在 config.toml。详情参见 [Windows 目录结构](docs/windows-layout.md)。此前 WSL 数据库已校验一致并停用；后续统一使用 Windows 数据。
 
 ## 本地运行
 

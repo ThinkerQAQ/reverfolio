@@ -26,6 +26,12 @@ subprocess.run(['node', 'scripts/check_propagation.mjs'], cwd=ROOT, check=True)
 subprocess.run(['node', 'scripts/check_native_host.mjs'], cwd=ROOT, check=True)
 subprocess.run(['go', 'test', './...'], cwd=ROOT, check=True)
 subprocess.run(['python3', 'scripts/check_docs.py'], cwd=ROOT, check=True)
+# Ship actual dependency license texts, not only a notice pointing upstream.
+# This is a generated distribution artifact and must not enter the source tree.
+license_temp = tempfile.TemporaryDirectory(prefix='reverfolio-licenses-')
+licenses = pathlib.Path(license_temp.name) / 'THIRD_PARTY_LICENSES.txt'
+subprocess.run(['python3', 'scripts/bundle_dependency_licenses.py', '--output', str(licenses)],
+               cwd=ROOT, check=True)
 assets = []
 for operating_system in ('windows', 'linux', 'darwin'):
     for architecture in ('amd64', 'arm64'):
@@ -51,6 +57,7 @@ for operating_system in ('windows', 'linux', 'darwin'):
             for name in ('config.example.toml', 'README.md', 'README.zh-CN.md',
                          'LICENSE', 'THIRD_PARTY_NOTICES.md', 'SECURITY.md'):
                 shutil.copy2(ROOT / name, root / name)
+            shutil.copy2(licenses, root / 'THIRD_PARTY_LICENSES.txt')
             # Include only version-controlled documentation, so README links work
             # in portable archives without collecting local reports or runtime data.
             tracked_docs = subprocess.check_output(
@@ -80,3 +87,6 @@ checksum_file.write_text(''.join(
     hashlib.sha256(path.read_bytes()).hexdigest() + '  ' + path.name + '\n'
     for path in sorted(assets)), encoding='ascii')
 print('PORTABLE_RELEASE_ASSETS_COMPLETE', len(assets), flush=True)
+subprocess.run(['python3', 'scripts/check_release_assets.py', version, '--dist', str(DIST)],
+               cwd=ROOT, check=True)
+license_temp.cleanup()
