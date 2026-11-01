@@ -79,7 +79,7 @@ flowchart LR
 }
 ```
 
-入库前按平台账号 ID／远端文章 ID 与作品绑定校验；对同 URL 不同作品、重复远端 ID、数值负数、单位错误、异常反向跳变、未知时间窗返回冲突或记录异常，绝不自动合并未知账号。不知道 `value` 是 0 还是缺失时，必须返回 missing/blocked，而不是写 0。首次采到累计值仅是**基线**；只有连续有效观测才能计算增长，原始平台提供区间新增时保存其具体时间窗。
+入库前按平台账号 ID／远端文章 ID 与作品绑定校验；对同 URL 不同作品、重复远端 ID、数值负数、单位错误、未知时间窗返回冲突或记录异常，绝不自动合并未知账号。累计计数可能因取消关注、删稿或平台口径调整而下降：保留真实回退观测并提示异常，不擅自删除或强制改为递增。不知道 `value` 是 0 还是缺失时，必须返回 missing/blocked，而不是写 0。首次采到累计值仅是**基线**；只有连续有效观测才能计算增长，原始平台提供区间新增时保存其具体时间窗。
 
 ## 如何利用已有 SyndiRelay，而不制造强依赖
 
@@ -95,7 +95,7 @@ flowchart LR
 
 | 波次 | 平台 | 入口与需要验证的指标 |
 |---|---|---|
-| A / MVP | DEV.to（Forem） | 官方 API v1 具备 analytics totals / historical / follower engagement；以已授权 API Key 获取账号与文章统计，精确映射远端 ID、生命周期累计与区间数据 |
+| A / MVP | DEV.to（Forem） | 官方 API v1 具备 analytics totals / historical / follower engagement；以已授权 API Key 获取账号与文章统计，精确映射远端 ID、生命周期累计与区间数据；仅拉取必要的聚合数字，不为了算粉丝数批量读取粉丝身份列表 |
 | B | Medium | 官方 Stats UI 有 presentations / views / reads / followers，且官方不再签发新 API Token；先验证合法只读路径，不得把 views 与 reads 混为同一指标 |
 | B | 掘金、知乎、头条 | 有分发侧会话基础，但统计入口和可用范围需真实只读验证；无稳定/许可入口则明确 unsupported 或手动导入 |
 | C | Hashnode | 有官方 GraphQL；文章/用户指标字段与当前授权范围须先做 schema/权限验证，不能推断存在 |

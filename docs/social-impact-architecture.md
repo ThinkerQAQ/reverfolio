@@ -23,7 +23,7 @@
 
 **Publication:** views, reads, reactions, comments, bookmarks, shares where individually supported; names do not imply consistent cross-platform definitions. Retain native labels and their precise meaning.
 
-**Never invent unique cross-platform people**. Followers across platforms are subscriptions, not unique persons; pageviews, reads, visits and GitHub downloads are not interchangeable. The first observed cumulative counter is a baseline, never a period increase. Missing, unsupported, stale, unauthorized, or rate-limited reads must retain distinct statuses. Each displayed value should expose its platform, owner, work/channel, source, timestamp, timezone and measurement period.
+**Never invent unique cross-platform people**. Followers across platforms are subscriptions, not unique persons; pageviews, reads, visits and GitHub downloads are not interchangeable. The first observed cumulative counter is a baseline, never a period increase. Missing, unsupported, stale, unauthorized, or rate-limited reads must retain distinct statuses. Legitimate counter decreases (unfollows, deletion, provider methodology changes) are retained and flagged rather than silently discarded or clamped to zero. Collect aggregate follower metrics, not follower identities. Each displayed value should expose its platform, owner, work/channel, source, timestamp, timezone and measurement period.
 
 ## Flow
 
