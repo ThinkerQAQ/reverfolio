@@ -34,24 +34,26 @@ Inkerio 和 SyndiRelay 均为可选组件。全新安装不会预置作者账户
 2. 根据操作系统和 CPU 下载对应压缩包（`windows`/`linux`/`darwin`、`amd64`/`arm64`），同时下载 `SHA256SUMS`。
 3. 将压缩包的 SHA-256 与 `SHA256SUMS` 中对应记录核对，再解压到固定的私有目录；保持 `Reverfolio` 目录结构不变。
 
+Windows 可使用 `Get-FileHash .\Reverfolio-*.zip -Algorithm SHA256`，Linux 使用 `sha256sum ./Reverfolio-*.tar.gz`，macOS 使用 `shasum -a 256 ./Reverfolio-*.tar.gz`。将结果与 `SHA256SUMS` 中**对应压缩包**的记录比较，不一致时不要继续安装。
+
 发行包自带可执行文件和配置模板，直接使用不需要安装 Go。
 
 ### 2.2. 安装与启动
 
 **Windows：**在解压后的 `Reverfolio` 目录打开 PowerShell：
 
-~~~powershell
+```powershell
 .\Start-Reverfolio.cmd
-~~~
+```
 
 启动脚本会按需调用安装程序，创建 `config.toml` 和 `Data/`，且不会覆盖已有数据；随后启动本地服务。安装程序也会初始化扩展凭据并注册 Native Messaging Host，**不需要手动注册 Host**。打开 [http://127.0.0.1:19452](http://127.0.0.1:19452)。
 
 **Linux / macOS：**在解压后的 `Reverfolio` 目录打开终端：
 
-~~~sh
+```sh
 cp config.example.toml config.toml
 ./bin/reverfolio -config ./config.toml
-~~~
+```
 
 **只有首次安装时才复制配置模板**，升级不要覆盖已有私有配置。保持终端进程运行，打开 [http://127.0.0.1:18440](http://127.0.0.1:18440)。Unix 发行包不自动安装后台服务；macOS 未签名程序可能需要系统授权。
 
@@ -69,15 +71,15 @@ cp config.example.toml config.toml
 
 在另一个终端调用对应的健康检查：
 
-~~~powershell
+```powershell
 # Windows
 Invoke-RestMethod http://127.0.0.1:19452/healthz
-~~~
+```
 
-~~~sh
+```sh
 # Linux / macOS
 curl -fsS http://127.0.0.1:18440/healthz
-~~~
+```
 
 验收标准：`status=ok`、重启后作品仍存在、每次尝试采集均能区分成功/部分成功/失败。**仅健康检查通过，不代表统计采集已经成功。**
 
@@ -129,7 +131,7 @@ Reverfolio 由 Go 服务、嵌入式 Web UI、本地 SQLite 和 MCP 服务组成
 
 以 [config.example.toml](config.example.toml) 为配置字段依据。安装程序在 `bin/` 同级创建私有 `config.toml`，SQLite 默认存放在 `Data/`。Windows 为扩展使用 `19452` 端口，配置模板和 Unix 安装使用 `18440`。
 
-~~~toml
+```toml
 [server]
 listen = "127.0.0.1:18440"
 
@@ -141,7 +143,7 @@ interval = "24h"
 
 [github]
 auth = "env"
-~~~
+```
 
 `env` 模式通过 `GITHUB_TOKEN` 授权 GitHub；若启动服务的账户已经通过 GitHub CLI 登录，也可以设置 `github.auth = "gh"`。`-collect-interval 0` 禁用定时采集，命令行明确指定的参数优先于配置文件。DEV.to 账号不会自动定时轮询；需要自动采集 GitHub 时，本地服务必须保持运行。
 
@@ -151,7 +153,7 @@ HTTP API 使用独立的私有凭据，默认保存在 `Data/api-token`；也可
 
 **本地 stdio MCP 客户端**填写已安装二进制和配置文件的绝对路径：
 
-~~~json
+```json
 {
   "mcpServers": {
     "reverfolio": {
@@ -160,7 +162,7 @@ HTTP API 使用独立的私有凭据，默认保存在 `Data/api-token`；也可
     }
   }
 }
-~~~
+```
 
 Windows 改为 `bin/reverfolio.exe`。重新连接 MCP 后，调用 `get_dashboard`、`list_works`、`get_collection_status`，核对读取的是同一份数据及当前服务信息。stdio 进程不会启动第二个定时采集器。
 
@@ -187,26 +189,26 @@ Windows 安装完成后，打开 `edge://extensions` 或 `chrome://extensions`�
 
 安装 [go.mod](go.mod) 要求的 Go 工具链；运行仓库检查还需要 Python 3 和 Node.js。克隆源码后执行：
 
-~~~sh
+```sh
 git clone https://github.com/ThinkerQAQ/reverfolio.git
 cd reverfolio
 go test -race ./...
 go vet ./...
 go build -o reverfolio ./cmd/reverfolio
 ./reverfolio -db ./Data/state.sqlite -collect-interval 0
-~~~
+```
 
 Windows 可以编译为 `reverfolio.exe`，并在 PowerShell 使用相同参数执行。
 
 ### 5.2. 扩展检查与打包
 
-~~~sh
+```sh
 python3 scripts/check_docs.py
 python3 scripts/check_mcp_contract.py --fixture
 python3 -m unittest discover -s scripts -p 'test_publications_to_catalog.py'
 node scripts/check_extension.mjs
 node scripts/check_dashboard.mjs
-~~~
+```
 
 MCP 模拟验收使用隔离数据库，不要求真实平台凭据。CI 还包括其他扩展检查、Go race/vet 和跨平台构建；模拟测试不能代替真实账号授权和原生图形界面验收。
 

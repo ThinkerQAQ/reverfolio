@@ -34,24 +34,26 @@ Inkerio and SyndiRelay are optional. A fresh installation contains no preconfigu
 2. Download the archive for your OS and CPU (`windows`/`linux`/`darwin`; `amd64`/`arm64`), together with `SHA256SUMS`.
 3. Verify the archive's SHA-256 against the entry in `SHA256SUMS`, then extract it to a permanent, private directory. Keep the extracted `Reverfolio` directory intact.
 
+For the hash, use `Get-FileHash .\Reverfolio-*.zip -Algorithm SHA256` on Windows, `sha256sum ./Reverfolio-*.tar.gz` on Linux, or `shasum -a 256 ./Reverfolio-*.tar.gz` on macOS. Compare the result with the **matching archive entry** in `SHA256SUMS`; stop if it differs.
+
 Portable releases include the executable and configuration template. Go is not needed to run a release.
 
 ### 2.2. Install and run
 
 **Windows (PowerShell in the extracted `Reverfolio` directory):**
 
-~~~powershell
+```powershell
 .\Start-Reverfolio.cmd
-~~~
+```
 
 This launcher runs the installer when needed, initializes `config.toml` and `Data/` without overwriting existing data, and starts the local service. The installer also initializes the optional extension credentials and registers its Native Messaging host; **do not register the host manually**. Open [http://127.0.0.1:19452](http://127.0.0.1:19452).
 
 **Linux / macOS (terminal in the extracted `Reverfolio` directory):**
 
-~~~sh
+```sh
 cp config.example.toml config.toml
 ./bin/reverfolio -config ./config.toml
-~~~
+```
 
 Copy the template **only on a new installation**. Keep the terminal running and open [http://127.0.0.1:18440](http://127.0.0.1:18440). Unix packages do not install a background service. On macOS, the unsigned binary may require OS approval.
 
@@ -69,15 +71,15 @@ The first cumulative metrics snapshot is a baseline, not growth. No Releases, mi
 
 From a second terminal, check the corresponding endpoint:
 
-~~~powershell
+```powershell
 # Windows
 Invoke-RestMethod http://127.0.0.1:19452/healthz
-~~~
+```
 
-~~~sh
+```sh
 # Linux / macOS
 curl -fsS http://127.0.0.1:18440/healthz
-~~~
+```
 
 Acceptance requires `status=ok`, a persisted work after restart and an explicit success/partial/failure outcome for any collection attempted. The health endpoint alone does not verify collection or persistence.
 
@@ -129,7 +131,7 @@ User works, settings, observations, evidence and audit records stay in the local
 
 The [configuration template](config.example.toml) is the reference for supported settings. The installer creates a private `config.toml` next to `bin/`, with SQLite under `Data/`. Windows uses port `19452` for its browser extension; the template and Unix installation use `18440`.
 
-~~~toml
+```toml
 [server]
 listen = "127.0.0.1:18440"
 
@@ -141,7 +143,7 @@ interval = "24h"
 
 [github]
 auth = "env"
-~~~
+```
 
 Use `GITHUB_TOKEN` in `env` mode, or select `github.auth = "gh"` if the service account has an authorized GitHub CLI login. `-collect-interval 0` disables scheduling; command-line overrides take precedence over the configured interval. DEV.to account polling is not automatically scheduled. The application must be running for scheduled GitHub collection.
 
@@ -151,7 +153,7 @@ The HTTP API uses a separate private token in `Data/api-token` unless `REVERFOLI
 
 For a **local stdio MCP client**, configure the absolute paths to your installed executable and config:
 
-~~~json
+```json
 {
   "mcpServers": {
     "reverfolio": {
@@ -160,7 +162,7 @@ For a **local stdio MCP client**, configure the absolute paths to your installed
     }
   }
 }
-~~~
+```
 
 Use `bin/reverfolio.exe` on Windows. Reconnect the MCP client and call `get_dashboard`, `list_works` and `get_collection_status` to verify that it reads the same installation. The stdio process does not start a second collection scheduler.
 
@@ -187,26 +189,26 @@ Browser security requires the user to load the unpacked extension; it does **not
 
 Install the Go toolchain required by [go.mod](go.mod), plus Python 3 and Node.js for the repository checks. From a source checkout:
 
-~~~sh
+```sh
 git clone https://github.com/ThinkerQAQ/reverfolio.git
 cd reverfolio
 go test -race ./...
 go vet ./...
 go build -o reverfolio ./cmd/reverfolio
 ./reverfolio -db ./Data/state.sqlite -collect-interval 0
-~~~
+```
 
 On Windows, build `reverfolio.exe` instead and invoke it from PowerShell with the same flags.
 
 ### 5.2. Additional checks and packaging
 
-~~~sh
+```sh
 python3 scripts/check_docs.py
 python3 scripts/check_mcp_contract.py --fixture
 python3 -m unittest discover -s scripts -p 'test_publications_to_catalog.py'
 node scripts/check_extension.mjs
 node scripts/check_dashboard.mjs
-~~~
+```
 
 The MCP fixture uses an isolated database and does not require a live provider credential. CI also runs the remaining extension checks, Go race tests, vet and cross-platform builds. A passing fixture is not proof of a real account authorization or a native GUI install.
 
