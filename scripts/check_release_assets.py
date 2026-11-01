@@ -32,9 +32,8 @@ def validate_members(names, read, archive, platform):
     required = {
         'Reverfolio/LICENSE', 'Reverfolio/SECURITY.md',
         'Reverfolio/THIRD_PARTY_NOTICES.md', 'Reverfolio/THIRD_PARTY_LICENSES.txt',
-        'Reverfolio/README.md', 'Reverfolio/README.zh-CN.md',
-        'Reverfolio/docs/quickstart.md', 'Reverfolio/docs/quickstart.zh-CN.md',
-        'Reverfolio/docs/platform-api.md', 'Reverfolio/config.example.toml',
+        'Reverfolio/README.md', 'Reverfolio/README_ZH.md',
+        'Reverfolio/config.example.toml',
     }
     if platform.startswith('windows'):
         required |= {'Reverfolio/bin/reverfolio.exe', 'Reverfolio/bin/reverfolio-host.exe',

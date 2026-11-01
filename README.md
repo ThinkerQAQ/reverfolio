@@ -1,129 +1,140 @@
 # Reverfolio
 
-[中文](README.zh-CN.md) · [Architecture](docs/architecture.zh-CN.md) · [Roadmap](docs/implementation-plan.md)
+[简体中文](README_ZH.md)
 
-Local-first observability for open-source and content impact.
+## Introduction
 
-Reverfolio connects projects, multilingual articles, syndication channels, metric history, and reviewed evidence of external citations or adoption. AI clients can search for public evidence and submit it to the local MCP server for explicit review.
+Local impact tracking for open-source projects and published writing. Register works and their publication URLs, collect GitHub/site/DEV.to observations, inspect charts and review citation evidence. One Go service shares SQLite across Web UI and MCP. Inkerio, SyndiRelay and browser extensions are optional; an empty installation contains no author accounts or content. Downloads and followers are observations, not verified people or users.
 
-## Install and try it
+## Quick Start
 
-**[Download the latest release](https://github.com/ThinkerQAQ/reverfolio/releases/latest)** · **[English quick start](docs/quickstart.md)** · **[中文快速入门](docs/quickstart.zh-CN.md)** · [Security](SECURITY.md)
+### 1. Prerequisites
 
-- **Windows (x64 / ARM64):** unzip the portable release, run `Install-Reverfolio.ps1`, then `Start-Reverfolio.cmd`, and visit <http://127.0.0.1:19452>. An optional Edge/Chrome extension ships in the Windows archive.
-- **Linux / macOS (x64 / ARM64):** extract the correct archive, copy `config.example.toml` to `config.toml`, run `./bin/reverfolio -config ./config.toml`, and visit <http://127.0.0.1:18440>. Browser-extension native-host auto-install is currently Windows-only.
-- **No publishing dependencies:** new users can add a website through RSS/Atom/Sitemap, register GitHub repositories, then optionally authorize their own provider APIs. Personal data and API keys remain in local `Data/`; **there is no public ChatGPT plugin one-click installer**. The source is [MIT-licensed](LICENSE), with original [third-party license texts](THIRD_PARTY_NOTICES.md) in the release archives.
+Windows, Linux or macOS (x64/ARM64), a browser and a matching portable release. No Go or publishing application is required for packaged use. Registering works needs no provider credential; private provider metrics require your own authorization.
 
-**Available now:** GitHub repository traffic/release-download observations; Umami, GSC, and Bing site metrics when authorized; independent website article discovery; direct DEV.to account/article API metrics; reviewed public citations; sourced history, charts, export, and 39 MCP tools. **Not yet available:** automatic scheduling of all platform accounts, universal creator-analytics APIs, verified counts of distinct human users, or public directory installation of the private ChatGPT app.
+### 2. Download and install
 
-## Recent release history
+Download the matching archive and `SHA256SUMS` from [Releases](https://github.com/ThinkerQAQ/reverfolio/releases/latest), verify its SHA-256, and extract it into a permanent private directory. Archive names use `Reverfolio-vVERSION-OS-ARCH`, with OS `windows`, `linux` or `darwin` and ARCH `amd64` or `arm64`.
 
-**v0.9.2** completes public distribution documentation: clear English/Chinese quick starts, current repository governance, verified Windows/native and macOS/Linux CLI installation scope, and real bundled upstream license texts in every release archive. No analytics or schema changes. [Release notes](docs/release-notes-v0.9.2.md).
+**Windows:** open PowerShell in the extracted `Reverfolio` directory:
 
-**v0.9.1** improves DEV.to canonical identity: recognize already-registered article channels, suggest (never silently merge) matching paths across historical website domains, and require an explicit selected Work or explicit new-Work confirmation. Available in Web UI, extension and MCP. [Guide](docs/platform-api.md).
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Install-Reverfolio.ps1
+.\Start-Reverfolio.cmd
+```
 
-**v0.9.0** adds [API-only DEV.to creator analytics](docs/platform-api.md): connect via private API key, preview and link published posts, collect official followers/views/reactions/comments and review trends in the Web UI, extension and 39-tool MCP. No SyndiRelay dependency or browser scraping; unsupported platforms remain unavailable.
+Open <http://127.0.0.1:19452>. The installer creates config and Data without replacing existing settings or SQLite.
 
-**v0.8.0** introduces independent [RSS/Atom/Sitemap website discovery](docs/website-discovery.md): preview public article candidates, explicitly select URLs to register, deduplicate existing works, save source provenance and rescan existing sources. Three new MCP tools, native Web UI and Edge/Chrome extension are synchronized; no Inkerio or SyndiRelay is required. Platform account/article metrics remain planned separately.
+**Linux/macOS:** from the extracted `Reverfolio` directory:
 
-**v0.7.1** validates the [31-tool MCP contract](docs/mcp-setup.md) end to end, fixes stale ChatGPT discovery by documenting **Refresh tools → New chat**, and packages an isolated, cross-platform MCP acceptance checker. Existing data and credential storage are unchanged.
+```sh
+# Fresh installation only; do not overwrite an existing private config.
+cp config.example.toml config.toml
+./bin/reverfolio -config ./config.toml
+```
 
-**v0.7.0** also fixes Windows console-window startup: the extension probes and silently starts the local service through a separately registered Native Messaging host, with manual recovery controls. Existing Windows login tasks become silent.
+Open <http://127.0.0.1:18440>. Keep the foreground process running. Portable Unix archives do not install a systemd/launchd service. macOS binaries are unsigned and may require operating-system approval.
 
-**v0.7.0** adds the [Propagation paths](docs/impact-dashboard.md) view: canonical work → first-party language links → external syndication → reviewed third-party evidence, plus a genuine observed/verified timeline. Channel URLs have no inferred publication dates. SyndiRelay may optionally hand off confirmed public URL metadata without becoming a runtime dependency.
+### 3. Register your first project
 
-**v0.6.1** refines the impact charts: source-scoped article drilldown, calendar-day trend filters, actual interval download changes, unclipped SVG/PNG exports, and identical Web/extension UI.
+Open **Projects**, add a project with a title and a GitHub repository you own in `owner/name` format, then save. Refresh the page: the same project must remain. Restart the service with the same config and verify it still exists. This completes a real persistent catalog operation without an API key.
 
-**v0.6.0** adds [impact charts and usage guidance](docs/impact-dashboard.md): GitHub daily traffic, release/platform breakdowns, site trends, exact article URL attribution, and PNG/SVG/CSV exports. Web, extension and MCP share the same observations.
+For a first metrics observation, use that project's collection action. Public release-download counters can be available without a token. Private traffic requires an authorized `GITHUB_TOKEN`, or `github.auth = "gh"` with your own valid native GitHub CLI login. Inspect the collection state, timestamp and available metrics. A repository without releases or missing permissions may legitimately show unavailable data; it must not be reported as zero or as a successful traffic read. The first cumulative snapshot is a baseline.
 
-Platform API coverage: **DEV.to account and article metrics are implemented directly**, without a SyndiRelay runtime. Other platforms require documented, authorized official read APIs and are not claimed supported by default. The older [social impact proposal](docs/social-impact-architecture.md) is marked historical and superseded by the [API-only implementation](docs/platform-api.md).
+### 4. Verify and troubleshoot
 
-## Architecture and data policy
+Health checks from a second terminal:
 
-One local Go service, SQLite, embedded Web UI and an MCP endpoint share the same business operations. An AI client performs searches using its own authorized tools; Reverfolio records the task, candidate link and review decision. A `secondary_report` mention cannot be verified without original `web` or `api` evidence and explicit review. Reference pages, verified identity URLs, grouped propagation events, GitHub downloads, visitors and actual software users are different metrics.
+```powershell
+# Windows
+Invoke-RestMethod http://127.0.0.1:19452/healthz
+```
 
-All live observations and credentials belong in a private runtime directory, not git. Do not commit imported reports, browsing data, access tokens, databases, or personal metrics. See [architecture](docs/architecture.zh-CN.md) and [implementation plan](docs/implementation-plan.md).
+```sh
+# Linux/macOS
+curl -fsS http://127.0.0.1:18440/healthz
+```
 
-## Development and governance
+Require `status=ok`, a saved project that survives restart, and an explicitly recorded success/partial/failure state for any requested collection. Health alone is not the full acceptance criterion.
 
-Use feature branches and pull requests. Squash merge only; delete merged branches. Main must not be force-pushed or deleted. Repository settings and enforcement limitations are documented in [governance](docs/governance.md).
+- **Empty workspace after upgrade:** confirm `storage.database` and config path; do not create a second writable WSL database.
+- **401/403 or missing traffic:** check authorization for that repository; unavailable does not mean zero.
+- **Old tools in ChatGPT:** refresh the registered MCP connection and start a new chat after upgrading.
+- **Windows extension cannot start Core:** rerun the installer in the same permanent directory; use `Start-Reverfolio.cmd` to inspect a manual start.
+- **Upgrade/rollback:** back up SQLite and credentials first. Restore a compatible binary and database together. CLI restore uses `-restore BACKUP -db NEW_PATH`, never the live database path.
+
+## Configuration
+
+[config.example.toml](config.example.toml) is the source of defaults. The private `config.toml` sits beside `bin/`; `-config` selects another file. Common settings:
+
+```toml
+version = 1
+[server]
+listen = "127.0.0.1:18440"
+[storage]
+database = "Data/state.sqlite"
+[collection]
+interval = "24h"
+[github]
+auth = "env"
+```
+
+Windows setup uses port `19452` for its extension; keep that installer-generated value. Paths are resolved by the application config loader. `GITHUB_TOKEN` supplies your GitHub credential in `env` mode; `gh` mode requires an authorized CLI in the service account. `REVERFOLIO_API_TOKEN` can supply a server-side token of at least 32 characters. Otherwise a private local API token is generated; do not paste it into page JavaScript or chat.
+
+Settings → Data sources controls the collection interval and individual sources. `-collect-interval 0` disables scheduling; explicit CLI overrides take precedence. The machine/service must remain on. DEV.to account polling is not automatically scheduled. The local UI uses its own session and requires no manual bearer-token entry.
+
+## Optional Features
+
+### Local MCP
+
+In your local stdio client's server settings, use absolute paths to the installed binary and config:
+
+```json
+{
+  "mcpServers": {
+    "reverfolio": {
+      "command": "/absolute/path/Reverfolio/bin/reverfolio",
+      "args": ["-mcp-stdio", "-config", "/absolute/path/Reverfolio/config.toml"]
+    }
+  }
+}
+```
+
+Windows uses `bin/reverfolio.exe`; forward-slash paths are accepted. Reconnect and call `get_dashboard`, `list_works`, then `get_collection_status`. Verify the same registered project and service version. Stdio does not run a duplicate scheduler. Write tools require unique `request_id` values and applicable version checks. Remote ChatGPT additionally needs your own authenticated MCP tunnel/connection; the developer's private app is not a public one-click installer. Do not expose the loopback HTTP service publicly.
+
+### Website and creator metrics
+
+- **Website discovery:** preview your RSS/Atom/Sitemap in Website discovery, select owned article URLs, then import. Existing works and explicit publication mappings are preserved; titles alone never merge identities.
+- **DEV.to:** enter your personal API key in the local **Creator platforms** page, connect, preview your published articles, deliberately select/link works, then collect followers/views/reactions/comments. Credentials are write-only; MCP does not accept the raw key. Review historical-domain suggestions explicitly. Other creator-platform integrations are not implemented.
+- **Umami/GSC/Bing:** first register your site, then use **Settings → Data sources → Search and site analytics**. Select the work, property ID, timezone, lookback and lag; new sources are disabled until explicitly enabled. GSC needs an authorized read-only Search Console credential and property (for example `sc-domain:example.org`); Bing needs a verified site URL and authorized Webmaster API key. Umami supports an authorized token or a separately authorized signed-in local browser session. Saving is separate from collecting. Never export browser cookies or generate credentials merely because a browser is signed in.
+- **Catalog handoff:** Projects → Import works & publication links accepts catalog JSON; preview and select works before import. `scripts/publications_to_catalog.py --help` describes the optional publishing-export converter. No shared publisher database or account session is needed.
+- **Evidence/charts:** attach confirmed language/publication URLs, submit external citations for explicit review and inspect propagation/history charts or SVG/PNG/CSV exports. Keep source timezone, observation window, missing values and evidence provenance. Different provider counts must not be added into a unique-user count.
+
+### Windows extension
+
+After installation, enable Developer mode at `edge://extensions` or `chrome://extensions` and load the installation's `extension/` folder unpacked. Click its icon: it opens the same dashboard and can silently wake the service through the installed Native Messaging host. Reload after updates; re-add an older unpacked extension if its ID differs from the pinned manifest identity. Its generated local capability is private. This native wake-up installation is Windows-only; Unix users can use Web and stdio without it.
+
+## Development
+
+```sh
+git clone https://github.com/ThinkerQAQ/reverfolio.git
+cd reverfolio
+go test -race ./...
+go vet ./...
+go build -o reverfolio ./cmd/reverfolio
+./reverfolio -db ./Data/state.sqlite -collect-interval 0
+```
+
+Use Go **1.26+** as declared by `go.mod`. Windows may build `reverfolio.exe` and run it with the same flags. Source defaults to port 18440.
+
+```sh
+python3 scripts/check_docs.py
+python3 scripts/check_mcp_contract.py --fixture
+python3 -m unittest discover -s scripts -p 'test_publications_to_catalog.py'
+```
+
+The MCP fixture builds an isolated database and validates the exact 39-tool contract and a write/read/review/export workflow without live credentials. CI additionally runs Web/extension checks, race/vet tests and Windows/Linux/macOS checks. Packaging uses `python3 scripts/package_release.py vX.Y.Z` (replace with the intended version); it builds six OS/CPU archives with dependency license texts. Native GUI/account/reboot checks remain separate from fixtures and cross-compilation. Regenerate icons with `scripts/build-icons.sh`; the original SVG and derived assets are source-licensed. Use feature branches, PRs and Squash Merge.
 
 ## License
 
-[MIT](LICENSE). Third-party code must retain its applicable notices. No third-party application source has been imported during bootstrap.
-
-## Deployment example: a single native Windows data source
-
-For an existing Windows installation, the Web UI, Edge/Chrome extension and local/remote MCP are intended to share **one** native Windows `Data/state.sqlite`; do not run a second writable copy in WSL. Each other self-hosting user chooses their own local data directory and credentials. See [Windows authority and MCP connection](docs/windows-authority.md).
-
-## Browser extension (optional; Windows portable distribution)
-
-The optional Windows-packaged Reverfolio browser extension is in `extension/`. It loads the full native dashboard and its controls in an Edge/Chrome side panel or a browser tab, using exactly the same app source and styles as the local Web UI. It connects to the single Windows local origin 127.0.0.1:19452; there is no service-priority selection or launcher popup. Windows files go in C:\software\Coding\reverfolio\extension. To upgrade from v0.1 unpacked, remove the old extension and load the directory again using Edge edge://extensions > Developer mode > Load unpacked. See [installation steps](extension/README.md). It is independent of BlogCTL and does not read or store GitHub/MCP credentials.
-
-## Configuration and Windows layout
-
-Windows example (choose your own permanent folder): `C:\software\Coding\reverfolio\`. The executable is in `bin/reverfolio.exe`, SQLite state in Data/state.sqlite and local settings in config.toml. See [Windows layout](docs/windows-layout.md). The former WSL copy is backed up and inactive; only Windows receives new data.
-
-## Run locally
-
-Requires Go >= 1.26. From the repository checkout:
-
-```bash
-go run ./cmd/reverfolio -db data/reverfolio.sqlite
-```
-
-Open <http://127.0.0.1:18440> in a browser. **No manual token entry is required for the local UI.** It receives a process-scoped, HttpOnly, SameSite=Strict session cookie; unsafe requests require a same-origin UI header and cross-origin/cross-site access is rejected. The programmatic HTTP API and `/mcp` still accept the private `Authorization: Bearer <token>` credential from `data/api-token` (never exposed to page JavaScript). Alternatively set a 32+ character `REVERFOLIO_API_TOKEN` server-side. The HTTP server binds loopback only.
-
-Supply `GITHUB_TOKEN` to collect repository traffic with appropriate GitHub permissions. When explicitly authorized to use the signed-in CLI, run with `-github-auth gh` instead. A missing permission or endpoint is recorded as partial/unavailable, not zero. Public release downloads are cumulative asset counters; the first observation is a baseline, not an interval increment.
-
-The standalone bilingual UI defaults to Simplified Chinese; language and other editable preferences persist in machine-local TOML. Its sidebar provides overview, projects, channels, evidence review, discovery tasks, historical metrics and settings. It supports registering repositories/articles/sites, language/channel pages, submitting candidate mentions, human review and grouping, discovery/search run tracking, numeric history dry-run import and SQLite backup. **Reverfolio has no runtime dependency on BlogCTL, any browser extension or other publishing application.** All write commands require unique request IDs. The MCP tools expose the same operations, and `-mcp-stdio` provides a local stdio transport. The default `-collect-interval 24h` runs idempotent GitHub snapshots; set `-collect-interval 0` to disable scheduling.
-
-Restore **only to a new database path**, never over the current database:
-
-```bash
-go run ./cmd/reverfolio -restore /private/backup.sqlite -db /private/new-state.sqlite
-```
-
-Historical numeric observations use `schema_version: 1`, each with source, unit, scope, timezone, start/end time and observation time. Dry-run validation precedes import. Source URLs for translations and distribution must be linked to the correct work; unknown distribution links should be left missing, not guessed. Backups contain private data and must not be committed.
-
-## Interfaces
-
-- MCP: `/mcp` over authenticated streamable HTTP (or `-mcp-stdio`); supports registering works/channels, search tasks, candidate mention submission/review, GitHub collection, historic observation import, report and audit.
-- HTTP: `/api/works`, `/api/works/{id}/collect`, `/api/works/{id}/snapshots`, `/api/works/{id}/changes`, `/api/works/{id}/traffic/{views|clones}`; `POST /api/actions/{upsert_work|add_channel|submit_mention|review_mention|link_propagation_event|create_discovery_task|claim_discovery_task|complete_discovery_task|import_history}`; `GET /api/report`, `/api/mentions`, `/api/tasks`, `/api/audit`; `POST /api/backup`.
-- Web: `/` (same local service and application state).
-
-## Validation
-
-```bash
-go test -race ./...
-go vet ./...
-python3 scripts/check_docs.py
-```
-
-See [workflow acceptance](docs/workflow-validation.md) for test scope and platform caveats. Hosted CI runs Linux/Windows/macOS suites; cross-compilation alone does not prove native runtime behavior. No claim is made of accurately identified human readers or verified end-users.
-
-## Rename compatibility
-
-Formerly OpenEcho. Existing Windows data and configuration are preserved; the previous installation path remains a compatibility junction. See [migration notes](docs/rename-migration.md).
-
-## Release download breakdown
-
-Web UI, MCP and exported reports share the backend `filename-v1` classification: packages, source archives, auxiliary files (checksums/signatures/licenses/SBOM), and other or ambiguous files. Every asset exposes its category and classification reason. Ambiguous archives stay unclassified; package downloads are not verified installations or users. Historical snapshots are classified on read without rewriting their original observations.
-
-Interval totals include only known asset deltas and separately count unknown deltas (late baselines, missing assets or decreased counters). They refer to the two observation timestamps, not calendar-day growth. Missing release permissions show unavailable rather than zero.
-
-## Automatic collection
-
-Settings → Data sources → GitHub → Automatic collection controls the collection interval, saved in `config.toml`. The running HTTP service reloads the schedule within one minute; disabling it retains existing data. The computer and service must be running. Explicit `-collect-interval` CLI overrides remain fixed until restart. Stdio MCP does not run a duplicate scheduler.
-
-Configure `github.auth = "gh"` to use a valid native GitHub CLI login, or provide `GITHUB_TOKEN` in the service environment. GitHub secrets are not edited in the UI; optional site-provider credentials use a separate write-only control. Runtime/MCP status indicates whether a credential was loaded; snapshots show actual permissions and errors.
-
-## Site providers and identity groups
-
-See [provider setup and authorization](docs/site-sources.md). Each provider retains its own observation window, timezone and failure state. New sources are disabled by default. Operators supply credentials locally after explicitly authorizing access; an AI client must not generate, download or inspect credentials merely because a browser is signed in. Umami browser mode uses the signed-in local browser for restricted read-only JSON statistics without exporting cookies or API keys.
-
-Identity links require explicit same-author evidence, reviewer and reason. Names alone do not merge identities; unlinking retains audit history. Schema 4 adds identity and provider tables without rewriting original observations. Back up the database before upgrading.
-
-## Works and publishing integration
-
-Choose which works to monitor, preview and import public publication links, and inspect their recorded origin. No publishing tool is required. See the [portable catalog and usage guide](docs/portable-catalog.md). Imports preserve existing titles and monitoring choices; first-run databases are empty.
+Original code and project visual assets are [MIT](LICENSE); dependencies retain their [own notices](THIRD_PARTY_NOTICES.md), including full license texts in portable archives. This does not license user writing, photography, provider data or third-party content. Keep SQLite, private TOML, tokens, extension capabilities and reports out of Git/releases. Selected MCP data reaches the connected client/AI service. Credentials are entered locally, never obtained merely from a signed-in account. See [security policy](SECURITY.md).
