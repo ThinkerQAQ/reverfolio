@@ -21,7 +21,12 @@ jobs:
           cache: true
       - name: Check formatting
         shell: bash
-        run: test -z "$(gofmt -l cmd internal)"
+        run: |
+          files="$(gofmt -l $(git ls-files '*.go'))"
+          if [ -n "$files" ]; then
+            printf '%s\n' "$files"
+            exit 1
+          fi
       - run: go test -race ./...
       - run: go vet ./...
       - run: go build ./cmd/reverfolio
