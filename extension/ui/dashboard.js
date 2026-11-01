@@ -27,7 +27,7 @@ function impactDashboardView(){
  let html=heading(D("影响力统计图","Impact charts"))+toolbar;
  if(project){
   const p=project;
-  html+='<div class="panel"><strong>'+E(p.work.repository)+'</strong><p>'+E(D("最近采集尝试","Latest attempt"))+': '+E(p.attempt_state||D("尚未采集","Not collected"))+' · '+dt(p.attempt_at)+'</p>'+((p.problems||[]).length?'<p class="warning">'+E(p.problems.join(' · '))+'</p>':'')+'<p class="meta">'+E(D("流量最近成功观测","Latest successful traffic observation"))+': '+dt(p.traffic_at)+' · '+E(D("下载观测","Download observation"))+': '+dt(p.download_at)+'</p></div><div class="grid-2">';
+  html+='<div class="panel"><strong>'+E(p.work.repository)+'</strong><p>'+E(D("最近采集尝试","Latest attempt"))+': '+E(p.attempt_state||D("尚未采集","Not collected"))+' · '+dt(p.attempt_at)+'</p>'+((p.problems||[]).length?'<p class="warning">'+E(p.problems.join(' · '))+'</p>':'')+'<p class="meta">'+E(D("流量最近成功观测","Latest successful traffic observation"))+': '+dt(p.traffic_at)+' · '+E(D("下载观测","Download observation"))+': '+dt(p.download_at)+'</p></div><div class="impact-charts">';
   for(const kind of ["views","clones"]){
    const all=(p.days[kind]||[]).slice().sort((a,b)=>a.day.localeCompare(b.day));
    const last=all.at(-1)?.day;
@@ -66,7 +66,7 @@ function providerCharts(runs){
   const details=(r.details||[]).filter(m=>selected?String(m.work_id)===selected:!m.page_url);
   const daily=details.length?details.filter(m=>Date.parse(m.period_end)-Date.parse(m.period_start)<=25*3600000):(selected?[]:r.metrics.filter(m=>Date.parse(m.period_end)-Date.parse(m.period_start)<=25*3600000));
   const keys=[...new Set(daily.map(m=>m.metric))];
-  html+='<div class="grid-2">';
+  html+='<div class="impact-charts">';
   for(const key of keys){
    const dayMap=new Map();
    for(const m of daily.filter(m=>m.metric===key)) {const label=m.period_start.slice(0,10);dayMap.set(label,(dayMap.get(label)||0)+m.value);}
