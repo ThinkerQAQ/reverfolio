@@ -21,6 +21,8 @@ jobs:
         run: |
           node scripts/check_extension.mjs
           node scripts/check_dashboard.mjs
+          node scripts/check_propagation.mjs
+          node scripts/check_native_host.mjs
           node scripts/check_download_ui.mjs
           node --check extension/ui/dashboard.js
           node --check extension/background.js

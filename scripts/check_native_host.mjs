@@ -1,0 +1,41 @@
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+import path from "node:path";
+import {fileURLToPath} from "node:url";
+
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),"..");
+const read=relative=>readFileSync(path.join(root,relative),"utf8");
+const extension=JSON.parse(read("extension/manifest.json"));
+assert.ok(extension.permissions.includes("nativeMessaging"));
+assert.deepEqual(extension.host_permissions,["http://127.0.0.1:19452/*"]);
+const background=read("extension/background.js");
+assert.match(background,/chrome\.runtime\.sendNativeMessage\(REVERFOLIO_NATIVE_HOST/);
+assert.match(background,/com\.reverfolio\.bridge/);
+assert.match(background,/sender\.id!==chrome\.runtime\.id/);
+const native=read("cmd/reverfolio-host/main.go");
+assert.match(native,/ensure_bridge/);
+assert.match(native,/io\.Discard/,"Never write service logs into protocol stdout");
+assert.match(native,/maxNativeMessage/);
+assert.match(native,/extensionOrigin\s+= "chrome-extension:\/\/khdciakflcmilakmaiejamcgmggnkego\/"/);
+const win=read("cmd/reverfolio-host/launch_windows.go");
+assert.match(win,/createNoWindow\s*\|\s*createNewProcessGroup/);
+assert.match(win,/HideWindow:\s*true/);
+const launcher=read("scripts/windows/Start-Reverfolio-Hidden.vbs");
+assert.match(launcher,/shell\.Run command, 0, False/i);
+assert.match(launcher,/healthz/,"Existing service should not be started twice");
+for(const path of ["scripts/windows/Install-Reverfolio.ps1","scripts/windows/Register-ReverfolioNativeHost.ps1","scripts/windows/Run-Reverfolio.ps1","scripts/windows/Initialize-ReverfolioExtension.ps1"]){
+ assert.ok(!/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(read(path)),"Control character in Windows script: "+path);
+}
+const install=read("scripts/windows/Register-ReverfolioNativeHost.ps1");
+assert.match(install,/allowed_origins/);
+assert.match(install,/com\.reverfolio\.bridge/);
+assert.match(install,/NativeMessagingHosts/);
+assert.match(install,/Set-ScheduledTask/);
+assert.ok(!/api-token|extension-access\.key/.test(install),"No credentials should enter native manifest");
+const app=read("internal/echo/web/app.js");
+assert.match(app,/function requestNative\(command\)/);
+assert.match(app,/async function ensureLocalService\(force=false\)/);
+assert.match(app,/await api\("\/api\/runtime"\)/,"Probe live process first");
+assert.match(app,/await ensureLocalService\(\)/,"Autostart before dashboard reads");
+assert.match(app,/data-action="start-local-service"/,"User must have manual recovery control");
+console.log("Native host startup contract, hidden Windows process, guarded extension messaging and offline recovery verified.");

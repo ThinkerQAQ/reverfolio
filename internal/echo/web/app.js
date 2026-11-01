@@ -4,11 +4,12 @@
 const LANG = {
   "影响力观察工作台":"Impact observatory","本地服务":"Local service","已连接":"Connected","工作台":"Workspace",
   "本地优先 · 数据私有":"Local-first · Private data","刷新":"Refresh",
-  "影响力总览":"Impact overview","项目管理":"Projects","分发渠道":"Channels","引用与采用":"Evidence & adoption",
+  "影响力总览":"Impact overview","项目管理":"Projects","分发渠道":"Channels","传播路径":"Propagation paths","引用与采用":"Evidence & adoption",
   "发现任务":"Discovery tasks","历史统计":"History & metrics","设置":"Settings",
   "统一查看项目、文章与真实传播证据":"Track projects, articles and verified impact",
   "管理开源仓库与文章":"Manage repositories and articles",
   "查看中文、英文以及公开平台的文章链接":"Published links across languages and platforms",
+  "按作品查看原文、语言版本、分发链接与经核实的第三方传播":"Explore canonical works, translations, distribution channels and verified third-party impact",
   "审核第三方引用与实际采用的原始证据":"Verify original evidence of citations and adoption",
   "管理 AI 辅助检索及审计记录":"Manage AI-assisted search and search audit",
   "查看统计来源与导入历史数据":"Review observations and import history",
@@ -60,18 +61,22 @@ const LANG = {
   "筛选":"Filter","所有状态":"All statuses","仅显示":"Only",
   "直接进入":"Open","仅本机访问":"Only available on this device","数据时间":"Data time",
   "无可用数据":"No data available","至少输入一个链接":"A URL is required",
-  "在标签页中打开":"Open as tab","服务尚未启动":"Start the local Reverfolio service"
+  "在标签页中打开":"Open as tab","服务尚未启动":"Start the local Reverfolio service",
+  "服务未连接":"Service disconnected","启动本地服务":"Start local service","重试连接":"Retry connection",
+  "本机启动器没有响应，请重新运行安装脚本。":"Native launcher unavailable. Run the installer again.",
+  "启动服务无需保留控制台窗口；如失败，请检查本地安装与端口。":"The service starts without a console window. If it fails, check installation and localhost port."
 };
 const nav = [
   ["overview","◫","影响力总览","统一查看项目、文章与真实传播证据"],
   ["works","▦","项目管理","管理开源仓库与文章"],
   ["channels","≋","分发渠道","查看中文、英文以及公开平台的文章链接"],
+  ["propagation","⇢","传播路径","按作品查看原文、语言版本、分发链接与经核实的第三方传播"],
   ["evidence","◇","引用与采用","审核第三方引用与实际采用的原始证据"],
   ["tasks","⌕","发现任务","管理 AI 辅助检索及审计记录"],
   ["history","▤","历史统计","查看统计来源与导入历史数据"],
   ["settings","⚙","设置","查看本地连接、权限与语言偏好"]
 ];
-const state = {lang:(localStorage.getItem("reverfolio.lang") || localStorage.getItem("openecho.lang"))==="en"?"en":"zh",view:"overview",data:null,leases:new Map(),preview:null,importInput:"",busy:false,settingsQuery:"",settingsSelected:"",settingsExpanded:new Set(),settingsDraft:{},evidenceFilter:null};
+const state = {lang:(localStorage.getItem("reverfolio.lang") || localStorage.getItem("openecho.lang"))==="en"?"en":"zh",view:"overview",data:null,leases:new Map(),preview:null,importInput:"",busy:false,settingsQuery:"",settingsSelected:"",settingsExpanded:new Set(),settingsDraft:{},evidenceFilter:null,propagationWork:null,offlineMessage:""};
 const $ = id => document.getElementById(id);
 const T = key => state.lang==="en" ? (LANG[key] || key) : key;
 const E = value => String(value ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -90,6 +95,47 @@ const extensionMode = location.protocol==="chrome-extension:";
 const apiOrigin = document.querySelector('meta[name="reverfolio-api-origin"]')?.content || location.origin;
 const apiURL = path => new URL(path,apiOrigin).href;
 if(extensionMode)document.documentElement.classList.add("reverfolio-extension");
+// A native-message request is made before the first data read. The native host
+// checks for an existing service and starts one only if needed.
+let nativeReady=false;
+let nativePending=null;
+function requestNative(command){
+ return new Promise((resolve,reject)=>{
+  chrome.runtime.sendMessage({type:"reverfolio.bridge",command},reply=>{
+   const error=chrome.runtime.lastError;
+   if(error){reject(Error(T("本机启动器没有响应，请重新运行安装脚本。")+" "+error.message));return;}
+   if(!reply?.ok){reject(Error(reply?.error||T("本机启动器没有响应，请重新运行安装脚本。")));return;}
+   resolve(reply);
+  });
+ });
+}
+async function ensureLocalService(force=false){
+ if(!extensionMode)return;
+ if(nativeReady&&!force)return;
+ // Keep existing installs usable when the service is already running, even
+ // before Native Messaging is registered (including Linux/macOS installs).
+ if(!force) {
+  try {
+   await api("/api/runtime");
+   nativeReady=true;
+   return;
+  } catch(error) {
+   // A 401 is an authorization/setup error, not a reason to start a duplicate.
+   if(String(error?.message||"").includes("未获授权"))throw error;
+  }
+ }
+ if(!nativePending){
+  nativePending=requestNative("ensure_bridge").then(result=>{nativeReady=true;return result;}).finally(()=>{nativePending=null;});
+ }
+ return nativePending;
+}
+function offlineView(){
+ return '<section class="panel offline-panel"><h2>'+E(T("服务未连接"))+'</h2>'+
+ '<p>'+E(state.offlineMessage||T("服务尚未启动"))+'</p>'+
+ '<p class="meta">'+E(T("启动服务无需保留控制台窗口；如失败，请检查本地安装与端口。"))+'</p>'+
+ '<div class="btn-row">'+(extensionMode?'<button class="btn btn-primary" data-action="start-local-service">'+E(T("启动本地服务"))+'</button>':'')+
+ '<button class="btn btn-secondary" data-action="refresh">'+E(T("重试连接"))+'</button></div></section>';
+}
 async function api(url,opts={}) {
   const extensionHeader = extensionMode ? {"X-Reverfolio-Extension-Access":String(window.REVERFOLIO_EXTENSION_ACCESS||"")} : {};
   const headers = {"Content-Type":"application/json",...extensionHeader,...(opts.method && opts.method!=="GET" ? {"X-Reverfolio-UI":"1"} : {}),...(opts.headers||{})};
@@ -112,14 +158,24 @@ async function act(operation,successMessage=T("已保存并更新")) {
   finally {state.busy=false;document.body.classList.remove("busy");}
 }
 async function refresh(showMessage=true){
+ try{
+  await ensureLocalService();
   const [works,report,mentions,tasks,audit,settings,runtime,sources,catalog,dashboard]=await Promise.all([
     api("/api/works"),api("/api/report"),api("/api/mentions"),api("/api/tasks"),api("/api/audit"),api("/api/settings"),api("/api/runtime"),api("/api/site-sources"),api("/api/catalog"),api("/api/dashboard")
   ]);
   const pairs=await Promise.all(works.map(async w=>[w.id,await api("/api/works/"+w.id+"/channels")]));
   state.data={works,report,mentions,tasks,audit,settings,runtime,sources,catalog,dashboard,channels:new Map(pairs)};
+  state.offlineMessage="";
   state.lang=pref("interface.language","zh-CN")==="en"?"en":"zh";
   render();
   if(showMessage)notification(T("数据读取成功"));
+ }catch(error){
+  nativeReady=false;
+  state.data=null;
+  state.offlineMessage=String(error?.message||error);
+  render();
+  throw error;
+ }
 }
 function navRender(){
   $("navigation").innerHTML=nav.map(([id,icon,label])=>
@@ -134,12 +190,15 @@ function shellRender(){
   if(newTab)newTab.hidden=!extensionMode;
   document.title="Reverfolio · "+T(current[2]);
   document.querySelectorAll("[data-i18n]").forEach(node=>node.textContent=T(node.dataset.i18n));
+  const indicator=document.querySelector(".sidebar-status .pill");
+  if(indicator)indicator.textContent=state.offlineMessage?T("服务未连接"):T("已连接");
+  document.querySelectorAll(".sidebar-status .online-dot,.topbar .online-dot").forEach(dot=>dot.classList.toggle("offline",!!state.offlineMessage));
   navRender();
 }
 function render(){
-  shellRender();if(!state.data){$("view").innerHTML='<div class="loading">Loading…</div>';return;}
+  shellRender();if(!state.data){$("view").innerHTML=state.offlineMessage?offlineView():'<div class="loading">Loading…</div>';return;}
   document.body.classList.toggle("compact-layout",pref("appearance.compact")==="true");
-  const pages={overview:overviewView,works:worksView,channels:channelsView,evidence:evidenceView,tasks:tasksView,history:historyView,settings:settingsView};
+  const pages={overview:overviewView,works:worksView,channels:channelsView,propagation:propagationView,evidence:evidenceView,tasks:tasksView,history:historyView,settings:settingsView};
   $("view").innerHTML=pages[state.view]();
 }
 const heading=(title,sub="",right="")=>'<div class="section-header"><div><h2>'+T(title)+'</h2>'+(sub?'<p>'+T(sub)+'</p>':"")+'</div>'+right+'</div>';
@@ -257,6 +316,44 @@ function channelsView(){
  select("语言","language",[["zh-CN","简体中文"],["en","English"]])+
  '<label class="field full"><span>'+T("链接地址")+'</span><input type="url" name="url" required placeholder="https://"></label></div>'+
  '<div class="form-actions"><button class="btn btn-primary">'+T("新建")+'</button></div></form></div>';
+}
+function propagationView(){
+ const works=state.data.works||[],channels=state.data.channels||new Map(),mentions=state.data.mentions||[];
+ const siteHost=url=>{try{return new URL(url).hostname.toLowerCase();}catch{return "";}};
+ const canonical=w=>w.kind==="project"?"https://github.com/"+w.repository:w.canonical_url;
+ const eligible=works.filter(w=>canonical(w) && ((channels.get(w.id)||[]).length || mentions.some(m=>m.work_id===w.id)));
+ const impact=w=>(channels.get(w.id)||[]).length+3*mentions.filter(m=>m.work_id===w.id&&m.state==="verified"&&m.origin==="third_party").length;
+ eligible.sort((a,b)=>impact(b)-impact(a)||a.id-b.id);
+ const active=eligible.find(w=>String(w.id)===String(state.propagationWork))||eligible[0];
+ const label=(zh,en)=>settingsLabel([zh,en]);
+ const introduction=heading(label("传播路径","Propagation paths"),label("公开链接只是作品关联；只有经审核的第三方原始证据才代表已核实传播。","Public URLs are associations; only reviewed original third-party evidence confirms propagation."));
+ if(!eligible.length)return introduction+'<div class="panel empty">'+E(label("尚无可展示的公开渠道或引用证据。","No linked public URLs or evidence yet."))+'</div>';
+ const selected='<label class="field propagation-picker"><span>'+E(label("选择作品","Select work"))+'</span><select id="propagation-select" aria-label="'+E(label("选择作品","Select work"))+'">'+eligible.map(w=>'<option value="'+w.id+'"'+(w.id===active.id?" selected":"")+'>'+E(w.title)+'</option>').join("")+'</select></label>';
+ const allChannels=channels.get(active.id)||[],home=canonical(active),host=siteHost(home);
+ const firstParty=allChannels.filter(c=>siteHost(c.url)===host&&c.url!==home);
+ const distributed=allChannels.filter(c=>siteHost(c.url)!==host);
+ const verified=mentions.filter(m=>m.work_id===active.id&&m.origin==="third_party"&&m.state==="verified");
+ const groups=new Set(),events=[];
+ for(const m of verified){
+  const key=m.event_key||"mention-"+m.id;
+  if(groups.has(key))continue;
+  groups.add(key);
+  const observed=(m.evidence||[]).map(x=>x.observed_at).filter(Boolean).sort()[0]||m.discovered_at;
+  events.push({...m,observed});
+ }
+ events.sort((a,b)=>String(a.observed||"").localeCompare(String(b.observed||"")));
+ const missing='<p class="meta">'+E(label("尚无已登记记录，不代表实际为零。","Nothing registered; this does not imply zero activity."))+'</p>';
+ const linked=items=>items.length?'<ul class="propagation-links">'+items.map(c=>'<li><span class="propagation-lang">'+E(c.language||"—")+'</span> '+anchor(c.url,c.platform||siteHost(c.url))+'<small>'+E(c.url)+'</small></li>').join("")+'</ul>':missing;
+ const pathNode=(name,count,content)=>'<section class="propagation-node"><div class="propagation-node-head"><h3>'+E(name)+'</h3><strong>'+fmt(count)+'</strong></div>'+content+'</section>';
+ const source=pathNode(label("原文／主项目","Canonical work"),1,'<div class="propagation-main-link">'+anchor(home,active.title)+'</div><p class="meta">'+E(host)+'</p>');
+ const originals=pathNode(label("同站语言版本","First-party language versions"),firstParty.length,linked(firstParty));
+ const channelsNode=pathNode(label("外部分发链接","External distribution URLs"),distributed.length,linked(distributed));
+ const evidence=pathNode(label("已核实第三方事件","Verified third-party events"),events.length,events.length?'<p class="meta">'+E(label("基于审核状态与事件标识去重，不是独立读者数。","Deduplicated by review state and event key; not an audience count."))+'</p>':missing);
+ const timeline=events.length?'<ol class="propagation-timeline">'+events.map(m=>'<li><time>'+E(label("首次观测","First observed"))+' · '+dt(m.observed)+'</time><div><strong>'+E(m.actor_name||label("未知作者","Unknown author"))+' · '+E(m.type)+'</strong><p>'+anchor(m.url,m.url)+'</p><small>'+E(label("审核时间","Verified at"))+' · '+dt(m.verified_at)+'</small></div></li>').join("")+'</ol>':'<p class="panel meta">'+E(label("暂无经审核的第三方传播事件；这不表示没有人引用。","No verified third-party propagation recorded; absence is not proof of no citations."))+'</p>';
+ return introduction+'<div class="panel">'+selected+'<p class="meta">'+E(label("流程展示的是关联关系，不按发布日期排序：渠道尚未记录发布时间。","This is an association map, not a publication chronology: channel publish dates are not stored."))+'</p></div>'+
+ '<div class="propagation-flow">'+source+originals+channelsNode+evidence+'</div>'+
+ heading(label("第三方传播观测时间线","Third-party evidence timeline"),label("仅展示审核通过的原始证据；日期为首次观测和审核时间，不是原始发布时间。","Reviewed original evidence only; dates describe observation and verification, not original publication."))+
+ timeline;
 }
 function evidenceView(){
  const works=state.data.works;
@@ -406,6 +503,11 @@ async function runClick(button){
   return;
  }
  if(action.startsWith("settings-")){await settingsHandleAction(button);return;}
+ if(action==="start-local-service"){
+  nativeReady=false;
+  await act(async()=>{await ensureLocalService(true);});
+  return;
+ }
  if(action==="refresh"){await act(async()=>{});return;}
  if(action==="toggle-monitoring"){
   const entry=state.data.catalog.find(x=>x.work.id===id);
@@ -519,6 +621,7 @@ document.addEventListener("change",async e=>{
   if(form.elements.provider.value==="umami")form.elements.endpoint.value=browser?"https://cloud.umami.is/api":"https://api.umami.is/v1";
   return;
  }
+ if(e.target.id==="propagation-select"){state.propagationWork=e.target.value;render();return;}
  if(e.target.id==="evidence-filter"){state.evidenceFilter=e.target.value;render();return;}
  if(e.target.dataset.settingKey)settingsHandleInput(e.target);
  if(e.target.id==="work-kind"){

@@ -23,5 +23,10 @@ $Initializer = Join-Path $Root 'Initialize-ReverfolioExtension.ps1'
 if (Test-Path -LiteralPath (Join-Path $Root 'extension\manifest.json')) {
   if (!(Test-Path -LiteralPath $Initializer)) { throw 'Extension initializer missing' }
   & $Initializer
+  $HostInstaller = Join-Path $Root 'Register-ReverfolioNativeHost.ps1'
+  if (Test-Path -LiteralPath (Join-Path $Root 'bin/reverfolio-host.exe')) {
+    if (!(Test-Path -LiteralPath $HostInstaller)) { throw 'Native Messaging installer missing' }
+    & $HostInstaller
+  }
 }
 Write-Output 'Reverfolio portable Windows installation ready.'
