@@ -22,8 +22,9 @@ function impactDashboardView(){
  const data=state.data.dashboard;
  if(!data)return '';
  const projects=data.projects||[];
- const id=String(state.chartProject||projects[0]?.work.id||"");
- const project=projects.find(p=>String(p.work.id)===id)||projects[0];
+ // Prefer an actually successful project on first load; the catalog's first entry may have failed.
+ const explicitProject=state.chartProject&&projects.find(p=>String(p.work.id)===String(state.chartProject));
+ const project=explicitProject||projects.find(p=>p.attempt_state==="complete"&&(p.traffic_at||p.download_at))||projects.find(p=>p.traffic_at||p.download_at)||projects[0];
  const range=state.chartRange||"14";
  const toolbar='<div class="toolbar"><label>'+E(D("项目","Project"))+' <select class="inline-input" data-chart-select="project">'+projects.map(p=>'<option value="'+p.work.id+'" '+(p===project?'selected':'')+'>'+E(p.work.title)+'</option>').join('')+'</select></label><label>'+E(D("最近已观测日期起","From last observed day"))+' <select class="inline-input" data-chart-select="range">'+[["7","7"],["14","14"],["all",D("全部历史","All history")]].map(([v,l])=>'<option value="'+v+'" '+(v===range?'selected':'')+'>'+E(l)+'</option>').join('')+'</select></label></div>';
  let html=heading(D("影响力统计图","Impact charts"))+toolbar;

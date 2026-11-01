@@ -52,4 +52,9 @@ assert.match(articleHTML,/provider_timeout/,"Keep latest failed attempt alongsid
 assert.ok(!articleHTML.includes("unrelated"),"Article filter must not display unrelated provider data");
 context.state.chartWork="13";
 assert.match(context.providerCharts([]),/No site observations/);
+context.state.chartProject="";
+const noData={work:{id:1,title:"Fail",repository:"demo/bad"},attempt_state:"failed",traffic:{},days:{views:[],clones:[]},popular:{},observations:[]};
+const healthy={...noData,work:{id:2,title:"Healthy",repository:"demo/healthy"},attempt_state:"complete",traffic_at:"2026-10-21T00:00:00Z"};
+context.state.data.dashboard.projects=[noData,healthy];
+assert.match(context.impactDashboardView(),/<strong>demo\/healthy<\/strong>/,"First load should prefer a project with successful observations");
 console.log("Charts preserve zero, missing days, true calendar ranges, article scope, interval deltas, explanatory SVG and downloadable CSV.");
