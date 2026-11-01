@@ -70,7 +70,7 @@ go vet ./...
 python3 scripts/check_docs.py
 ```
 
-See [workflow acceptance](docs/workflow-validation.md) for the test scope, caveats and the current CI billing limitation. Linux tests do not prove Windows/macOS runtime behavior. No claim is made of accurately identified human readers or verified end-users.
+See [workflow acceptance](docs/workflow-validation.md) for test scope and platform caveats. Hosted CI runs Linux/Windows/macOS suites; cross-compilation alone does not prove native runtime behavior. No claim is made of accurately identified human readers or verified end-users.
 
 ## Rename compatibility
 

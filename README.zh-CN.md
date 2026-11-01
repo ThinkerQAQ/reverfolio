@@ -46,7 +46,7 @@ go run ./cmd/reverfolio -restore /private/backup.sqlite -db /private/new-state.s
 
 历史数值导入采用 `schema_version: 1`，记录时间范围、时区、单位、范围和来源，先 dry-run 再确认；未核实的第三方分发链接保持为空，不编造。所有凭据、SQLite 数据、个人指标和历史资料不得提交 Git 仓库。
 
-验证命令：`go test -race ./...`、`go vet ./...`、`python3 scripts/check_docs.py`。当前平台 CI 受 GitHub 账号账单／额度限制，不代表 Windows/macOS 已实机验证；详见[验收说明](docs/workflow-validation.md)。
+验证命令：`go test -race ./...`、`go vet ./...`、`python3 scripts/check_docs.py`。平台 CI 执行 Linux、Windows 和 macOS 测试，交叉编译不等于原生运行验收；详见[验收说明](docs/workflow-validation.md)。
 
 ## 名称迁移
 

@@ -84,10 +84,15 @@ The development branch extends the GitHub foundation with article/site registry,
 
 Outstanding: independent external-provider adapters (Umami, GSC, Bing Webmaster), actual automatic AI search, definitive independent usage attribution, full user-configurable source/accounts, packaged releases, and tested Windows/macOS runtime behavior. These are **not** represented as completed. CI remains blocked by GitHub account billing/spending settings. For detailed acceptance evidence see [workflow-validation.md](workflow-validation.md).
 
-## Current implementation — 2026-10-31
+## Current implementation — 2026-11-01
 
-P1–P5 are implemented and released as v0.2.1. Windows is the only database authority; the former WSL application is inactive. WSL currently carries only the MCP tunnel transport. Cross-platform archives exist; native macOS/Linux acceptance remains pending.
+v0.4.0 adds independent Umami/GSC/Bing adapters, audited identity groups, shared provider controls,
+provider failure handling, discovery retries, and source configuration recovery. Windows is the
+single database authority; the application and tunnel both run natively on Windows.
 
-The next release adds shared backend release-asset classification, interval download coverage, live collection schedule controls, safe credential-presence status and an MCP collection-status tool. Windows GitHub authorization has been restored using the existing account.
+Cross-platform archives cover six targets. Local Linux and Windows tests pass; hosted CI runs
+native Linux/Windows/macOS race tests, vet and build. See [acceptance](workflow-validation.md).
+Live provider activation requires explicit authorization and remains deployment-specific.
 
-Remaining: independent Umami/GSC/Bing adapters, identity grouping, further AI discovery execution, Windows-native tunnel migration, and GitHub-hosted CI billing. Actual autonomous AI search is not implemented; connected AI clients execute search tasks and retain evidence.
+Connected AI clients execute discovery queries; automatic full-web search and definitive
+software-user attribution are not implemented. Historical progress sections above record earlier states.
