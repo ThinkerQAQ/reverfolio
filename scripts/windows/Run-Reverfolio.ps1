@@ -8,6 +8,5 @@ if (Test-Path -LiteralPath $Setup) { & $Setup }
 if (!(Test-Path -LiteralPath $Exe) -or !(Test-Path -LiteralPath $Config)) {
     throw 'Reverfolio binary or config.toml is missing'
 }
-Set-Location -LiteralPath $Root
-& $Exe -config $Config
-exit $LASTEXITCODE
+# Start with no console; this wrapper may exit immediately.
+Start-Process -FilePath $Exe -ArgumentList @('-config', ('"' + $Config + '"')) -WorkingDirectory $Root -WindowStyle Hidden

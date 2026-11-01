@@ -6,6 +6,8 @@ Local-first observability for open-source and content impact.
 
 Reverfolio will connect projects, multilingual articles, distribution channels, metric history, and evidence of external citations or adoption. AI clients can discover evidence through their search tools and submit it through MCP.
 
+**v0.7.0** also fixes Windows console-window startup: the extension probes and silently starts the local service through a separately registered Native Messaging host, with manual recovery controls. Existing Windows login tasks become silent.
+
 **v0.7.0** adds the [Propagation paths](docs/impact-dashboard.md) view: canonical work → first-party language links → external syndication → reviewed third-party evidence, plus a genuine observed/verified timeline. Channel URLs have no inferred publication dates. SyndiRelay may optionally hand off confirmed public URL metadata without becoming a runtime dependency.
 
 **v0.6.1** refines the impact charts: source-scoped article drilldown, calendar-day trend filters, actual interval download changes, unclipped SVG/PNG exports, and identical Web/extension UI.

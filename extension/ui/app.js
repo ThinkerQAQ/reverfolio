@@ -61,7 +61,10 @@ const LANG = {
   "筛选":"Filter","所有状态":"All statuses","仅显示":"Only",
   "直接进入":"Open","仅本机访问":"Only available on this device","数据时间":"Data time",
   "无可用数据":"No data available","至少输入一个链接":"A URL is required",
-  "在标签页中打开":"Open as tab","服务尚未启动":"Start the local Reverfolio service"
+  "在标签页中打开":"Open as tab","服务尚未启动":"Start the local Reverfolio service",
+  "服务未连接":"Service disconnected","启动本地服务":"Start local service","重试连接":"Retry connection",
+  "本机启动器没有响应，请重新运行安装脚本。":"Native launcher unavailable. Run the installer again.",
+  "启动服务无需保留控制台窗口；如失败，请检查本地安装与端口。":"The service starts without a console window. If it fails, check installation and localhost port."
 };
 const nav = [
   ["overview","◫","影响力总览","统一查看项目、文章与真实传播证据"],
@@ -73,7 +76,7 @@ const nav = [
   ["history","▤","历史统计","查看统计来源与导入历史数据"],
   ["settings","⚙","设置","查看本地连接、权限与语言偏好"]
 ];
-const state = {lang:(localStorage.getItem("reverfolio.lang") || localStorage.getItem("openecho.lang"))==="en"?"en":"zh",view:"overview",data:null,leases:new Map(),preview:null,importInput:"",busy:false,settingsQuery:"",settingsSelected:"",settingsExpanded:new Set(),settingsDraft:{},evidenceFilter:null,propagationWork:null};
+const state = {lang:(localStorage.getItem("reverfolio.lang") || localStorage.getItem("openecho.lang"))==="en"?"en":"zh",view:"overview",data:null,leases:new Map(),preview:null,importInput:"",busy:false,settingsQuery:"",settingsSelected:"",settingsExpanded:new Set(),settingsDraft:{},evidenceFilter:null,propagationWork:null,offlineMessage:""};
 const $ = id => document.getElementById(id);
 const T = key => state.lang==="en" ? (LANG[key] || key) : key;
 const E = value => String(value ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -92,6 +95,47 @@ const extensionMode = location.protocol==="chrome-extension:";
 const apiOrigin = document.querySelector('meta[name="reverfolio-api-origin"]')?.content || location.origin;
 const apiURL = path => new URL(path,apiOrigin).href;
 if(extensionMode)document.documentElement.classList.add("reverfolio-extension");
+// A native-message request is made before the first data read. The native host
+// checks for an existing service and starts one only if needed.
+let nativeReady=false;
+let nativePending=null;
+function requestNative(command){
+ return new Promise((resolve,reject)=>{
+  chrome.runtime.sendMessage({type:"reverfolio.bridge",command},reply=>{
+   const error=chrome.runtime.lastError;
+   if(error){reject(Error(T("本机启动器没有响应，请重新运行安装脚本。")+" "+error.message));return;}
+   if(!reply?.ok){reject(Error(reply?.error||T("本机启动器没有响应，请重新运行安装脚本。")));return;}
+   resolve(reply);
+  });
+ });
+}
+async function ensureLocalService(force=false){
+ if(!extensionMode)return;
+ if(nativeReady&&!force)return;
+ // Keep existing installs usable when the service is already running, even
+ // before Native Messaging is registered (including Linux/macOS installs).
+ if(!force) {
+  try {
+   await api("/api/runtime");
+   nativeReady=true;
+   return;
+  } catch(error) {
+   // A 401 is an authorization/setup error, not a reason to start a duplicate.
+   if(String(error?.message||"").includes("未获授权"))throw error;
+  }
+ }
+ if(!nativePending){
+  nativePending=requestNative("ensure_bridge").then(result=>{nativeReady=true;return result;}).finally(()=>{nativePending=null;});
+ }
+ return nativePending;
+}
+function offlineView(){
+ return '<section class="panel offline-panel"><h2>'+E(T("服务未连接"))+'</h2>'+
+ '<p>'+E(state.offlineMessage||T("服务尚未启动"))+'</p>'+
+ '<p class="meta">'+E(T("启动服务无需保留控制台窗口；如失败，请检查本地安装与端口。"))+'</p>'+
+ '<div class="btn-row">'+(extensionMode?'<button class="btn btn-primary" data-action="start-local-service">'+E(T("启动本地服务"))+'</button>':'')+
+ '<button class="btn btn-secondary" data-action="refresh">'+E(T("重试连接"))+'</button></div></section>';
+}
 async function api(url,opts={}) {
   const extensionHeader = extensionMode ? {"X-Reverfolio-Extension-Access":String(window.REVERFOLIO_EXTENSION_ACCESS||"")} : {};
   const headers = {"Content-Type":"application/json",...extensionHeader,...(opts.method && opts.method!=="GET" ? {"X-Reverfolio-UI":"1"} : {}),...(opts.headers||{})};
@@ -114,14 +158,24 @@ async function act(operation,successMessage=T("已保存并更新")) {
   finally {state.busy=false;document.body.classList.remove("busy");}
 }
 async function refresh(showMessage=true){
+ try{
+  await ensureLocalService();
   const [works,report,mentions,tasks,audit,settings,runtime,sources,catalog,dashboard]=await Promise.all([
     api("/api/works"),api("/api/report"),api("/api/mentions"),api("/api/tasks"),api("/api/audit"),api("/api/settings"),api("/api/runtime"),api("/api/site-sources"),api("/api/catalog"),api("/api/dashboard")
   ]);
   const pairs=await Promise.all(works.map(async w=>[w.id,await api("/api/works/"+w.id+"/channels")]));
   state.data={works,report,mentions,tasks,audit,settings,runtime,sources,catalog,dashboard,channels:new Map(pairs)};
+  state.offlineMessage="";
   state.lang=pref("interface.language","zh-CN")==="en"?"en":"zh";
   render();
   if(showMessage)notification(T("数据读取成功"));
+ }catch(error){
+  nativeReady=false;
+  state.data=null;
+  state.offlineMessage=String(error?.message||error);
+  render();
+  throw error;
+ }
 }
 function navRender(){
   $("navigation").innerHTML=nav.map(([id,icon,label])=>
@@ -136,10 +190,13 @@ function shellRender(){
   if(newTab)newTab.hidden=!extensionMode;
   document.title="Reverfolio · "+T(current[2]);
   document.querySelectorAll("[data-i18n]").forEach(node=>node.textContent=T(node.dataset.i18n));
+  const indicator=document.querySelector(".sidebar-status .pill");
+  if(indicator)indicator.textContent=state.offlineMessage?T("服务未连接"):T("已连接");
+  document.querySelectorAll(".sidebar-status .online-dot,.topbar .online-dot").forEach(dot=>dot.classList.toggle("offline",!!state.offlineMessage));
   navRender();
 }
 function render(){
-  shellRender();if(!state.data){$("view").innerHTML='<div class="loading">Loading…</div>';return;}
+  shellRender();if(!state.data){$("view").innerHTML=state.offlineMessage?offlineView():'<div class="loading">Loading…</div>';return;}
   document.body.classList.toggle("compact-layout",pref("appearance.compact")==="true");
   const pages={overview:overviewView,works:worksView,channels:channelsView,propagation:propagationView,evidence:evidenceView,tasks:tasksView,history:historyView,settings:settingsView};
   $("view").innerHTML=pages[state.view]();
@@ -446,6 +503,11 @@ async function runClick(button){
   return;
  }
  if(action.startsWith("settings-")){await settingsHandleAction(button);return;}
+ if(action==="start-local-service"){
+  nativeReady=false;
+  await act(async()=>{await ensureLocalService(true);});
+  return;
+ }
  if(action==="refresh"){await act(async()=>{});return;}
  if(action==="toggle-monitoring"){
   const entry=state.data.catalog.find(x=>x.work.id===id);

@@ -15,6 +15,9 @@ if not exist "%CONFIG%" (
   echo Missing config: %CONFIG%
   exit /b 1
 )
-cd /d "%ROOT%"
-echo Reverfolio starting. Use the local URL from config.toml.
-"%EXE%" -config "%CONFIG%"
+if not exist "%ROOT%Start-Reverfolio-Hidden.vbs" (
+  echo Missing silent launcher: "%ROOT%Start-Reverfolio-Hidden.vbs"
+  exit /b 1
+)
+start "" wscript.exe //B "%ROOT%Start-Reverfolio-Hidden.vbs"
+exit /b 0

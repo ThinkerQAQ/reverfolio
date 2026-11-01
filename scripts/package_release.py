@@ -23,6 +23,7 @@ subprocess.run(['node', 'scripts/check_extension.mjs'], cwd=ROOT, check=True)
 subprocess.run(['node', 'scripts/check_download_ui.mjs'], cwd=ROOT, check=True)
 subprocess.run(['node', 'scripts/check_dashboard.mjs'], cwd=ROOT, check=True)
 subprocess.run(['node', 'scripts/check_propagation.mjs'], cwd=ROOT, check=True)
+subprocess.run(['node', 'scripts/check_native_host.mjs'], cwd=ROOT, check=True)
 subprocess.run(['go', 'test', './...'], cwd=ROOT, check=True)
 subprocess.run(['python3', 'scripts/check_docs.py'], cwd=ROOT, check=True)
 assets = []
@@ -37,9 +38,15 @@ for operating_system in ('windows', 'linux', 'darwin'):
             subprocess.run(['go', 'build', '-trimpath', '-ldflags=-s -w', '-o', str(binary), './cmd/reverfolio'],
                            cwd=ROOT, env=env, check=True)
             if operating_system == 'windows':
+                # The browser launches the host in GUI subsystem mode, preventing
+                # a flashing console. It starts the separate service hidden.
+                host = root / 'bin' / 'reverfolio-host.exe'
+                subprocess.run(['go','build','-trimpath','-ldflags=-s -w -H=windowsgui',
+                                '-o',str(host),'./cmd/reverfolio-host'],cwd=ROOT,env=env,check=True)
                 shutil.copytree(ROOT / 'extension', root / 'extension')
                 for script in ('Start-Reverfolio.cmd', 'Run-Reverfolio.ps1',
-                               'Install-Reverfolio.ps1', 'Initialize-ReverfolioExtension.ps1'):
+                               'Install-Reverfolio.ps1', 'Initialize-ReverfolioExtension.ps1',
+                               'Register-ReverfolioNativeHost.ps1','Start-Reverfolio-Hidden.vbs'):
                     shutil.copy2(ROOT / 'scripts/windows' / script, root / script)
             for name in ('config.example.toml', 'README.md', 'README.zh-CN.md',
                          'LICENSE', 'THIRD_PARTY_NOTICES.md', 'SECURITY.md'):
