@@ -33,3 +33,7 @@ Thumbs.db
 
 # Local extension secret: public template is committed intentionally;
 # never stage an installed populated version from the Windows folder.
+
+# Python build cache
+__pycache__/
+*.pyc

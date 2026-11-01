@@ -207,7 +207,12 @@ func (s Service) runScheduledCollection(ctx context.Context, fallback time.Durat
 		if !current() {
 			return
 		}
-		if work.Kind != "project" {
+		enabled, checkErr := s.Store.MonitoringEnabled(ctx, work.ID)
+		if checkErr != nil {
+			onError(checkErr)
+			return
+		}
+		if !enabled || work.Kind != "project" {
 			continue
 		}
 		child, cancel := context.WithTimeout(ctx, 90*time.Second)
@@ -227,7 +232,12 @@ func (s Service) runScheduledCollection(ctx context.Context, fallback time.Durat
 			if !current() {
 				return
 			}
-			if !source.Enabled {
+			enabled, checkErr := s.Store.MonitoringEnabled(ctx, source.WorkID)
+			if checkErr != nil {
+				onError(checkErr)
+				return
+			}
+			if !enabled || !source.Enabled {
 				continue
 			}
 			raw, _ := json.Marshal(source)
@@ -305,7 +315,7 @@ func RestoreDatabase(ctx context.Context, source, destination string) error {
 		err = probe.QueryRowContext(ctx, `PRAGMA user_version`).Scan(&version)
 	}
 	probe.Close()
-	if err != nil || integrity != "ok" || version < 1 || version > 4 {
+	if err != nil || integrity != "ok" || version < 1 || version > 5 {
 		return ErrInvalid
 	}
 	store, err := Open(name)

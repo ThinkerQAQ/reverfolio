@@ -181,49 +181,59 @@ type WorkInput struct {
 	CanonicalURL string `json:"canonical_url,omitempty"`
 }
 
-func (s *Store) RegisterWork(ctx context.Context, in WorkInput) (Work, error) {
+func normalizeWorkInput(in WorkInput) (WorkInput, error) {
 	if in.Kind == "" {
 		in.Kind = "project"
 	}
 	in.Title = strings.TrimSpace(in.Title)
 	if in.Kind == "project" {
 		if in.Title == "" || len(in.Title) > 200 || !repoPattern.MatchString(in.Repository) || strings.HasSuffix(in.Repository, "/..") || strings.HasSuffix(in.Repository, "/.") {
-			return Work{}, ErrInvalid
+			return WorkInput{}, ErrInvalid
 		}
 	} else if in.Kind == "article" || in.Kind == "site" {
 		if in.Title == "" || len(in.Title) > 200 || in.Repository != "" {
-			return Work{}, ErrInvalid
+			return WorkInput{}, ErrInvalid
 		}
 		u, err := NormalizeURL(in.CanonicalURL)
 		if err != nil {
-			return Work{}, err
+			return WorkInput{}, err
 		}
 		in.CanonicalURL = u
 	} else {
-		return Work{}, ErrInvalid
+		return WorkInput{}, ErrInvalid
 	}
-	return command(ctx, s, "register_work", in.RequestID, in, func(tx *sql.Tx) (Work, error) {
-		var row *sql.Row
-		if in.Kind == "project" {
-			_, err := tx.ExecContext(ctx, `INSERT INTO works(title,repository,kind) VALUES(?,?,'project') ON CONFLICT(repository) DO NOTHING`, in.Title, in.Repository)
-			if err != nil {
-				return Work{}, err
-			}
-			row = tx.QueryRowContext(ctx, `SELECT id,title,COALESCE(repository,''),github_id,kind,COALESCE(canonical_url,'') FROM works WHERE repository=?`, in.Repository)
-		} else {
-			_, err := tx.ExecContext(ctx, `INSERT INTO works(title,kind,canonical_url) VALUES(?,?,?) ON CONFLICT(canonical_url) DO NOTHING`, in.Title, in.Kind, in.CanonicalURL)
-			if err != nil {
-				return Work{}, err
-			}
-			row = tx.QueryRowContext(ctx, `SELECT id,title,COALESCE(repository,''),github_id,kind,COALESCE(canonical_url,'') FROM works WHERE canonical_url=?`, in.CanonicalURL)
+	return in, nil
+}
+
+func (s *Store) RegisterWork(ctx context.Context, in WorkInput) (Work, error) {
+	var err error
+	in, err = normalizeWorkInput(in)
+	if err != nil {
+		return Work{}, err
+	}
+	return command(ctx, s, "register_work", in.RequestID, in, func(tx *sql.Tx) (Work, error) { return registerWorkTx(ctx, tx, in) })
+}
+func registerWorkTx(ctx context.Context, tx *sql.Tx, in WorkInput) (Work, error) {
+	var row *sql.Row
+	if in.Kind == "project" {
+		_, err := tx.ExecContext(ctx, `INSERT INTO works(title,repository,kind) VALUES(?,?,'project') ON CONFLICT(repository) DO NOTHING`, in.Title, in.Repository)
+		if err != nil {
+			return Work{}, err
 		}
-		var w Work
-		err := row.Scan(&w.ID, &w.Title, &w.Repository, &w.RepositoryID, &w.Kind, &w.CanonicalURL)
-		if err == nil && w.Kind != in.Kind {
-			return Work{}, ErrConflict
+		row = tx.QueryRowContext(ctx, `SELECT id,title,COALESCE(repository,''),github_id,kind,COALESCE(canonical_url,'') FROM works WHERE repository=?`, in.Repository)
+	} else {
+		_, err := tx.ExecContext(ctx, `INSERT INTO works(title,kind,canonical_url) VALUES(?,?,?) ON CONFLICT(canonical_url) DO NOTHING`, in.Title, in.Kind, in.CanonicalURL)
+		if err != nil {
+			return Work{}, err
 		}
-		return w, err
-	})
+		row = tx.QueryRowContext(ctx, `SELECT id,title,COALESCE(repository,''),github_id,kind,COALESCE(canonical_url,'') FROM works WHERE canonical_url=?`, in.CanonicalURL)
+	}
+	var w Work
+	err := row.Scan(&w.ID, &w.Title, &w.Repository, &w.RepositoryID, &w.Kind, &w.CanonicalURL)
+	if err == nil && w.Kind != in.Kind {
+		return Work{}, ErrConflict
+	}
+	return w, err
 }
 
 type ChannelInput struct {
@@ -241,28 +251,38 @@ type Channel struct {
 	URL      string `json:"url"`
 }
 
-func (s *Store) AddChannel(ctx context.Context, in ChannelInput) (Channel, error) {
+func normalizeChannelInput(in ChannelInput) (ChannelInput, error) {
 	u, err := NormalizeURL(in.URL)
 	if err != nil || in.Platform == "" || len(in.Platform) > 80 || in.Language == "" || len(in.Language) > 32 {
-		return Channel{}, ErrInvalid
+		return ChannelInput{}, ErrInvalid
 	}
 	in.URL = u
-	return command(ctx, s, "add_channel", in.RequestID, in, func(tx *sql.Tx) (Channel, error) {
-		if err := existsWork(ctx, tx, in.WorkID); err != nil {
-			return Channel{}, err
-		}
-		_, err := tx.ExecContext(ctx, `INSERT INTO channel_pages(work_id,platform,language,url) VALUES(?,?,?,?) ON CONFLICT(url) DO NOTHING`, in.WorkID, in.Platform, in.Language, in.URL)
-		if err != nil {
-			return Channel{}, err
-		}
-		var c Channel
-		err = tx.QueryRowContext(ctx, `SELECT id,work_id,platform,language,url FROM channel_pages WHERE url=?`, in.URL).Scan(&c.ID, &c.WorkID, &c.Platform, &c.Language, &c.URL)
-		if err == nil && (c.WorkID != in.WorkID || c.Platform != in.Platform || c.Language != in.Language) {
-			return Channel{}, ErrConflict
-		}
-		return c, err
-	})
+	return in, nil
 }
+func (s *Store) AddChannel(ctx context.Context, in ChannelInput) (Channel, error) {
+	var err error
+	in, err = normalizeChannelInput(in)
+	if err != nil {
+		return Channel{}, err
+	}
+	return command(ctx, s, "add_channel", in.RequestID, in, func(tx *sql.Tx) (Channel, error) { return addChannelTx(ctx, tx, in) })
+}
+func addChannelTx(ctx context.Context, tx *sql.Tx, in ChannelInput) (Channel, error) {
+	if err := existsWork(ctx, tx, in.WorkID); err != nil {
+		return Channel{}, err
+	}
+	_, err := tx.ExecContext(ctx, `INSERT INTO channel_pages(work_id,platform,language,url) VALUES(?,?,?,?) ON CONFLICT(url) DO NOTHING`, in.WorkID, in.Platform, in.Language, in.URL)
+	if err != nil {
+		return Channel{}, err
+	}
+	var c Channel
+	err = tx.QueryRowContext(ctx, `SELECT id,work_id,platform,language,url FROM channel_pages WHERE url=?`, in.URL).Scan(&c.ID, &c.WorkID, &c.Platform, &c.Language, &c.URL)
+	if err == nil && (c.WorkID != in.WorkID || c.Platform != in.Platform || c.Language != in.Language) {
+		return Channel{}, ErrConflict
+	}
+	return c, err
+}
+
 func (s *Store) Channels(ctx context.Context, workID int64) ([]Channel, error) {
 	rows, err := s.db.QueryContext(ctx, `SELECT id,work_id,platform,language,url FROM channel_pages WHERE work_id=? ORDER BY id`, workID)
 	if err != nil {

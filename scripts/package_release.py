@@ -50,6 +50,8 @@ for operating_system in ('windows', 'linux', 'darwin'):
                 destination = root / name
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(ROOT / name, destination)
+            (root / 'scripts').mkdir()
+            shutil.copy2(ROOT / 'scripts/publications_to_catalog.py', root / 'scripts/publications_to_catalog.py')
             prefix = 'Reverfolio-' + version + '-' + operating_system + '-' + architecture
             if operating_system == 'windows':
                 asset = DIST / (prefix + '.zip')
