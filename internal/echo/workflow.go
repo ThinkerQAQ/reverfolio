@@ -189,7 +189,10 @@ func addTool[In any](server *mcp.Server, name, description string, readonly bool
 	})
 }
 func (s Service) MCPServer() *mcp.Server {
-	server := mcp.NewServer(&mcp.Implementation{Name: "Reverfolio", Version: "0.7.1"}, nil)
+	server := mcp.NewServer(&mcp.Implementation{Name: "Reverfolio", Version: "0.8.0"}, nil)
+	addTool(server, "list_website_sources", "Read registered external website sources and their last confirmed imports. Works independently of Inkerio and SyndiRelay.", true, func(ctx context.Context, _ EmptyInput) (any, error) { return s.Store.WebsiteSources(ctx) })
+	addTool(server, "preview_website", "Read publicly accessible RSS/Atom/sitemap article candidates from a supplied website. HTTPS/HTTP public hosts only; does not write anything.", true, func(ctx context.Context, in WebsitePreviewInput) (any, error) { return s.PreviewWebsite(ctx, in) })
+	addTool(server, "import_website", "Refetch a website and register only selected article URLs previously previewed; stores provenance and is idempotent by request_id.", false, func(ctx context.Context, in WebsiteImportInput) (any, error) { return s.ImportWebsite(ctx, in) })
 	addTool(server, "list_works", "Read registered repositories and articles.", true, func(ctx context.Context, _ EmptyInput) (any, error) { return s.Store.Works(ctx) })
 	addTool(server, "get_work", "Read one work, channel pages, recent snapshots and interval changes.", true, func(ctx context.Context, in WorkIDInput) (any, error) { return s.Store.Overview(ctx, in.WorkID) })
 	addTool(server, "upsert_work", "Register a project or article. Requires request_id; duplicate identity returns the existing work without changing its title.", false, func(ctx context.Context, in WorkInput) (any, error) { return s.Store.RegisterWork(ctx, in) })
@@ -269,6 +272,17 @@ func (s Service) registerWorkflow(mux *http.ServeMux) {
 		v, err := s.Store.Dashboard(r.Context())
 		if err != nil {
 			http.Error(w, "dashboard unavailable", 500)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(v)
+	})
+	actionRoute(mux, "preview_website", func(ctx context.Context, in WebsitePreviewInput) (any, error) { return s.PreviewWebsite(ctx, in) })
+	actionRoute(mux, "import_website", func(ctx context.Context, in WebsiteImportInput) (any, error) { return s.ImportWebsite(ctx, in) })
+	mux.HandleFunc("GET /api/website-sources", func(w http.ResponseWriter, r *http.Request) {
+		v, err := s.Store.WebsiteSources(r.Context())
+		if err != nil {
+			http.Error(w, "website sources unavailable", 500)
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
