@@ -11,22 +11,13 @@
 
 ## 1. Introduction
 
-Reverfolio links open-source projects, published articles, provider metrics and citation evidence in a local SQLite workspace accessible through Web UI and MCP.
+After publishing a project or an article, its feedback is often scattered across several places. GitHub shows stars, release downloads, and repository traffic; a personal website has search and visitor statistics; publishing platforms report their own views and reactions. Following the progress of a work over time means checking and piecing together all those records.
 
-GitHub projects, personal websites and articles published to multiple platforms expose different metrics. Release downloads, repository traffic, search impressions, pageviews and reactions have different scopes and collection windows. They cannot be summed into a count of real people.
-
-Reverfolio keeps these observations alongside the work and source they belong to. Its goals are to:
-
-- Register projects, articles and websites independently of any publishing system.
-- Distinguish a missing metric or failed request from a measured zero.
-- Preserve the observation window, provider, collection status and historical baseline.
-- Review the original evidence before treating a citation or adoption claim as verified.
-
-Inkerio and SyndiRelay are optional. A fresh installation contains no preconfigured author accounts or publications.
+Reverfolio brings them into one place. You can register your projects and articles, see available metrics and how they change over time, record mentions from other sites or projects, and review the supporting evidence. You can start with a single GitHub repository and add your website or publishing platforms later.
 
 ## 2. Quick Start
 
-Follow one complete workflow: install Reverfolio, connect the browser extension on Windows, register a GitHub repository, and check that your work survives a restart.
+Register a public GitHub repository and collect its available metrics, from installation to your first result. On Windows, this walkthrough also sets up the browser extension.
 
 ### 2.1. Prepare the environment
 
@@ -75,19 +66,18 @@ Linux/macOS users **skip this section** and continue through the Web UI.
 
 ### 2.4. Register and collect your first project
 
-In the Windows side panel or the Unix Web UI:
+Use the extension side panel on Windows or the Web UI on Linux/macOS:
 
-1. Open **Projects** from the left navigation.
-2. Scroll to the **Add a project or article** form **at the bottom** of the page. This is a section heading, not a separate button.
-3. Set **Type** to **GitHub project**, enter a **Title**, and fill **Repository** with `owner/repo` for a public repository you want to track.
-4. Click **Create** and confirm that its project card appears.
-5. Click **Collect GitHub** on that card. Inspect its collection status, timestamp, and available metrics under **Details** or the overview.
+1. Open **Projects** from the left navigation and scroll down to the **Add a project or article** form.
+2. Select **GitHub project** under **Type**, enter a **Title**, and set **Repository** to `ThinkerQAQ/reverfolio` (a public example). You can use your own `owner/repo` instead.
+3. Select **Create** and confirm the project card appears.
+4. Select **Collect GitHub** on that card, then check **Details** or **Impact overview** for the results and collection time.
 
-Public repository metrics may work without a token. Private traffic needs authorized GitHub credentials. No releases, missing permissions, and provider errors can produce unavailable values; these must not be treated as zero. The first cumulative observation is a baseline rather than growth.
+Public metrics may be available without credentials; some repository traffic requires GitHub authorization. The first cumulative download count is a baseline, not newly gained downloads.
 
 ### 2.5. Verify the result
 
-Run the relevant health check from another terminal:
+Check the corresponding health endpoint from another terminal:
 
 ```powershell
 # Windows
@@ -99,54 +89,47 @@ Invoke-RestMethod http://127.0.0.1:19452/healthz
 curl -fsS http://127.0.0.1:18440/healthz
 ```
 
-The response should contain `"status":"ok"`. Refresh **Projects** and confirm that your project remains. Restart the same installation with the **same `config.toml`**, then confirm it is still present. On Windows, also check that the extension can still read the project.
+The response should contain `"status":"ok"`. Refresh **Projects** and confirm the registered project is still present.
 
-**Acceptance:** extension connected (Windows), project persisted after restart (all platforms), and collection has an explicit success/partial/failure result when attempted. A healthy HTTP endpoint alone does **not** prove a successful metrics collection.
+To check persistence, restart the service:
+
+- **Windows:** in Task Manager → **Details**, end the `reverfolio.exe` process started by this installation. Run `Start-Reverfolio.cmd` again from the installation directory, then reopen the workspace.
+- **Linux/macOS:** press `Ctrl+C` in the service terminal, then rerun `./bin/reverfolio -config ./config.toml`.
+
+If the project survives restart, it has been saved to the local database. Collection can be successful, partial, or failed: for example, public downloads may be available while repository traffic requires additional authorization. Missing values are not zeros.
 
 ### 2.6. Troubleshooting
 
-- **Dashboard will not open on Windows:** rerun `Start-Reverfolio.cmd` from its installation root, check `http://127.0.0.1:19452/healthz`, and verify the listen port in `config.toml` is `19452` and not occupied.
-- **Extension is missing or cannot connect:** load the `extension/` folder containing `manifest.json`, not the ZIP. Reload it, then rerun the installer to repair native messaging. Check that `Data/extension-access.key` and `extension/ui/local-auth.js` exist, but **never reveal their contents**.
-- **Extension reports unauthorized:** rerun the launcher from the folder used to load the extension; then reload the extension. Do not paste the API bearer token into it.
-- **No extension on Linux/macOS:** expected for these portable packages; use the Web UI or local MCP.
-- **Projects disappear after upgrade:** inspect the original `config.toml` and `storage.database`. Do not start a second writable WSL database.
-- **GitHub 401/403 or missing metrics:** check repository permissions, the provider rate limit, and authorized credentials. Unavailable is not zero.
-- **Old UI or MCP tools remain:** update binaries, reload the browser extension and reconnect the MCP client.
+- **Workspace or extension cannot connect:** check the [Windows address](http://127.0.0.1:19452) or [Linux/macOS address](http://127.0.0.1:18440). On Windows, run `Start-Reverfolio.cmd` from the installation root and reload the browser extension.
+- **Extension reports unauthorized:** make sure you loaded the `extension/` folder containing `manifest.json` from the current installation, rerun setup, and reload the extension.
+- **GitHub collection fails:** check repository permissions, API rate limits, and local authentication. Unavailable metrics are not measured zeros.
+- **Projects disappear after an upgrade:** verify `config.toml` and `storage.database`; the service may be pointing to a different database.
 
-If necessary, [open an Issue](https://github.com/ThinkerQAQ/reverfolio/issues) with OS, install method, reproduction steps, and sanitized error details. Do not upload `Data/` or private credentials.
+If needed, [open an Issue](https://github.com/ThinkerQAQ/reverfolio/issues) with your OS, steps to reproduce, and redacted error messages. Do not upload `Data/` or credentials.
 
 ## 3. Configuration
 
 ### 3.1. Common settings
 
-The [configuration template](config.example.toml) is the reference for supported settings. The installer creates a private `config.toml` next to `bin/`, with SQLite under `Data/`. Windows uses port `19452` for its browser extension; the template and Unix installation use `18440`.
+Private configuration is stored in `config.toml` at the installation root, with local data under `Data/`. See [config.example.toml](config.example.toml) for the complete configuration. Nonsecret collection options can also be changed in **Settings → Data sources**.
 
-```toml
-[server]
-listen = "127.0.0.1:18440"
+- `server.listen`: loopback address. The Windows extension uses `127.0.0.1:19452`; Linux/macOS default to `127.0.0.1:18440`.
+- `storage.database`: SQLite path, normally `Data/state.sqlite`.
+- `collection.interval`: collection schedule; `0` disables it. The service must be running to collect.
+- `github.auth`: `env` reads `GITHUB_TOKEN`; `gh` uses the authorized GitHub CLI session of the service account.
+- `github.download_scope`: all release assets or installable packages.
+- `interface.language`: `zh-CN` or `en`.
 
-[storage]
-database = "Data/state.sqlite"
+The local Web UI and installed extension do not require you to enter an API token. Enter third-party credentials in their respective local settings.
 
-[collection]
-interval = "24h"
+### 3.2. Upgrade, backup, and restore
 
-[github]
-auth = "env"
-```
+1. Stop Reverfolio and back up `config.toml`, `Data/`, and any private provider credentials.
+2. Download the new release and replace the application files in the installation root while **preserving your configuration and data**.
+3. On Windows, rerun `Start-Reverfolio.cmd` and reload the extension. On Linux/macOS, start the new binary with the existing `config.toml`.
+4. Open **Projects** and confirm your works and history are present.
 
-Use `GITHUB_TOKEN` in `env` mode, or select `github.auth = "gh"` if the service account has an authorized GitHub CLI login. `-collect-interval 0` disables scheduling; command-line overrides take precedence over the configured interval. DEV.to account polling is not automatically scheduled. The application must be running for scheduled GitHub collection.
-
-The HTTP API uses a separate private token in `Data/api-token` unless `REVERFOLIO_API_TOKEN` is provided (at least 32 characters). The Web UI uses its own local session; do not paste the API token into page scripts or chats. Upgrades must preserve the same `config.toml` and `Data/` directory.
-
-### 3.2. Upgrade, backup and restore
-
-- **Before upgrading:** back up `config.toml`, `Data/` and any private provider credentials. Reinstall into a stable directory without replacing these files.
-- **Empty workspace after upgrading:** check the config path and `storage.database`. Do not start a second writable database in WSL.
-- **Missing GitHub traffic / 401 / 403:** verify repository access and the configured credential. Unavailable data is not zero.
-- **Extension cannot wake the server:** rerun `Start-Reverfolio.cmd` from the installed directory and inspect the local health endpoint.
-- **MCP still shows old tools:** reconnect the client and start a new session after updating.
-- **Offline restore:** `reverfolio -restore BACKUP -db NEW_PATH` restores into a **new** database path, not over the live database.
+To restore a SQLite backup, stop the service and run `reverfolio -restore BACKUP -db NEW_PATH` (`reverfolio.exe` on Windows). Restore to a **new database path**, never over the live file.
 
 ## 4. Optional Features
 
@@ -180,9 +163,14 @@ The key is stored locally and is not accepted by an MCP enrollment tool. DEV.to 
 
 The providers return different measurements; keep their scopes separate. Browser sign-in alone is not permission to export cookies or extract credentials.
 
-### 4.4. Case 4: Review citations and propagation
+### 4.4. Case 4: Review external citations
 
-Register confirmed publication links under **Channels**. Use **Evidence & adoption** to submit a possible citation, inspect the original page/API evidence, and explicitly approve or reject it. A secondary report alone is not verified original evidence. **Discovery tasks** record searches for an AI client to perform; creating a task does not execute a web search. History and propagation views distinguish pending evidence from reviewed results.
+1. Register the work's published original, translation, or syndication links under **Channels**.
+2. Submit a possible external citation in **Evidence & adoption**.
+3. Check the original webpage or API evidence, then explicitly approve or reject the citation.
+4. Inspect verified records in the propagation and history views.
+
+**Discovery tasks** can be handled by an external AI client. Creating a task does not itself search the web.
 
 ### 4.5. Case 5: Local MCP integration
 
@@ -205,20 +193,35 @@ MCP includes read tools for dashboards, sources, works, evidence and collection 
 
 ## 5. Development
 
-### 5.1. Build and test from source
+### 5.1. Build and run from source
 
-Install the Go toolchain required by [go.mod](go.mod), plus Python 3 and Node.js for the repository checks. From a source checkout:
+Development requires Git and a Go toolchain satisfying [go.mod](go.mod); the complete repository checks also use Python 3 and Node.js.
 
-```sh
+**Linux/macOS:**
+
+```bash
 git clone https://github.com/ThinkerQAQ/reverfolio.git
 cd reverfolio
 go test -race ./...
 go vet ./...
 go build -o reverfolio ./cmd/reverfolio
+mkdir -p Data
 ./reverfolio -db ./Data/state.sqlite -collect-interval 0
 ```
 
-On Windows, build `reverfolio.exe` instead and invoke it from PowerShell with the same flags.
+**Windows PowerShell:**
+
+```powershell
+git clone https://github.com/ThinkerQAQ/reverfolio.git
+Set-Location reverfolio
+go test -race ./...
+go vet ./...
+go build -o reverfolio.exe ./cmd/reverfolio
+New-Item -ItemType Directory -Force Data | Out-Null
+.\reverfolio.exe -db .\Data\state.sqlite -collect-interval 0
+```
+
+After starting from source, open [http://127.0.0.1:18440](http://127.0.0.1:18440) and register a test repository as in [2.4](#24-register-and-collect-your-first-project). The source Web UI does not require the extension.
 
 ### 5.2. Additional checks and packaging
 

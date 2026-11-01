@@ -11,22 +11,13 @@
 
 ## 1. Introduction
 
-Reverfolio 用本地 SQLite 关联开源项目、公开文章、平台统计与引用证据，通过 Web UI 和 MCP 统一管理。
+开源项目和文章发布后，相关反馈往往散落在不同平台：GitHub 有 Star、Release 下载和仓库流量，个人网站有访问和搜索数据，内容平台也有各自的阅读和互动统计。想持续了解作品的传播情况，就得反复查找和整理这些信息。
 
-同一个项目或文章可能分布在 GitHub、个人网站和多个内容平台。Release 下载量、仓库流量、搜索曝光、页面浏览量与互动量的统计范围和时间窗口并不相同，不能简单相加并当作真实人数。
-
-Reverfolio 将统计数据与作品、来源和采集时间关联，主要解决四个问题：
-
-- 独立管理项目、文章和网站，不要求使用特定博客或分发工具。
-- 区分“没有数据”“采集失败”和实际测量结果为零。
-- 保留统计时间窗口、来源、采集状态与历史基线。
-- 对外部引用和采用证据进行人工审核，不把未经核实的线索当作成果。
-
-Inkerio 和 SyndiRelay 均为可选组件。全新安装不会预置作者账户或作品。
+Reverfolio 将这些记录集中到一个地方。你可以登记自己的开源项目和文章，查看已接入平台的统计数据及历史变化，记录其他网站或项目对作品的引用，并核实相关证据。它可以独立使用：先添加一个 GitHub 仓库就能开始，之后再按需接入网站或内容平台。
 
 ## 2. Quick Start
 
-下面以登记一个 GitHub 项目并采集公开指标为例，从安装、Windows 扩展连接，到重启验收，走完第一次使用流程。
+以统计一个公开 GitHub 仓库为例，从下载、安装到查看结果，完成第一次使用。Windows 用户会同时安装浏览器扩展。
 
 ### 2.1. 准备运行环境
 
@@ -75,19 +66,18 @@ Linux/macOS 用户**跳过本节**，直接使用 Web UI。
 
 ### 2.4. 登记并采集第一个项目
 
-Windows 在扩展侧边栏继续，Linux/macOS 在 Web UI 继续：
+Windows 在扩展侧边栏继续；Linux/macOS 在 Web UI 继续：
 
-1. 点击左侧「**项目管理**」。
-2. 向下找到页面**底部**的「**新增项目或文章**」表单。它是表单标题，**不是独立按钮**。
-3. 「**作品类型**」选择「**GitHub 项目**」，填写「**标题**」，在「**仓库路径**」输入要统计的公开仓库 `owner/repo`。
-4. 点击「**新建**」，确认出现项目卡片。
-5. 在该卡片点击「**更新 GitHub**」，通过「查看详情」或总览查看本次采集状态、时间和可用指标。
+1. 打开左侧「项目管理」，向下找到页面底部的「新增项目或文章」表单。
+2. 「作品类型」选择「GitHub 项目」，填写标题；「仓库路径」输入 `ThinkerQAQ/reverfolio`（公开测试仓库），也可以换成自己的 `owner/repo`。
+3. 点击「新建」，确认项目卡片出现在列表中。
+4. 点击该卡片上的「更新 GitHub」，随后打开「查看详情」或「影响力总览」，检查采集结果和时间。
 
-公开仓库指标可能无需 Token，但私有流量需要 GitHub 授权。仓库没有 Release、接口无权限或采集出错时，部分指标可能不可用，不能当作零。首次累计指标只是**基线**，不是新增量。
+公开数据可能无需凭据即可读取；部分仓库流量需要 GitHub 授权。第一次读到的累计下载量是统计基线，不是本次新增量。
 
 ### 2.5. 检查结果
 
-在另一个终端执行对应系统的健康检查：
+在另一个终端执行与系统对应的健康检查：
 
 ```powershell
 # Windows
@@ -99,54 +89,47 @@ Invoke-RestMethod http://127.0.0.1:19452/healthz
 curl -fsS http://127.0.0.1:18440/healthz
 ```
 
-应返回包含 `"status":"ok"` 的 JSON。刷新「项目管理」确认作品仍在；用**相同的 `config.toml`** 重启服务，再检查作品是否保留。Windows 还应确认扩展可以继续读取项目。
+返回结果应包含 `"status":"ok"`。然后刷新「项目管理」，检查刚添加的项目是否还在。
 
-**验收标准：**Windows 扩展已连接；所有平台的项目在重启后仍存在；发起采集后能明确区分成功、部分成功与失败。**HTTP 健康检查通过不代表指标采集成功。**
+还可以重启服务，确认数据确实写入了本地数据库：
+
+- **Windows：**在任务管理器「详细信息」中找到并结束本次安装启动的 `reverfolio.exe`，回到安装目录执行 `Start-Reverfolio.cmd`，重新打开工作台。
+- **Linux/macOS：**在运行服务的终端按 `Ctrl+C`，再执行 `./bin/reverfolio -config ./config.toml`。
+
+重启后项目仍存在，说明登记数据已持久化。采集可能显示成功、部分成功或失败；例如公开下载量已获取，但仓库流量缺少授权时，不能把未获取的数据当成零。
 
 ### 2.6. 常见问题
 
-- **Windows 打不开工作台：**从安装根目录重新运行 `Start-Reverfolio.cmd`，检查 `http://127.0.0.1:19452/healthz`，核对 `config.toml` 仍监听 `19452` 且端口未被占用。
-- **扩展缺失或无法连接：**确认加载的是直接包含 `manifest.json` 的 `extension/`，而不是 ZIP。重新加载扩展、重跑安装脚本修复 Native Messaging。检查 `Data/extension-access.key` 与 `extension/ui/local-auth.js` 是否存在，**不要分享文件内容**。
-- **扩展提示未授权：**在加载扩展的安装目录重新执行启动脚本，再重新加载扩展；不需要手动粘贴 API Token。
-- **Linux/macOS 看不到扩展：**当前发行包按设计使用 Web UI 或本地 MCP，不包含 Windows 扩展。
-- **升级后项目消失：**检查原来的 `config.toml`、`storage.database`，不要在 WSL 中另建可写数据库。
-- **GitHub 401/403 或缺少指标：**核对仓库权限、接口限额和授权凭据。不可用不等于零。
-- **仍显示旧界面或旧 MCP 工具：**更新程序、重新加载扩展、重连 MCP。
+- **工作台或扩展无法连接：**先检查 [Windows 本地地址](http://127.0.0.1:19452) 或 [Linux/macOS 本地地址](http://127.0.0.1:18440)。Windows 在安装目录重新运行 `Start-Reverfolio.cmd`，然后重新加载浏览器扩展。
+- **扩展提示未授权：**确认加载的是当前安装目录下包含 `manifest.json` 的 `extension/` 文件夹，重新执行安装脚本并加载扩展。
+- **GitHub 采集失败：**检查仓库访问权限、API 限额和本地授权配置；未获取到的数据不代表零。
+- **升级后找不到项目：**检查当前使用的 `config.toml` 和 `storage.database`，确保没有切换到另一份数据库。
 
-仍未解决时，[提交 Issue](https://github.com/ThinkerQAQ/reverfolio/issues)，附上操作系统、安装方式、复现步骤和脱敏错误信息，不要上传 `Data/` 或私有凭据。
+仍无法解决时，可[提交 Issue](https://github.com/ThinkerQAQ/reverfolio/issues)，附上系统、复现步骤和脱敏错误信息，不要上传完整 `Data/` 或任何凭据。
 
 ## 3. Configuration
 
 ### 3.1. 常用配置
 
-以 [config.example.toml](config.example.toml) 为配置字段依据。安装程序在 `bin/` 同级创建私有 `config.toml`，SQLite 默认存放在 `Data/`。Windows 为扩展使用 `19452` 端口，配置模板和 Unix 安装使用 `18440`。
+私有配置位于安装目录的 `config.toml`，数据保存在 `Data/`。完整字段以 [config.example.toml](config.example.toml) 为准，也可以在「设置 → 数据采集」中调整相关选项。
 
-```toml
-[server]
-listen = "127.0.0.1:18440"
+- `server.listen`：本地服务地址。Windows 扩展使用 `127.0.0.1:19452`；Linux/macOS 默认使用 `127.0.0.1:18440`。
+- `storage.database`：SQLite 文件路径，通常是 `Data/state.sqlite`。
+- `collection.interval`：自动采集周期；`0` 表示关闭。采集期间服务需要保持运行。
+- `github.auth`：`env` 使用 `GITHUB_TOKEN`；`gh` 使用当前服务账户已授权的 GitHub CLI。
+- `github.download_scope`：选择全部 Release 资产或常见安装包的下载统计。
+- `interface.language`：界面语言 `zh-CN` 或 `en`。
 
-[storage]
-database = "Data/state.sqlite"
-
-[collection]
-interval = "24h"
-
-[github]
-auth = "env"
-```
-
-`env` 模式通过 `GITHUB_TOKEN` 授权 GitHub；若启动服务的账户已经通过 GitHub CLI 登录，也可以设置 `github.auth = "gh"`。`-collect-interval 0` 禁用定时采集，命令行明确指定的参数优先于配置文件。DEV.to 账号不会自动定时轮询；需要自动采集 GitHub 时，本地服务必须保持运行。
-
-HTTP API 使用独立的私有凭据，默认保存在 `Data/api-token`；也可以提供不少于 32 字符的 `REVERFOLIO_API_TOKEN`。本地 Web UI 使用自己的会话，不需要手动粘贴 API Token。升级时应沿用原来的 `config.toml` 与 `Data/`。
+本地 Web UI 和已安装的扩展不需要手动输入 API Token。连接第三方统计平台时，在对应设置页面填写自己的授权信息。
 
 ### 3.2. 升级、备份与恢复
 
-- **升级前：**备份 `config.toml`、`Data/` 和私有平台凭据；不要用新模板覆盖旧配置。
-- **升级后数据为空：**检查当前配置路径和 `storage.database`，不要在 WSL 再创建第二份可写数据库。
-- **GitHub 流量缺失或出现 401/403：**检查仓库授权和凭据；不可用不代表零。
-- **扩展无法启动服务：**在安装目录重跑 `Start-Reverfolio.cmd`，并检查本地健康接口。
-- **MCP 仍显示旧工具：**更新后重连客户端并新建会话。
-- **离线恢复：**使用 `reverfolio -restore BACKUP -db NEW_PATH`，恢复到**新数据库路径**，不能直接覆盖正在使用的数据库。
+1. 退出 Reverfolio，备份 `config.toml`、`Data/` 和私有平台凭据。
+2. 下载新版发行包，更新原安装目录中的程序文件，**保留原有配置和数据**。
+3. Windows 重新运行 `Start-Reverfolio.cmd` 并在浏览器中重新加载扩展；Linux/macOS 使用原 `config.toml` 启动。
+4. 打开「项目管理」，确认已有作品和历史统计仍在。
+
+如需恢复 SQLite 备份，先停止服务，再运行 `reverfolio -restore BACKUP -db NEW_PATH`（Windows 为 `reverfolio.exe`）；恢复目标必须是**新的数据库路径**，不能直接覆盖现有数据库。
 
 ## 4. Optional Features
 
@@ -180,9 +163,14 @@ HTTP API 使用独立的私有凭据，默认保存在 `Data/api-token`；也可
 
 各平台的指标口径不同，应保留各自统计范围。浏览器已经登录不代表可以直接导出 Cookie 或提取凭据。
 
-### 4.4. Case 4：审核引用与传播
+### 4.4. Case 4：审核外部引用
 
-先在「分发渠道」登记确认公开的发布链接，再到「引用与采用」提交引用线索，查看原始网页或 API 证据，并明确审核通过或拒绝。仅有二手报告不能证明原始引用。「发现任务」用于记录交由 AI 客户端执行的检索任务，创建任务本身不会执行网络搜索。历史统计和传播路径会区分待审核线索与已确认结果。
+1. 在「分发渠道」登记作品已经公开的原文、译文或分发链接。
+2. 在「引用与采用」提交发现的外部引用页面。
+3. 查看原始页面或 API 证据，确认是否与自己的作品有关，再选择审核通过或拒绝。
+4. 到传播路径或历史统计中查看已确认的记录。
+
+「发现任务」用于把检索工作交给外部 AI 客户端；Reverfolio 不会仅因创建任务就自动搜索互联网。
 
 ### 4.5. Case 5：本地 MCP 连接
 
@@ -205,20 +193,35 @@ MCP 既有读取总览、作品、数据源和证据的只读工具，也有导�
 
 ## 5. Development
 
-### 5.1. 从源码编译和测试
+### 5.1. 从源码编译与运行
 
-安装 [go.mod](go.mod) 要求的 Go 工具链；运行仓库检查还需要 Python 3 和 Node.js。克隆源码后执行：
+开发需要 Git、符合 [go.mod](go.mod) 声明的 Go 工具链；运行完整仓库检查还需要 Python 3、Node.js。
 
-```sh
+**Linux/macOS：**
+
+```bash
 git clone https://github.com/ThinkerQAQ/reverfolio.git
 cd reverfolio
 go test -race ./...
 go vet ./...
 go build -o reverfolio ./cmd/reverfolio
+mkdir -p Data
 ./reverfolio -db ./Data/state.sqlite -collect-interval 0
 ```
 
-Windows 可以编译为 `reverfolio.exe`，并在 PowerShell 使用相同参数执行。
+**Windows PowerShell：**
+
+```powershell
+git clone https://github.com/ThinkerQAQ/reverfolio.git
+Set-Location reverfolio
+go test -race ./...
+go vet ./...
+go build -o reverfolio.exe ./cmd/reverfolio
+New-Item -ItemType Directory -Force Data | Out-Null
+.\reverfolio.exe -db .\Data\state.sqlite -collect-interval 0
+```
+
+源码启动后打开 [http://127.0.0.1:18440](http://127.0.0.1:18440)，按照 [2.4](#24-登记并采集第一个项目) 登记测试仓库即可。源码 Web UI 不要求安装扩展。
 
 ### 5.2. 扩展检查与打包
 
