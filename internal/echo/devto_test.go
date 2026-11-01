@@ -252,3 +252,85 @@ func TestDEVToRejectsUnownedAndUnreachableAndAbsentMetrics(t *testing.T) {
 		}
 	})
 }
+
+func TestDEVToCanonicalLegacyDomainRequiresConfirmedWorkAssociation(t *testing.T) {
+	ctx := context.Background()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("api-key") != "synthetic-devto-key" || r.Method != http.MethodGet {
+			w.WriteHeader(401)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/api/users/me":
+			fmt.Fprint(w, `{"id":8,"username":"author"}`)
+		case "/api/articles/me/published":
+			fmt.Fprint(w, `[
+			{"id":500,"title":"Original English version","url":"https://dev.to/author/go-legacy",
+			"canonical_url":"https://author.github.io/en/articles/go-concurrency/","page_views_count":18},
+			{"id":501,"title":"English version with current domain","url":"https://dev.to/author/go-current",
+			"canonical_url":"https://author.com/en/articles/go-concurrency/","page_views_count":7}]`)
+		default:
+			w.WriteHeader(404)
+		}
+	}))
+	defer server.Close()
+	store := openTest(t)
+	service := Service{Store: store, Config: &ConfigManager{Path: filepath.Join(t.TempDir(), "config.toml")},
+		DEVTo: DEVToClient{Client: server.Client(), BaseURL: server.URL}}
+	original, err := store.RegisterWork(ctx, WorkInput{RequestID: "existing-original", Kind: "article", Title: "中文原文", CanonicalURL: "https://author.com/articles/go-concurrency/"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = store.AddChannel(ctx, ChannelInput{RequestID: "existing-english", WorkID: original.ID, Platform: "author.com", Language: "en", URL: "https://author.com/en/articles/go-concurrency/"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	account, err := service.DEVToConnect(ctx, ConnectDEVToInput{RequestID: "connect-legacy-test", APIKey: "synthetic-devto-key"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	preview, err := service.DEVToPreview(ctx, DEVToPreviewInput{AccountID: account.ID})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(preview.Articles) != 2 {
+		t.Fatal(preview)
+	}
+	if preview.Articles[0].ExistingWorkID != 0 || preview.Articles[0].SuggestedWorkID != original.ID {
+		t.Fatalf("legacy cross-host URL must only suggest existing work %+v", preview.Articles[0])
+	}
+	if preview.Articles[1].ExistingWorkID != original.ID {
+		t.Fatalf("registered English channel must match exact canonical URL %+v", preview.Articles[1])
+	}
+	_, err = service.DEVToImport(ctx, ImportDEVToInput{RequestID: "no-confirmation", AccountID: account.ID, SelectedArticleIDs: []int64{500}})
+	if err != ErrConflict {
+		t.Fatalf("cross-host association imported without review: %v", err)
+	}
+	_, err = service.DEVToImport(ctx, ImportDEVToInput{RequestID: "invalid-target", AccountID: account.ID, SelectedArticleIDs: []int64{501},
+		WorkAssociations: map[string]int64{"501": 999999}})
+	if err != ErrConflict {
+		t.Fatalf("exact-match override accepted without validation: %v", err)
+	}
+	result, err := service.DEVToImport(ctx, ImportDEVToInput{RequestID: "confirmed-associations", AccountID: account.ID,
+		SelectedArticleIDs: []int64{500, 501}, WorkAssociations: map[string]int64{"500": original.ID, "501": original.ID}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Created != 0 || result.Linked != 2 || len(result.Publications) != 2 {
+		t.Fatalf("published versions must both link to original Work %+v", result)
+	}
+	for _, pub := range result.Publications {
+		if pub.WorkID != original.ID {
+			t.Fatal("wrong association", pub)
+		}
+	}
+	works, err := store.Works(ctx)
+	if err != nil || len(works) != 1 {
+		t.Fatalf("work duplication: %d %v", len(works), err)
+	}
+	channels, err := store.Channels(ctx, original.ID)
+	if err != nil || len(channels) != 3 {
+		t.Fatalf("original and 2 DEV.to channels should be linked %+v %v", channels, err)
+	}
+}

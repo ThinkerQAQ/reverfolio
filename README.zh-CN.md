@@ -4,6 +4,8 @@
 
 本地运行的开源与内容影响力观测工具。关联开源项目、文章中英文版本、多平台分发页面、指标历史，以及第三方引用和使用证据。
 
+**v0.9.1** 修复 DEV.to 文章跨域 canonical URL 关联：可识别现有英文渠道；旧博客域名路径一致时只建议作品，需明确确认，避免生成重复 Work。支持按文章指定归属的 Web UI、扩展与 MCP 导入，保留 v0.9.0 及以前的数据。详见 [DEV.to 官方 API 说明](docs/platform-api.zh-CN.md)。
+
 **v0.9.0** 新增 [DEV.to 官方 API 账号与文章统计](docs/platform-api.zh-CN.md)：本地配置个人 API Key，关联已发布文章与原文，采集粉丝、浏览、点赞、评论的历史快照；网页、扩展和 39 个 MCP 工具共用 SQLite。无需 SyndiRelay，不抓取登录页面。其他平台必须先确认有合法官方接口。
 
 **v0.8.0** 新增独立的 [RSS／Atom／Sitemap 网站作品发现](docs/website-discovery.zh-CN.md)：输入博客网址、预览候选、勾选导入、复用已有作品与来源记录，并可手动重新扫描。新增 3 个 MCP 工具，网页与扩展使用同一 UI；**无需 Inkerio 或 SyndiRelay**。平台粉丝／阅读统计仍属于后续阶段。
