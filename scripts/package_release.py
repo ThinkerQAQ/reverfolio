@@ -54,18 +54,10 @@ for operating_system in ('windows', 'linux', 'darwin'):
                                'Install-Reverfolio.ps1', 'Initialize-ReverfolioExtension.ps1',
                                'Register-ReverfolioNativeHost.ps1','Start-Reverfolio-Hidden.vbs'):
                     shutil.copy2(ROOT / 'scripts/windows' / script, root / script)
-            for name in ('config.example.toml', 'README.md', 'README.zh-CN.md',
+            for name in ('config.example.toml', 'README.md', 'README_ZH.md',
                          'LICENSE', 'THIRD_PARTY_NOTICES.md', 'SECURITY.md'):
                 shutil.copy2(ROOT / name, root / name)
             shutil.copy2(licenses, root / 'THIRD_PARTY_LICENSES.txt')
-            # Include only version-controlled documentation, so README links work
-            # in portable archives without collecting local reports or runtime data.
-            tracked_docs = subprocess.check_output(
-                ['git', 'ls-files', 'docs'], cwd=ROOT, text=True).splitlines()
-            for name in tracked_docs:
-                destination = root / name
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(ROOT / name, destination)
             (root / 'scripts').mkdir()
             shutil.copy2(ROOT / 'scripts/publications_to_catalog.py', root / 'scripts/publications_to_catalog.py')
             shutil.copy2(ROOT / 'scripts/check_mcp_contract.py', root / 'scripts/check_mcp_contract.py')
