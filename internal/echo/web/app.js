@@ -206,6 +206,12 @@ function render(){
 }
 const heading=(title,sub="",right="")=>'<div class="section-header"><div><h2>'+T(title)+'</h2>'+(sub?'<p>'+T(sub)+'</p>':"")+'</div>'+right+'</div>';
 const stat=(title,value,note,primary=false)=>'<div class="stat-card'+(primary?' primary':'')+'"><div class="stat-label">'+T(title)+'</div><div class="stat-value">'+fmt(value)+'</div><div class="stat-hint">'+T(note)+'</div></div>';
+
+function observationStatus(p){
+ const v=p.valid_metrics||{};
+ return '<p class="meta">'+E(settingsLabel(["最近尝试状态","Latest attempt status"]))+': '+E(p.latest?.state||'unknown')+'</p>'+Object.entries(v).map(([key,point])=>'<p class="meta">'+E(key)+' · '+E(settingsLabel(["有效观测时间","Valid observation at"]))+': '+dt(point.observed_at)+(point.observed_at!==p.latest?.captured_at?' · '+E(settingsLabel(["历史值","Historical value"])):'')+'</p>').join('');
+}
+
 function projects(){
  return state.data.report.report.sources.map(s=>{
   const x=s.latest,d=s.last_release?.downloads||x?.downloads,v=s.valid_metrics||{};
@@ -768,8 +774,3 @@ window.addEventListener("hashchange",()=>{
  const view=location.hash.replace(/^#/,"");
  if(nav.some(item=>item[0]===view)&&state.view!==view){state.view=view;render();}
 });
-
-function observationStatus(p){
- const v=p.valid_metrics||{};
- return '<p class="meta">'+E(settingsLabel(["最近尝试状态","Latest attempt status"]))+': '+E(p.latest?.state||'unknown')+'</p>'+Object.entries(v).map(([key,point])=>'<p class="meta">'+E(key)+' · '+E(settingsLabel(["有效观测时间","Valid observation at"]))+': '+dt(point.observed_at)+(point.observed_at!==p.latest?.captured_at?' · '+E(settingsLabel(["历史值","Historical value"])):'')+'</p>').join('');
-}
