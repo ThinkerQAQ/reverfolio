@@ -797,10 +797,10 @@ function impactEventsView(){
  '<div class="stat-grid">'+stat(settingsLabel(["已核实的独立事件","Verified independent events"]),events.filter(e=>e.effective_state==="verified").length)+stat(settingsLabel(["实际结果已达成","Achieved outcomes"]),events.filter(e=>e.effective_state==="verified"&&e.outcome==="achieved").length)+'</div>'+
  events.map(e=>'<article class="panel"><h3>'+E(e.title)+' '+tag(E(e.effective_state),e.effective_state)+'</h3><p>'+E(settingsLabel(impactKinds.find(x=>x[0]===e.kind)?.[1]||e.kind))+' · '+E(settingsLabel(impactDirections.find(x=>x[0]===e.direction)?.[1]||e.direction))+' · '+E(e.outcome)+'</p>'+
  (e.target_url?'<p>'+anchor(e.target_url)+'</p>':'')+'<p>'+E(e.summary)+'</p>'+
- '<p class="meta">'+e.work_ids.map(id=>E(state.data.works.find(w=>w.id===id)?.title||id)).join(' · ')+'</p>'+
- '<ol>'+e.steps.map(step=>'<li><strong>'+E(step.label)+'</strong> · '+E(step.kind)+' · '+(step.at?dt(step.at):E(settingsLabel(["时间未知","Time unknown"])))+' · '+anchor(state.data.mentions.find(m=>m.id===step.mention_id)?.url||'')+'</li>').join('')+'</ol>'+
- e.evidence.map(proof=>{const m=state.data.mentions.find(m=>m.id===proof.mention_id);return '<p>'+E(proof.role)+' · '+E(m?.state)+' · '+anchor(m?.url||'')+'</p>';}).join('')+
- '<details><summary>'+E(settingsLabel(["审核历史","Review history"]))+'</summary>'+e.history.map(h=>'<p>'+E(h.reviewer)+' · '+dt(h.at)+' · '+E(h.reason)+'</p>').join('')+'</details><details><summary>'+E(settingsLabel(["编辑与审核","Edit and review"]))+'</summary>'+impactForm(e)+'</details>'+
+ '<p class="meta">'+(e.work_ids||[]).map(id=>E(state.data.works.find(w=>w.id===id)?.title||id)).join(' · ')+'</p>'+
+ '<ol>'+(e.steps||[]).map(step=>'<li><strong>'+E(step.label)+'</strong> · '+E(step.kind)+' · '+(step.at?dt(step.at):E(settingsLabel(["时间未知","Time unknown"])))+' · '+anchor(state.data.mentions.find(m=>m.id===step.mention_id)?.url||'')+'</li>').join('')+'</ol>'+
+ (e.evidence||[]).map(proof=>{const m=state.data.mentions.find(m=>m.id===proof.mention_id);return '<p>'+E(proof.role)+' · '+E(m?.state)+' · '+anchor(m?.url||'')+'</p>';}).join('')+
+ '<details><summary>'+E(settingsLabel(["审核历史","Review history"]))+'</summary>'+(e.history||[]).map(h=>'<p>'+E(h.reviewer)+' · '+dt(h.at)+' · '+E(h.reason)+'</p>').join('')+'</details><details><summary>'+E(settingsLabel(["编辑与审核","Edit and review"]))+'</summary>'+impactForm(e)+'</details>'+
  '<details><summary>'+E(settingsLabel(["添加时间节点","Add timeline step"]))+'</summary><form data-form="impact-step" data-id="'+e.id+'"><div class="form-grid">'+
  '<label class="field"><span>'+E(settingsLabel(["节点类型","Step type"]))+'</span><select name="kind">'+["submitted","approved","merged","released","retained","cited","adopted","fixed","validated","closed","other"].map(k=>'<option>'+k+'</option>').join('')+'</select></label>'+
  impactField(["节点说明","Step description"],"label","",true)+
@@ -814,12 +814,12 @@ async function saveImpactForm(form,name,body){
  let event;
  if(name==="impact-step"){
   if(!old)return;
-  event={...old,steps:[...old.steps,{kind:body.kind,label:body.label,at:body.at?new Date(body.at).toISOString():"",mention_id:Number(body.mention_id)}],evidence:old.evidence.slice()};
+  event={...old,steps:[...(old.steps||[]),{kind:body.kind,label:body.label,at:body.at?new Date(body.at).toISOString():"",mention_id:Number(body.mention_id)}],evidence:(old.evidence||[]).slice()};
   if(!event.evidence.some(m=>m.mention_id===Number(body.mention_id)))event.evidence.push({mention_id:Number(body.mention_id),role:"context"});
  }else{
   const data=new FormData(form),proofs=data.getAll("mention_ids").map(Number);
   if(body.outcome_mention_id&&!proofs.includes(Number(body.outcome_mention_id)))proofs.push(Number(body.outcome_mention_id));
-  event={id:old?.id||0,event_key:body.key,title:body.title,kind:body.kind,direction:body.direction,target_url:body.target_url,state:body.state,outcome:body.outcome,summary:body.summary,work_ids:data.getAll("work_ids").map(Number),evidence:proofs.map(id=>({mention_id:id,role:id===Number(body.outcome_mention_id)?"outcome":old?.evidence.find(m=>m.mention_id===id)?.role||"source"})),steps:old?.steps||[]};
+  event={id:old?.id||0,event_key:body.key,title:body.title,kind:body.kind,direction:body.direction,target_url:body.target_url,state:body.state,outcome:body.outcome,summary:body.summary,work_ids:data.getAll("work_ids").map(Number),evidence:proofs.map(id=>({mention_id:id,role:id===Number(body.outcome_mention_id)?"outcome":old?.evidence?.find(m=>m.mention_id===id)?.role||"source"})),steps:old?.steps||[]};
  }
  await act(async()=>send("save_impact_event",{event,expected_version:old?.version||0,reason:body.reason,reviewer:pref("evidence.reviewer","local-ui")}));
 }

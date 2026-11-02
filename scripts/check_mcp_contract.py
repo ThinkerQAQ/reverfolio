@@ -171,6 +171,13 @@ def verify(client, fixture=False):
         "scope": "one synthetic result", "status": "complete",
         "result_count": 1, "notes": "No real web search performed",
     })
+    event=client.tool("save_impact_event", {
+        "request_id":"fixture-impact", "expected_version":0,
+        "reason":"Synthetic original-source event", "reviewer":"test-suite",
+        "event":{"event_key":"fixture-impact","title":"Synthetic citation event","kind":"citation","direction":"inbound","state":"verified","outcome":"not_confirmed","work_ids":[wid],"evidence":[{"mention_id":mention["id"],"role":"source"}]}
+    })
+    events=client.tool("list_impact_events",{"work_id":wid})
+    assert len(events)==1 and events[0]["id"]==event["id"]
     report = client.tool("generate_report", {"work_id": wid})
     assert report["report"]["verified_pages"] == 1
     assert report["report"]["third_party_events"] == 1
