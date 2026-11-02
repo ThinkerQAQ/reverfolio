@@ -84,7 +84,7 @@ def main():
         print("QA_GUI_PASS",flush=True)
     finally:
         if (target/"Reverfolio-Maintenance.exe").is_file():
-            run([target/"Reverfolio-Maintenance.exe","--confirm-command","remove","com.thinkerqaq.reverfolio"],"uninstall")
+            run([target/"Reverfolio-Maintenance.exe","--confirm-command","purge"],"uninstall")
             for path,data in state.items():
                 assert path.read_bytes()==data,"State removed: "+str(path)
             print("QA_UNINSTALL_PRESERVED_STATE",flush=True)
