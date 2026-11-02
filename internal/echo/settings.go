@@ -445,7 +445,7 @@ func (m *ConfigManager) RuntimeStatus(_ context.Context) (RuntimeConfigStatus, e
 	}
 	hasConfig := m != nil && m.Path != ""
 	return RuntimeConfigStatus{
-		Version: "0.9.2", Listen: c.Server.Listen, Database: c.Storage.Database,
+		Version: "0.10.0", Listen: c.Server.Listen, Database: c.Storage.Database,
 		CollectionInterval: c.Collection.Interval, GitHubAuthMode: c.GitHub.Auth,
 		GitHubCollectionEnabled: c.Collection.Interval != "0" && c.Collection.Interval != "0s",
 		ConfigFileAvailable:     hasConfig,

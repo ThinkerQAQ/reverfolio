@@ -15,7 +15,7 @@ After publishing a project or article, its feedback is scattered across differen
 
 Reverfolio organizes these records locally. Register works and publication links, collect metrics from supported APIs, use an AI client to find external leads, then retain original evidence, review it and group related pages into impact events. It also records accepted upstream PRs, troubleshooting collaboration, reposts and directory listings, preserving what each record actually proves.
 
-> This guide describes the forthcoming installer and guided workflow. Use its matching preview build before publication; public Releases may still contain older portable packages that cannot validate the new interface.
+> Use files from the same release: do not mix the installer, portable package, launch scripts and extension from different versions.
 
 ## 2. Quick Start
 
