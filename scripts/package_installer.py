@@ -4,6 +4,8 @@ import argparse
 import datetime
 import pathlib
 import platform
+import json
+import plistlib
 import re
 import shutil
 import subprocess
@@ -27,7 +29,7 @@ def prepare(stage, destination, version, target):
     if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version):
         raise ValueError("version must be major.minor.patch")
     suffix = ".exe" if target == "windows" else ""
-    for name in ("bin/reverfolio"+suffix, "config.example.toml", "LICENSE"):
+    for name in ("bin/reverfolio"+suffix, "config.example.toml", "LICENSE", "Open-Reverfolio.ps1" if target=="windows" else "Open-Reverfolio.sh"):
         if not (stage/name).is_file():
             raise ValueError("release is missing "+name)
     # Explicit allowlist. Even accidentally staged secrets must never enter an installer.
@@ -62,21 +64,24 @@ def prepare(stage, destination, version, target):
         "Version":version, "ReleaseDate":datetime.date.today().isoformat(),
         "Default":"true", "Script":"installscript.qs",
     })
-    (meta/"installscript.qs").write_text('''
-function Component() {}
-Component.prototype.createOperations = function() {
-    component.createOperations();
-    component.addStopProcessForUpdateRequest("reverfolio.exe");
-    if (systemInfo.productType === "windows") {
-        component.addOperation("Mkdir", "@UserStartMenuProgramsPath@/Reverfolio");
-        component.addOperation("CreateShortcut",
-            installer.environmentVariable("SystemRoot") + "/System32/WindowsPowerShell/v1.0/powershell.exe",
-            "@UserStartMenuProgramsPath@/Reverfolio/Reverfolio.lnk",
-            "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \\"@TargetDir@/Open-Reverfolio.ps1\\"",
-            "workingDirectory=@TargetDir@");
-    }
-};
-''', encoding="utf-8")
+    script = "function Component() {}\nComponent.prototype.createOperations = function() {\n    component.createOperations();\n"
+    if target == "windows":
+        script += '    component.addStopProcessForUpdateRequest("reverfolio.exe");\n'
+        script += '    component.addOperation("Mkdir", "@UserStartMenuProgramsPath@/Reverfolio");\n'
+        script += '    component.addOperation("CreateShortcut", installer.environmentVariable("SystemRoot") + "/System32/WindowsPowerShell/v1.0/powershell.exe", "@UserStartMenuProgramsPath@/Reverfolio/Reverfolio.lnk", ' + json.dumps('-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "@TargetDir@/Open-Reverfolio.ps1"') + ', "workingDirectory=@TargetDir@");\n'
+        script += '    component.addOperation("CreateShortcut", "@TargetDir@/Reverfolio-Maintenance.exe", "@UserStartMenuProgramsPath@/Reverfolio/Uninstall Reverfolio.lnk");\n'
+    elif target == "linux":
+        entry = 'Type=Application\nName=Reverfolio\nExec=/bin/bash "@TargetDir@/Open-Reverfolio.sh"\nTerminal=false\nCategories=Utility;'
+        script += '    component.addOperation("CreateDesktopEntry", "reverfolio.desktop", ' + json.dumps(entry) + ');\n'
+    else:
+        app = data/"Reverfolio.app/Contents"
+        (app/"MacOS").mkdir(parents=True)
+        (app/"Info.plist").write_bytes(plistlib.dumps({"CFBundleName":"Reverfolio", "CFBundleIdentifier":"com.thinkerqaq.reverfolio", "CFBundleExecutable":"Reverfolio", "CFBundleVersion":version, "CFBundlePackageType":"APPL"}))
+        launcher = app/"MacOS/Reverfolio"
+        launcher.write_text('#!/bin/bash\nset -euo pipefail\nroot="$(cd "$(dirname "$0")/../../.." && pwd)"\nexec /bin/bash "$root/Open-Reverfolio.sh"\n')
+        launcher.chmod(0o755)
+    script += "};\n"
+    (meta/"installscript.qs").write_text(script, encoding="utf-8")
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)

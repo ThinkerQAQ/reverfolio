@@ -16,6 +16,7 @@ class InstallerTest(unittest.TestCase):
         (stage/"config.example.toml").write_text("version=1")
         (stage/"LICENSE").write_text("test")
         (stage/"Open-Reverfolio.ps1").write_text("test")
+        (stage/"Open-Reverfolio.sh").write_text("test")
         return stage
 
     def test_layout_preserves_unmanaged_state(self):
@@ -31,6 +32,20 @@ class InstallerTest(unittest.TestCase):
             script=(root/"out/packages/com.thinkerqaq.reverfolio/meta/installscript.qs").read_text()
             self.assertIn("Open-Reverfolio.ps1",script)
             self.assertIn("UserStartMenuProgramsPath",script)
+
+    def test_unix_launch_entries(self):
+        for target in ("linux","darwin"):
+            with self.subTest(target=target),tempfile.TemporaryDirectory() as temp:
+                root=pathlib.Path(temp);stage=self.stage(root)
+                (stage/"bin/reverfolio.exe").rename(stage/"bin/reverfolio")
+                installer.prepare(stage,root/"out","1.2.3",target)
+                if target=="linux":
+                    script=(root/"out/packages/com.thinkerqaq.reverfolio/meta/installscript.qs").read_text()
+                    self.assertIn("CreateDesktopEntry",script)
+                else:
+                    launcher=root/"out/packages/com.thinkerqaq.reverfolio/data/Reverfolio.app/Contents/MacOS/Reverfolio"
+                    self.assertTrue(launcher.is_file())
+                    self.assertIn("Open-Reverfolio.sh",launcher.read_text())
 
     def test_rejects_private_state_and_symlinks(self):
         for name in ("Data/state.sqlite","config.toml","scripts/runtime.env","extension/extension-access.key"):
