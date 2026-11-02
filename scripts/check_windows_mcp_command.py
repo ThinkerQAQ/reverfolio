@@ -12,6 +12,7 @@ a=p.parse_args()
 # Inspect only the command construction; never execute the setup script.
 probe=r"""
 param()
+[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
 $inputData = [Console]::In.ReadToEnd() | ConvertFrom-Json
 $tokens=$null; $errors=$null
 $ast=[System.Management.Automation.Language.Parser]::ParseFile($inputData.script,[ref]$tokens,[ref]$errors)
