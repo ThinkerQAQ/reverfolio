@@ -11,236 +11,234 @@
 
 ## 1. Introduction
 
-开源项目和文章发布后，相关反馈往往散落在不同平台：GitHub 有 Star、Release 下载和仓库流量，个人网站有访问和搜索数据，内容平台也有各自的阅读和互动统计。想持续了解作品的传播情况，就得反复查找和整理这些信息。
+开源项目和文章发布后，反馈往往散落在不同地方：GitHub 有下载和仓库流量，网站有访问与搜索数据，其他作者可能引用文章，也可能将其中的方法用于自己的项目。只看下载量，无法说明谁使用了作品；只保存链接，又很难说明一次贡献最终产生了什么结果。
 
-Reverfolio 将这些记录集中到一个地方。你可以登记自己的开源项目和文章，查看已接入平台的统计数据及历史变化，记录其他网站或项目对作品的引用，并核实相关证据。它可以独立使用：先添加一个 GitHub 仓库就能开始，之后再按需接入网站或内容平台。
+Reverfolio 在本机整理这些记录：登记作品和发布链接，采集已有接口支持的指标，通过 AI 客户端查找外部线索，再保留原始证据、审核并归并为影响事件。它也能记录上游 PR 被接纳、排障协作、转载和目录收录，并保留它们各自的性质。
+
+> 本指南对应待发布的新版安装器与引导流程。发布前请使用配套预览构建；公开 Release 可能仍包含旧版便携包，不应据此验证新界面。
 
 ## 2. Quick Start
 
-以统计一个公开 GitHub 仓库为例，从下载、安装到查看结果，完成第一次使用。Windows 用户会同时安装浏览器扩展。
+以一个公开 GitHub 项目为例，先完成安装、登记和第一次采集。想让 ChatGPT 协助检索，再继续完成连接；浏览器扩展可稍后安装。
 
-### 2.1. 准备运行环境
+### 2.1. 下载适合自己的构建
 
-使用 Windows、Linux 或 macOS（x64/ARM64）。Windows 扩展支持 Edge 和 Chrome；Linux/macOS 发行包通过 Web UI 使用，**不包含 Windows 浏览器扩展**。直接使用发行包无需 Go、Node.js、文章分发工具或 API Key。
+打开 [Releases](https://github.com/ThinkerQAQ/reverfolio/releases)，根据操作系统和 CPU 架构选择文件。同一次安装使用同一个发布或预览构建中的程序、启动脚本与扩展。
 
-查看 CPU 架构：Windows 打开「设置 → 系统 → 关于」，macOS 打开「关于本机」，Linux 执行 `uname -m`（`x86_64` 为 amd64，`aarch64` 为 arm64）。
+| 系统 | 选择与运行方式 |
+| --- | --- |
+| Windows | 优先选择对应架构的原生安装器 `.exe`；便携版为 `windows-amd64.zip` 或 `windows-arm64.zip` |
+| Linux | 选择 `linux-amd64.tar.gz` 或 `linux-arm64.tar.gz`，使用解压后的启动脚本 |
+| macOS | Apple Silicon 选择 `darwin-arm64.tar.gz`，Intel 选择 `darwin-amd64.tar.gz`，使用解压后的启动脚本 |
 
-### 2.2. 下载与安装
+Windows 在「设置 → 系统 → 关于」查看架构，macOS 查看「关于本机」，Linux 执行 `uname -m`：`x86_64` 对应 amd64，`aarch64` 对应 arm64。直接使用发行包无需安装 Go、Node.js 或文章分发工具。
 
-1. 打开[最新 Release](https://github.com/ThinkerQAQ/reverfolio/releases/latest)，根据操作系统和 CPU 架构选择文件名以 `windows-amd64.zip`、`windows-arm64.zip`、`linux-amd64.tar.gz`、`linux-arm64.tar.gz`、`darwin-amd64.tar.gz` 或 `darwin-arm64.tar.gz` 结尾的压缩包。
-2. 同时下载 `SHA256SUMS`。在下载目录校验：Windows 执行 `Get-FileHash .\Reverfolio-*.zip -Algorithm SHA256`；Linux 执行 `sha256sum ./Reverfolio-*.tar.gz`；macOS 执行 `shasum -a 256 ./Reverfolio-*.tar.gz`。与 `SHA256SUMS` 中**相同文件名**的记录对比，不一致则停止安装。
-3. 将**完整压缩包**解压到固定私有目录。解压后的 `Reverfolio/` 是安装根目录，应直接包含 `bin/` 和 `config.example.toml`；Windows 还包含 `extension/` 和 `Start-Reverfolio.cmd`。不要在压缩包内部直接运行程序。
+下载该构建附带的 SHA-256 清单，计算所选文件的哈希并与清单中**同一文件名**的记录比较：Windows 使用 `Get-FileHash`，Linux 使用 `sha256sum`，macOS 使用 `shasum -a 256`。结果不一致时重新下载。
 
-**Windows：**打开 PowerShell，将示例路径替换为实际解压目录：
+### 2.2. 安装并打开工作台
 
-```powershell
-Set-Location 'C:\path\to\Reverfolio'
-.\Start-Reverfolio.cmd
-```
+**Windows 原生安装器：**
 
-启动脚本会按需完成安装，创建 `config.toml`、`Data/` 且不覆盖旧数据，初始化扩展访问凭据、自动注册 Edge/Chrome Native Messaging Host，并在后台启动服务。**无需手动注册 Host，也没有配对码。** 然后访问 [http://127.0.0.1:19452](http://127.0.0.1:19452)；首次启动未就绪时刷新页面即可。
+1. 运行下载的安装器，选择固定安装目录。
+2. 阅读并确认许可证，然后开始安装。组件与快捷方式采用默认安排，无需逐项选择。
+3. 完成页保留 **Open Reverfolio**，点击完成。需要扩展时才勾选 **Set up the Chrome / Edge extension**，操作见 [4.1](#41-安装浏览器扩展windows)。
+4. 浏览器打开工作台后，确认「本地服务」显示「已连接」，左侧能看到「我的作品」。以后从开始菜单打开 Reverfolio 即可。
 
-**Linux/macOS：**在解压后的 `Reverfolio/` 目录打开终端：
+初始化会创建缺失的 `config.toml` 和本机数据目录，并准备扩展所需的本地授权与启动器；已有配置和数据会保留。普通使用无需手动填写本地 Token、配对码或注册 Native Messaging Host。
 
-```bash
-# 仅首次安装时复制，升级时不能覆盖已有配置。
-cp config.example.toml config.toml
-./bin/reverfolio -config ./config.toml
-```
-
-保持终端运行，打开 [http://127.0.0.1:18440](http://127.0.0.1:18440)。Unix 发行包不会自动安装后台服务；macOS 未签名程序可能需要系统授权。
-
-### 2.3. 安装浏览器扩展（Windows）
-
-**先完成 [2.2](#22-下载与安装)**，再加载扩展，保证安装程序已生成本机私有访问文件。
-
-1. Edge 打开 `edge://extensions`，Chrome 打开 `chrome://extensions`。
-2. 开启**开发者模式**，点击**加载解压缩的扩展程序**。
-3. 选择已解压 Reverfolio 安装目录内的 **`extension/` 文件夹**，其中应直接包含 `manifest.json`。不要选择 ZIP、`bin/` 或仓库根目录。
-4. 在浏览器工具栏的扩展菜单找到 Reverfolio，可以固定图标；点击图标打开的是**侧边栏**，不是弹窗。
-5. 确认左侧显示「**本地服务 → 已连接**」，再点击「**项目管理**」确认页面可以正常读取。扩展侧边栏与[本地 Web UI](http://127.0.0.1:19452) 使用同一份数据。
-
-如果出现「服务未连接」，点击**启动本地服务**，再点击**重试连接**。提示本机启动器不可用或未授权时，在**原安装目录**重新执行 `.\Start-Reverfolio.cmd`，回到扩展管理页点击**重新加载**。如果移动了安装目录，也要在新位置重新运行启动脚本以更新注册路径。**浏览器中手动加载扩展是唯一需要用户完成的扩展安装操作；Native Messaging 注册由安装脚本负责。**
-
-Linux/macOS 用户**跳过本节**，直接使用 Web UI。
-
-### 2.4. 登记并采集第一个项目
-
-Windows 在扩展侧边栏继续；Linux/macOS 在 Web UI 继续：
-
-1. 打开左侧「项目管理」，向下找到页面底部的「新增项目或文章」表单。
-2. 「作品类型」选择「GitHub 项目」，填写标题；「仓库路径」输入 `ThinkerQAQ/reverfolio`（公开测试仓库），也可以换成自己的 `owner/repo`。
-3. 点击「新建」，确认项目卡片出现在列表中。
-4. 点击该卡片上的「更新 GitHub」，随后打开「查看详情」或「影响力总览」，检查采集结果和时间。
-
-公开数据可能无需凭据即可读取；部分仓库流量需要 GitHub 授权。第一次读到的累计下载量是统计基线，不是本次新增量。
-
-### 2.5. 检查结果
-
-在另一个终端执行与系统对应的健康检查：
+**Windows 便携版：**完整解压到固定目录，不要在 ZIP 内运行。进入直接包含 `bin/`、`extension/`、`config.example.toml` 的安装根目录，打开 PowerShell 并运行：
 
 ```powershell
-# Windows
-Invoke-RestMethod http://127.0.0.1:19452/healthz
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Open-Reverfolio.ps1
 ```
+
+启动器会初始化缺失配置、启动服务并打开实际配置的地址。
+
+**Linux/macOS 便携版：**完整解压，在解压后的 `Reverfolio/` 目录运行：
 
 ```bash
-# Linux/macOS
-curl -fsS http://127.0.0.1:18440/healthz
+bash ./Open-Reverfolio.sh
 ```
 
-返回结果应包含 `"status":"ok"`。然后刷新「项目管理」，检查刚添加的项目是否还在。
+脚本创建缺失配置、在后台启动本地服务并打开浏览器。Linux 需要 `curl` 和 `xdg-open`；macOS 使用系统的 `open`。未签名程序可能需要按系统提示确认来源并允许运行。Unix 便携版使用 Web UI，不要求 Windows 浏览器扩展。
 
-还可以重启服务，确认数据确实写入了本地数据库：
+新配置的默认地址为 [http://127.0.0.1:19452](http://127.0.0.1:19452)。已有安装以 `config.toml` 的 `server.listen` 为准；启动器会打开该地址，不要另开一份配置或空数据库来解决连接问题。
 
-- **Windows：**在任务管理器「详细信息」中找到并结束本次安装启动的 `reverfolio.exe`，回到安装目录执行 `Start-Reverfolio.cmd`，重新打开工作台。
-- **Linux/macOS：**在运行服务的终端按 `Ctrl+C`，再执行 `./bin/reverfolio -config ./config.toml`。
+### 2.3. 登记并采集第一个项目
 
-重启后项目仍存在，说明登记数据已持久化。采集可能显示成功、部分成功或失败；例如公开下载量已获取，但仓库流量缺少授权时，不能把未获取的数据当成零。
+1. 打开「我的作品 → 作品列表」，展开顶部的「新增项目或文章」。没有作品时，表单会自动展开。
+2. 类型选择「GitHub 项目」，填写标题，仓库路径填写自己的 `owner/repository`。也可用公开仓库 `ThinkerQAQ/reverfolio` 验证流程。
+3. 点击「新建」，确认作品卡片出现。
+4. 在卡片上点击「更新 GitHub」，再到「查看详情」或「查看影响 → 影响总览」检查指标、采集时间和失败原因。
 
-### 2.6. 常见问题
+公共指标可能无需凭据；仓库流量通常需要相应读取权限。需要授权时，先安装 [GitHub CLI](https://cli.github.com/)（已安装可跳过）并在本机完成 `gh auth login`，再到「设置 → 数据采集 → GitHub → GitHub 授权方式」选择「本机 GitHub CLI」并重启服务。也可选择环境变量方式，让服务进程读取自己的 `GITHUB_TOKEN`。
 
-- **工作台或扩展无法连接：**先检查 [Windows 本地地址](http://127.0.0.1:19452) 或 [Linux/macOS 本地地址](http://127.0.0.1:18440)。Windows 在安装目录重新运行 `Start-Reverfolio.cmd`，然后重新加载浏览器扩展。
-- **扩展提示未授权：**确认加载的是当前安装目录下包含 `manifest.json` 的 `extension/` 文件夹，重新执行安装脚本并加载扩展。
-- **GitHub 采集失败：**检查仓库访问权限、API 限额和本地授权配置；未获取到的数据不代表零。
-- **升级后找不到项目：**检查当前使用的 `config.toml` 和 `storage.database`，确保没有切换到另一份数据库。
+第一次下载观测是累计基线，不代表这次新增下载。部分指标失败不等于全部失败，缺失也不等于零。
 
-仍无法解决时，可[提交 Issue](https://github.com/ThinkerQAQ/reverfolio/issues)，附上系统、复现步骤和脱敏错误信息，不要上传完整 `Data/` 或任何凭据。
+### 2.4. 连接 ChatGPT（需要 AI 协助时）
+
+这一步把本机 Reverfolio 提供给自己的 ChatGPT 连接。需要账号或工作区允许创建自定义 MCP/Tunnel；没有该入口时仍可使用工作台，或使用 [4.5](#45-连接本地-mcp-客户端) 的本地客户端。
+
+1. 打开 [OpenAI Tunnel 管理](https://platform.openai.com/settings/organization/tunnels)，选对自己的组织，创建 Reverfolio Tunnel 或复用已有的专用 Tunnel，记下 Tunnel ID。创建需要 Tunnels Read + Manage 权限；Tunnel 与之后使用的 ChatGPT 工作区应匹配。复用旧 Tunnel 前先停止原安装的 MCP 进程，同一 Tunnel 不同时运行两份客户端。
+2. 打开同一组织的 [Runtime API keys](https://platform.openai.com/settings/organization/api-keys)，创建供该 Tunnel 运行的受限密钥，确保具有 Tunnels Read + Use 权限。已有合适的运行密钥可复用；不要使用 Admin API Key 运行服务。
+3. 回到 Reverfolio，打开「设置 → MCP 连接」，粘贴 Tunnel ID，点击「连接 ChatGPT」。缺少官方客户端时，引导会先下载并安装。
+4. 首次配置按本机窗口提示输入刚准备的运行密钥。密钥只在本机填写，不要粘贴进聊天；已有凭据会复用。Windows 使用本机配置窗口，Linux/macOS 的首次凭据配置按本机终端提示完成。
+5. 等待显示「本机连接已就绪」，点击「打开 ChatGPT 插件设置」。新连接选择新增自定义 MCP，名称填写 Reverfolio、连接方式选择 **Tunnel**，选择同一个 Tunnel 并完成安装/授权；已有连接则打开该条目启用或刷新。界面与账号限制见 [ChatGPT 插件说明](https://learn.chatgpt.com/docs/plugins)。
+6. 在 ChatGPT 中选择该连接，发送下面的只读验收请求：
+
+```text
+使用 Reverfolio，只读调用 list_works 和 get_collection_status。
+确认能看到刚添加的项目，并报告服务版本。不要采集或修改数据，不要输出凭据。
+```
+
+能读到刚登记的项目，才说明 ChatGPT 已连接到这份本机数据。「本机连接已就绪」只表示本地 Tunnel 健康，不代表 ChatGPT 已完成授权。运行密钥的创建与权限说明见 [官方 tunnel-client](https://github.com/openai/tunnel-client)。
+
+### 2.5. 完成第一次使用
+
+以后按左侧顺序操作：
+
+| 入口 | 要做的事 | 完成后去哪里 |
+| --- | --- | --- |
+| 我的作品 | 登记项目和文章，导入网站文章，关联公开发布链接 | 发现线索 |
+| 发现线索 | 为作品建立任务，让已连接的 AI 客户端实际搜索并记录检查范围 | 审核证据 |
+| 审核证据 | 核对原页，审核引用与采用，将相关证据关联为影响事件 | 查看影响 |
+| 查看影响 | 查看总览、传播路径、历史统计，导出报告 | 按新线索继续检索 |
+
+作品采集正常后，可以到「设置 → 数据采集 → GitHub → 自动采集计划」选择间隔。电脑和服务需要保持运行。设置位于侧栏底部。
+
+再次从安装入口打开应用，确认项目仍在；连接 ChatGPT 的用户再运行一次只读请求。这就完成了本机保存和远程读取的验收。
 
 ## 3. Configuration
 
-### 3.1. 常用配置
+### 3.1. 在设置中调整
 
-私有配置位于安装目录的 `config.toml`，数据保存在 `Data/`。完整字段以 [config.example.toml](config.example.toml) 为准，也可以在「设置 → 数据采集」中调整相关选项。
+配置保存在安装根目录的 `config.toml`，数据库通常为 `Data/state.sqlite`。完整字段见 [config.example.toml](config.example.toml)。
 
-- `server.listen`：本地服务地址。Windows 扩展使用 `127.0.0.1:19452`；Linux/macOS 默认使用 `127.0.0.1:18440`。
-- `storage.database`：SQLite 文件路径，通常是 `Data/state.sqlite`。
-- `collection.interval`：自动采集周期；`0` 表示关闭。采集期间服务需要保持运行。
-- `github.auth`：`env` 使用 `GITHUB_TOKEN`；`gh` 使用当前服务账户已授权的 GitHub CLI。
-- `github.download_scope`：选择全部 Release 资产或常见安装包的下载统计。
-- `interface.language`：界面语言 `zh-CN` 或 `en`。
+| 需求 | 设置入口 | 生效方式 |
+| --- | --- | --- |
+| 连接 ChatGPT、本地客户端配置 | MCP 连接 | 按页面引导检查连接 |
+| 语言、布局、首页模块 | 界面与语言 | 保存后生效 |
+| GitHub 凭据来源 | 数据采集 → GitHub → GitHub 授权方式 | 重启服务 |
+| 采集周期、下载统计口径 | 数据采集 → GitHub | 周期一分钟内应用，展示口径保存后应用 |
+| GSC、Bing、Umami 的地址、站点与授权 | 数据采集 → 搜索与站点统计 | 保存来源后显式采集并检查结果 |
+| 审核人、默认筛选、任务认领名称 | 引用与审核、AI 检索任务 | 保存后用于后续操作 |
+| 本机监听地址、数据库路径 | 运行环境 → 高级启动配置 | 重启服务；改地址后重新加载扩展 |
 
-本地 Web UI 和已安装的扩展不需要手动输入 API Token。连接第三方统计平台时，在对应设置页面填写自己的授权信息。
+监听地址仅允许回环 IP。修改端口会同步扩展的本地地址、权限与连接策略。数据库路径只接受已有的 Reverfolio SQLite 文件；保存设置不会移动或复制旧数据。切换前先备份，确认选中的是目标数据库。
 
-### 3.2. 升级、备份与恢复
+### 3.2. 升级、备份和恢复
 
-1. 退出 Reverfolio，备份 `config.toml`、`Data/` 和私有平台凭据。
-2. 下载新版发行包，更新原安装目录中的程序文件，**保留原有配置和数据**。
-3. Windows 重新运行 `Start-Reverfolio.cmd` 并在浏览器中重新加载扩展；Linux/macOS 使用原 `config.toml` 启动。
-4. 打开「项目管理」，确认已有作品和历史统计仍在。
+1. 在「设置 → 统计和备份 → 数据库备份」导出 SQLite 备份，另行保留 `config.toml` 与私有平台凭据。
+2. 停止这份安装的服务和 MCP 连接。Windows 可在任务管理器中按可执行文件路径确认对应的 `reverfolio.exe`；前台终端启动的服务使用 `Ctrl+C`。
+3. 原生安装器选择原安装目录；便携版替换程序文件，保留自己的配置、数据库及私有凭据。
+4. 从原安装入口重新打开，扩展用户在浏览器中重新加载扩展。确认作品、历史证据与设置仍在，再恢复 MCP 连接。
 
-如需恢复 SQLite 备份，先停止服务，再运行 `reverfolio -restore BACKUP -db NEW_PATH`（Windows 为 `reverfolio.exe`）；恢复目标必须是**新的数据库路径**，不能直接覆盖现有数据库。
+恢复备份时，先在服务停止后将备份放到一个新的文件路径，再将 `storage.database` 指向该文件。也可使用 `reverfolio -restore BACKUP -db NEW_PATH`（Windows 为 `reverfolio.exe`），恢复目标必须不存在。不要把正在使用的 SQLite 文件直接覆盖。
+
+### 3.3. 遇到问题时检查哪里
+
+| 现象 | 检查与恢复 |
+| --- | --- |
+| 工作台打不开 | 从同一安装目录重新启动，核对 `server.listen` 和端口占用。Unix 查看 `Data/service.log` |
+| 扩展未连接或未授权 | 重新运行安装目录的启动入口，再重新加载该目录的扩展；需要时点击「启动本地服务」「重试连接」 |
+| 本机已就绪，ChatGPT 不能调用 | 在插件设置中核对同一个 Tunnel，完成启用/授权，再用只读请求验收 |
+| GitHub 或站点采集失败 | 看最新尝试的错误与最近成功观测，检查账号权限、凭据与网络。不要将失败值当作零 |
+| 升级后看不到原数据 | 核对安装目录、`config.toml` 和数据库路径，先找回原库，不要重新导入造成重复 |
+
+仍有问题时，可在 [Issues](https://github.com/ThinkerQAQ/reverfolio/issues) 提供系统、复现步骤和脱敏错误。
 
 ## 4. Optional Features
 
-以下 Case 均为可选能力，可以独立使用。第一次接入建议先完成 Quick Start。
+### 4.1. 安装浏览器扩展（Windows）
 
-### 4.1. Case 1：从自己的网站导入文章
+安装器完成页可打开扩展安装指引；也可以完成主流程后手动安装：
 
-1. 打开「网站发现」，输入自己管理的公开网站地址或 Feed 地址。
-2. 预览 RSS、Atom 或 Sitemap 中发现的候选文章，核对标题和 URL。发现候选文章并不等于已登记发布。
-3. 勾选需要的文章，执行导入。
-4. 在「项目管理」和「分发渠道」中检查导入的作品与发布链接。
+1. 先从 Reverfolio 的安装入口打开一次工作台，完成本地初始化。
+2. Edge 打开 `edge://extensions`，Chrome 打开 `chrome://extensions`，启用「开发者模式」。
+3. 点击「加载解压缩的扩展程序」，选择**当前安装目录的 `extension/`**，该目录应直接包含 `manifest.json`。
+4. 点击扩展图标打开侧边栏，确认「本地服务 → 已连接」及刚登记的项目。
 
-只有明确选择的 URL 才会导入。Feed 和 Sitemap 不保证覆盖所有文章；标题相同也不会自动合并不同作品。
+扩展与网页使用相同数据。浏览器要求用户手动加载未上架扩展；安装器负责本地授权与 Host 注册。移动安装目录后，重新运行启动入口并重新加载扩展。
 
-### 4.2. Case 2：接入 DEV.to
+### 4.2. 导入网站文章与 DEV.to
 
-1. 获取自己的 DEV.to API Key，在本地「平台账号」界面填写。
-2. 连接账号并预览已经发布的文章。
-3. 勾选需要导入的文章，关联已有作品或创建对应的作品记录。
-4. 执行 DEV.to 采集，在「平台账号」及历史统计中检查阅读、粉丝和互动数据。
+- 网站：进入「我的作品 → 从网站导入」，填写自己管理的公开网站或 Feed 地址，预览 RSS、Atom、Sitemap 候选项，再选择需要的文章导入。
+- DEV.to：进入「我的作品 → 平台账号」，在本地填写自己的 API Key，连接后预览已发布文章，勾选并关联或导入，再执行统计采集。
+- 导入后：在「作品列表」确认作品，在「发布链接」确认原文、译文和公开渠道地址。未选中的文章不导入，标题相同不会自动合并。
 
-凭据仅保存在本地，MCP 不提供接受原始 API Key 的账号接入工具。目前已经实现的创作者平台 API 集成是 DEV.to；其他创作者平台不能直接视为已支持。
+目前创作者平台统计实现的是 DEV.to 官方 API；其他平台不能视为已支持。它们也不要求安装 Inkerio 或 SyndiRelay。
 
-### 4.3. Case 3：接入网站与搜索统计
+### 4.3. 接入网站与搜索统计
 
-1. 先在「项目管理」登记网站作品。
-2. 打开「设置 → 数据采集 → 搜索与站点统计」，选择 Umami、Google Search Console（GSC）或 Bing Webmaster。
-3. 填写来源要求的站点/属性标识、时区、统计窗口和授权凭据。GSC 需要自己有读取权限的属性；Bing 需要已验证站点及 API Key；Umami 支持 Token 或另外明确授权的本地浏览器会话。
-4. 保存并明确启用数据源，然后执行采集。
-5. 检查来源状态和统计结果。**保存成功不等于采集成功。**
+先在「我的作品」登记网站，再进入「设置 → 数据采集 → 搜索与站点统计」。选择 Umami、GSC 或 Bing，填写来源标识、关联作品、站点/属性、时区和统计窗口，按来源要求在本机配置凭据。保存并启用后，显式采集一次，再检查来源状态与结果。
 
-各平台的指标口径不同，应保留各自统计范围。浏览器已经登录不代表可以直接导出 Cookie 或提取凭据。
+GSC 需要可读取的属性，Bing 需要已验证站点；Umami 支持 Token 或单独授权的本机浏览器会话。保存成功不代表采集成功，浏览器登录也不代表允许导出 Cookie。各来源的点击、曝光、访问标识和阅读量保留各自口径。
 
-### 4.4. Case 4：审核外部引用
+### 4.4. 检索、审核并归并影响事件
 
-1. 在「分发渠道」登记作品已经公开的原文、译文或分发链接。
-2. 在「引用与采用」提交发现的外部引用页面。
-3. 查看原始页面或 API 证据，确认是否与自己的作品有关，再选择审核通过或拒绝。
-4. 到传播路径或历史统计中查看已确认的记录。
+先为作品补齐「发布链接」；旧名称、旧 URL、译名或特征句可在「发现线索」的高级区域补充。然后向已连接的 AI 客户端提出明确请求，例如：
 
-「发现任务」用于把检索工作交给外部 AI 客户端；Reverfolio 不会仅因创建任务就自动搜索互联网。
-
-### 4.5. Case 5：本地 MCP 连接
-
-**本地 stdio MCP 客户端**填写已安装二进制和配置文件的绝对路径：
-
-```json
-{
-  "mcpServers": {
-    "reverfolio": {
-      "command": "/absolute/path/Reverfolio/bin/reverfolio",
-      "args": ["-mcp-stdio", "-config", "/absolute/path/Reverfolio/config.toml"]
-    }
-  }
-}
+```text
+使用 Reverfolio，为我选择的作品查找外部影响线索。
+先读取作品、发布链接和 get_discovery_coverage，按该作品的检索计划搜索。
+核对原始页面，区分本人分发、第三方引用、转载、目录收录、AI 生成内容与实际采用。
+把候选证据保存为待审核，记录实际查询、来源、日期及未完成范围；不要自动审核通过。
 ```
 
-Windows 改为 `bin/reverfolio.exe`。重新连接 MCP 后，调用 `get_dashboard`、`list_works`、`get_collection_status`，核对读取的是同一份数据及当前服务信息。stdio 进程不会启动第二个定时采集器。
+AI 需要实际执行搜索、认领并按需续租任务，再关联候选证据记录结果。任务和检索计划本身不会启动全网爬取。
 
-MCP 既有读取总览、作品、数据源和证据的只读工具，也有导入、采集和审核等写操作。写操作需要唯一的 `request_id`，部分操作还需要预期版本号。远程 ChatGPT 使用场景还需要自行配置经过认证的 MCP Tunnel；作者私有连接不是公开的一键安装入口。不要把本地 HTTP 端口直接暴露到公网。
+在「审核证据 → 引用与采用」打开原页、核对相关性与来源，再填写理由并审核。在「影响事件」把文章、Issue、PR 等相关页面归为一次事件，关联作品与证据，并记录提交、审核、合并或验证等阶段。没有结果证明时，保留「结果未确认」。最后到「查看影响」核对事件总数并导出报告。
+
+上游合并证明贡献被接纳；转载或目录收录证明传播或曝光；它们都不能换算为真实使用人数。同一事件的多个页面不应重复计为多个采用者。未在本次范围找到结果，也不代表全网不存在。
+
+### 4.5. 连接本地 MCP 客户端
+
+在「设置 → MCP 连接 → 高级选项与本地客户端」复制应用生成的 JSON，粘贴到自己本机 AI 客户端的 MCP 配置并重新连接。生成内容使用当前安装的绝对路径，无需照抄其他人的目录。
+
+调用 `list_works`、`get_collection_status` 检查是否读到同一份数据。本地 stdio 连接不要求 ChatGPT Tunnel，也不会启动第二个定时采集器。写操作需要唯一 `request_id`；审核和事件更新等操作还需要预期版本号。
 
 ## 5. Development
 
-### 5.1. 从源码编译与运行
+### 5.1. 编译并运行
 
-开发需要 Git、符合 [go.mod](go.mod) 声明的 Go 工具链；运行完整仓库检查还需要 Python 3、Node.js。
-
-**Linux/macOS：**
+开发需要 Git、符合 [go.mod](go.mod) 的 Go 工具链；完整仓库检查还需要 Python 3 和 Node.js。
 
 ```bash
 git clone https://github.com/ThinkerQAQ/reverfolio.git
 cd reverfolio
 go test -race ./...
 go vet ./...
-go build -o reverfolio ./cmd/reverfolio
-mkdir -p Data
-./reverfolio -db ./Data/state.sqlite -collect-interval 0
+go build -o bin/reverfolio ./cmd/reverfolio
+# 仅首次创建配置，保留已有文件。
+test -f config.toml || cp config.example.toml config.toml
+./bin/reverfolio --config ./config.toml --collect-interval 0
 ```
 
-**Windows PowerShell：**
+Windows PowerShell 使用以下对应命令完成编译、配置和启动：
 
 ```powershell
-git clone https://github.com/ThinkerQAQ/reverfolio.git
-Set-Location reverfolio
-go test -race ./...
-go vet ./...
-go build -o reverfolio.exe ./cmd/reverfolio
-New-Item -ItemType Directory -Force Data | Out-Null
-.\reverfolio.exe -db .\Data\state.sqlite -collect-interval 0
+go build -o bin/reverfolio.exe ./cmd/reverfolio
+if (!(Test-Path config.toml)) { Copy-Item config.example.toml config.toml }
+.\bin\reverfolio.exe --config .\config.toml --collect-interval 0
 ```
 
-源码启动后打开 [http://127.0.0.1:18440](http://127.0.0.1:18440)，按照 [2.4](#24-登记并采集第一个项目) 登记测试仓库即可。源码 Web UI 不要求安装扩展。
+浏览器打开配置的监听地址，按 Quick Start 添加测试作品即可。源码 Web UI 无需安装扩展；开发 Windows 原生启动器时另行编译 `./cmd/reverfolio-host`。
 
-### 5.2. 扩展检查与打包
+### 5.2. 检查与打包
 
 ```sh
 python3 scripts/check_docs.py
 python3 scripts/check_mcp_contract.py --fixture
-python3 -m unittest discover -s scripts -p 'test_publications_to_catalog.py'
 node scripts/check_extension.mjs
-node scripts/check_dashboard.mjs
+node scripts/check_native_host.mjs
 ```
 
-MCP 模拟验收使用隔离数据库，不要求真实平台凭据。CI 还包括其他扩展检查、Go race/vet 和跨平台构建；模拟测试不能代替真实账号授权和原生图形界面验收。
+MCP 模拟验收使用隔离数据库；真实平台授权与原生安装需要单独验收。CI 覆盖 Go 测试、race/vet 和 Windows、Linux、macOS 构建。
 
-生成发行包可执行 `python3 scripts/package_release.py vX.Y.Z`，将占位符换成目标版本。打包流程验证六种系统/架构组合、SHA-256 和第三方依赖许可原文。代码变更采用功能分支、PR Review 和 Squash Merge。
+便携包由 `python3 scripts/package_release.py vX.Y.Z` 生成，版本参数替换为准备发布的版本。原生安装器在目标操作系统安装 Qt Installer Framework 后，通过 `python3 scripts/package_installer.py --help` 查看参数，将解压后的干净便携包作为 stage。打包时不得放入运行中的配置、SQLite 或私有访问文件。
 
 ## 6. License
 
-Reverfolio 是本地运行的工具，**不是**对公网开放的 API。HTTP API 与 MCP 使用独立凭据；Windows 扩展使用安装时生成的本地访问能力。应保护操作系统账户、`Data/`、SQLite、私有配置和 Token，不要将它们提交到 Git 或打进发行包；文章内容、浏览器资料和统计报告也应保持私有。通过 MCP 明确返回给客户端的数据可能被传输到该客户端或其 AI 服务。
+原创代码和项目视觉资源采用 [MIT License](LICENSE)，第三方代码与依赖保留其许可证；发行包附带依赖许可原文。用户文章、摄影和平台数据不属于项目代码许可范围。
 
-安全问题请通过 **contact@mail.thinkerqaq.com** 私下报告，不要在公开 Issue 中发布个人数据或有效凭据。
-
-原创代码及项目视觉资源采用 [MIT License](LICENSE)。用户文章、摄影、平台数据和第三方素材不包含在此许可内。依赖保留各自许可证：`go.mod`/`go.sum` 记录依赖信息，发行包中的 `THIRD_PARTY_LICENSES.txt` 包含上游许可和声明原文，打包时自动生成并验证。
+保护本机账户、配置、`Data/` 和凭据，不要将个人数据提交到仓库或打入安装包。明确通过 MCP 返回的内容可能传给所连接的 AI 服务。安全问题请私下联系 **contact@mail.thinkerqaq.com**，不要在公开 Issue 上传有效凭据。
