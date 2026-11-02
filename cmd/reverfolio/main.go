@@ -62,13 +62,14 @@ func apiToken(path string) (string, error) {
 	return token, closeErr
 }
 func main() {
-	addr := flag.String("listen", "127.0.0.1:18440", "loopback listen address")
+	addr := flag.String("listen", echo.DefaultConfig().Server.Listen, "loopback listen address")
 	dbPath := flag.String("db", "data/reverfolio.sqlite", "private SQLite database path")
 	restore := flag.String("restore", "", "restore a backup to a NEW -db path and exit")
 	stdio := flag.Bool("mcp-stdio", false, "serve MCP over local stdio instead of HTTP")
 	githubAuth := flag.String("github-auth", "env", "GitHub credentials: env or gh (explicit CLI fallback)")
 	interval := flag.Duration("collect-interval", 24*time.Hour, "scheduled GitHub interval; 0 disables scheduling; minimum 1 minute")
 	configPath := flag.String("config", "", "path to private TOML configuration (auto-detect next to bin directory)")
+	syncExtension := flag.Bool("sync-extension-config", false, "synchronize nonsecret extension endpoint from config.toml and exit")
 	flag.Parse()
 	followCollectionConfig := true
 	flag.Visit(func(f *flag.Flag) {
@@ -124,6 +125,15 @@ func main() {
 				*dbPath = filepath.Join(filepath.Dir(*configPath), *dbPath)
 			}
 		}
+	}
+	if *syncExtension {
+		if *configPath == "" {
+			log.Fatal("config path required")
+		}
+		if err := echo.SyncExtensionEndpoint(*configPath, config); err != nil {
+			log.Fatal("extension endpoint synchronization failed: ", err)
+		}
+		return
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

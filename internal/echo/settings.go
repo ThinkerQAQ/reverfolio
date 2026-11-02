@@ -3,11 +3,15 @@ package echo
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
+	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -77,7 +81,7 @@ type ConfigFile struct {
 func DefaultConfig() ConfigFile {
 	var c ConfigFile
 	c.Version = 1
-	c.Server.Listen = "127.0.0.1:18440"
+	c.Server.Listen = "127.0.0.1:19452"
 	c.Storage.Database = "Data/state.sqlite"
 	c.Collection.Interval = "24h"
 	c.GitHub.Auth = "env"
@@ -95,6 +99,7 @@ func DefaultConfig() ConfigFile {
 }
 
 var preferenceKeys = []string{
+	"server.listen", "github.auth", "storage.database",
 	"overview.show_github", "overview.show_evidence", "overview.show_history", "overview.evidence_limit",
 	"interface.language", "appearance.compact", "github.download_scope", "evidence.default_filter", "evidence.reviewer",
 	"discovery.worker", "display.timezone", "collection.interval",
@@ -102,6 +107,21 @@ var preferenceKeys = []string{
 
 func validateSetting(key, value string) error {
 	switch key {
+	case "server.listen":
+		host, port, err := net.SplitHostPort(value)
+		ip := net.ParseIP(host)
+		n, numberErr := strconv.Atoi(port)
+		if err == nil && numberErr == nil && ip != nil && ip.IsLoopback() && n > 0 && n <= 65535 {
+			return nil
+		}
+	case "github.auth":
+		if value == "env" || value == "gh" {
+			return nil
+		}
+	case "storage.database":
+		if strings.TrimSpace(value) == value && value != "" && len(value) <= 1000 && !strings.ContainsAny(value, "\x00\r\n") {
+			return nil
+		}
 	case "collection.interval":
 		duration, err := time.ParseDuration(value)
 		if err == nil && (duration == 0 || (duration >= time.Minute && duration <= 30*24*time.Hour)) {
@@ -148,6 +168,12 @@ func b(v bool) string {
 }
 func (c ConfigFile) get(key string) string {
 	switch key {
+	case "server.listen":
+		return c.Server.Listen
+	case "github.auth":
+		return c.GitHub.Auth
+	case "storage.database":
+		return c.Storage.Database
 	case "collection.interval":
 		return c.Collection.Interval
 	case "overview.show_github":
@@ -177,6 +203,12 @@ func (c ConfigFile) get(key string) string {
 }
 func (c *ConfigFile) set(key, v string) {
 	switch key {
+	case "server.listen":
+		c.Server.Listen = v
+	case "github.auth":
+		c.GitHub.Auth = v
+	case "storage.database":
+		c.Storage.Database = v
 	case "collection.interval":
 		c.Collection.Interval = v
 	case "overview.show_github":
@@ -331,6 +363,7 @@ func (m *ConfigManager) UpdateSettings(_ context.Context, in UpdateSettingsInput
 			return nil, ErrConflict
 		}
 	}
+	previous := c
 	updated := false
 	for _, u := range in.Updates {
 		if c.get(u.Key) != u.Value {
@@ -339,8 +372,50 @@ func (m *ConfigManager) UpdateSettings(_ context.Context, in UpdateSettingsInput
 		}
 	}
 	if updated {
+		if c.Storage.Database != previous.Storage.Database {
+			path := c.Storage.Database
+			if !filepath.IsAbs(path) {
+				path = filepath.Join(filepath.Dir(m.Path), path)
+			}
+			f, openErr := os.Open(path)
+			if openErr != nil {
+				return nil, fmt.Errorf("%w: choose an existing SQLite backup; database is not moved automatically", ErrInvalid)
+			}
+			header := make([]byte, 16)
+			_, readErr := f.Read(header)
+			f.Close()
+			if readErr != nil || string(header) != "SQLite format 3\x00" {
+				return nil, fmt.Errorf("%w: existing SQLite database required", ErrInvalid)
+			}
+			absolute, absErr := filepath.Abs(path)
+			if absErr != nil {
+				return nil, ErrInvalid
+			}
+			uri := url.URL{Scheme: "file", Path: filepath.ToSlash(absolute), RawQuery: "mode=ro"}
+			if !strings.HasPrefix(uri.Path, "/") {
+				uri.Path = "/" + uri.Path
+			}
+			db, dbErr := sql.Open("sqlite", uri.String())
+			if dbErr != nil {
+				return nil, ErrInvalid
+			}
+			var tables int
+			dbErr = db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('works','mentions','commands')").Scan(&tables)
+			db.Close()
+			if dbErr != nil || tables != 3 {
+				return nil, fmt.Errorf("%w: select a Reverfolio database backup", ErrInvalid)
+			}
+		}
+		if c.Server.Listen != previous.Server.Listen {
+			if err = SyncExtensionEndpoint(m.Path, c); err != nil {
+				return nil, err
+			}
+		}
 		c.Version++
 		if err = saveConfig(m.Path, c); err != nil {
+			if c.Server.Listen != previous.Server.Listen {
+				_ = SyncExtensionEndpoint(m.Path, previous)
+			}
 			return nil, err
 		}
 	}
