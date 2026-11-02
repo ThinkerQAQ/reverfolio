@@ -167,14 +167,22 @@ type DiscoveryRunDetail struct {
 	MentionIDs    []int64  `json:"mention_ids"`
 	CompletedAt   string   `json:"completed_at"`
 }
+type DiscoveryStage struct {
+	ID      string   `json:"id"`
+	Goal    string   `json:"goal"`
+	Queries []string `json:"queries"`
+	Seeds   []string `json:"seeds"`
+}
 type DiscoveryCoverage struct {
-	Runs             []DiscoveryRunDetail   `json:"runs"`
-	Identifiers      []WorkSearchIdentifier `json:"identifiers"`
-	SuggestedQueries map[int64][]string     `json:"suggested_queries"`
+	Workflow         []string                   `json:"workflow"`
+	Plans            map[int64][]DiscoveryStage `json:"plans"`
+	Runs             []DiscoveryRunDetail       `json:"runs"`
+	Identifiers      []WorkSearchIdentifier     `json:"identifiers"`
+	SuggestedQueries map[int64][]string         `json:"suggested_queries"`
 }
 
 func (s *Store) DiscoveryCoverage(ctx context.Context) (DiscoveryCoverage, error) {
-	out := DiscoveryCoverage{Runs: []DiscoveryRunDetail{}, Identifiers: []WorkSearchIdentifier{}, SuggestedQueries: map[int64][]string{}}
+	out := DiscoveryCoverage{Workflow: discoveryWorkflow, Plans: map[int64][]DiscoveryStage{}, Runs: []DiscoveryRunDetail{}, Identifiers: []WorkSearchIdentifier{}, SuggestedQueries: map[int64][]string{}}
 	rows, err := s.db.QueryContext(ctx, `SELECT r.id,r.task_id,t.work_id,r.engine,r.scope,r.status,COALESCE(d.checked_result,'legacy_unknown'),COALESCE(d.queries,'[]'),r.completed_at FROM search_runs r JOIN discovery_tasks t ON t.id=r.task_id LEFT JOIN discovery_run_details d ON d.search_run_id=r.id ORDER BY r.id DESC`)
 	if err != nil {
 		return out, err
@@ -245,7 +253,25 @@ func (s *Store) DiscoveryCoverage(ctx context.Context) (DiscoveryCoverage, error
 		out.Identifiers = append(out.Identifiers, id)
 		out.SuggestedQueries[id.WorkID] = append(out.SuggestedQueries[id.WorkID], quote(id.Value))
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return out, err
+	}
+	rows.Close()
+	mentions, err := s.Mentions(ctx, 0)
+	if err != nil {
+		return out, err
+	}
+	for _, w := range works {
+		channels, err := s.Channels(ctx, w.ID)
+		if err != nil {
+			return out, err
+		}
+		for _, c := range channels {
+			out.SuggestedQueries[w.ID] = appendUnique(out.SuggestedQueries[w.ID], quote(c.URL))
+		}
+		out.Plans[w.ID] = discoveryPlan(w, out.SuggestedQueries[w.ID], mentions)
+	}
+	return out, nil
 }
 func (s Service) registerDiscoveryCoverage(mux *http.ServeMux) {
 	actionRoute(mux, "renew_discovery_task", func(ctx context.Context, in RenewDiscoveryInput) (any, error) { return s.Store.RenewDiscovery(ctx, in) })
