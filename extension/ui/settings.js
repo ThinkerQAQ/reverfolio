@@ -6,6 +6,7 @@
  * Leaf controls are bound only to Reverfolio's allowlisted settings API.
  */
 const settingTree = [
+ {id:"mcp",name:["MCP 连接","MCP connections"],desc:["本地客户端和 ChatGPT Tunnel","Local clients and ChatGPT Tunnel"],children:[{id:"mcp-connection",name:["连接与服务管理","Connections and service"],desc:["配置、健康检查、启动与停止","Configuration, readiness, start and stop"],kind:"mcp-connection"}]},
  {id:"interface",name:["界面与语言","Interface & language"],desc:["界面语言、首页、布局","Language, dashboard and layout"],children:[
    {id:"ui-language",name:["界面语言","Interface language"],desc:["简体中文或 English（保存在 config.toml）","Simplified Chinese or English (saved to config.toml)"],kind:"language"},
    {id:"dashboard",name:["首页总览","Dashboard"],desc:["调整首页的展示方式","Control the overview layout"],children:[
@@ -151,6 +152,7 @@ function settingsFieldInput(field){
 }
 function settingsReadOnly(node){
  const kind=node.kind;
+ if(kind==="mcp-connection")return mcpSettingsPanel();
  const status=(label,badge,detail)=>'<div class="settings-status"><div class="work-header"><strong>'+E(label)+'</strong>'+tag(E(badge),badge==="Active"?"complete":"partial")+'</div>'+
   '<p class="muted">'+E(detail)+'</p></div>';
  if(kind==="language")
@@ -231,6 +233,17 @@ function settingsRenderSidebar(){
  const area=$("settings-tree");if(area)area.innerHTML=settingsIndexRows();
 }
 async function settingsHandleAction(button){
+ if(button.dataset.action.startsWith("settings-mcp-")){
+  const action=button.dataset.action.slice("settings-mcp-".length);
+  if(action==="copy"){await navigator.clipboard.writeText(JSON.stringify(state.mcpConnection?.local_config||{},null,2));notification(settingsLabel(["已复制","Copied"]));return;}
+  if(action!=="refresh"){
+   const tunnel_id=document.querySelector("#mcp-tunnel-id")?.value||"";
+   await act(async()=>{await api("/api/mcp-connection",{method:"POST",body:JSON.stringify({action,tunnel_id})});},settingsLabel(["操作已提交，请刷新检查状态；首次配置请在本机终端完成。","Action submitted. Refresh status; finish first setup in the local terminal."]));
+  }
+  try{state.mcpConnection=await api("/api/mcp-connection");render();}catch(err){notification(err.message,true);}return;
+ }
+ if(button.dataset.id==="mcp-connection"){try{state.mcpConnection=await api("/api/mcp-connection");}catch(err){notification(err.message,true);}}
+
  switch(button.dataset.action){
   case "settings-home":{
    state.settingsSelected="";
@@ -279,4 +292,15 @@ async function settingsHandleForm(){
   await send("update_settings",{updates});
   for(const item of updates)delete state.settingsDraft[item.key];
  });
+}
+
+function mcpSettingsPanel(){
+ const c=state.mcpConnection||{};
+ const labels={ready:["Ready（控制平面检查通过）","Ready (control-plane check passed)"],client_missing:["未安装 Tunnel Client","Tunnel Client missing"],unconfigured:["未配置","Unconfigured"],stopped_or_unhealthy:["已配置，未通过健康检查","Configured; health check not passed"]};
+ const button=(action,label)=>'<button type="button" class="btn" data-action="settings-mcp-'+action+'">'+E(settingsLabel(label))+'</button>';
+ return '<p>'+E(settingsLabel(labels[c.state]||["请刷新连接状态","Refresh connection status"]))+'</p>'+
+ '<div class="settings-field"><label>Tunnel ID<input id="mcp-tunnel-id" maxlength="80" value="'+E(c.tunnel_id||'')+'" placeholder="tunnel_…"></label></div>'+
+ '<div class="btn-row">'+button("install-client",["安装官方客户端","Install official client"])+button("setup",["配置并启动","Configure and start"])+button("start",["启动","Start"])+button("stop",["停止","Stop"])+button("restart",["重启","Restart"])+button("refresh",["刷新状态","Refresh status"])+ '</div>'+
+ '<p class="muted">'+E(settingsLabel(["首次凭据只在本机终端输入；已有凭据复用。Ready 表示 Tunnel 健康，不代表 ChatGPT 已完成授权。","First-time credentials stay in the local terminal; saved credentials are reused. Ready describes Tunnel health; ChatGPT authorization is separate."]))+'</p>'+
+ '<h3>'+E(settingsLabel(["本地 MCP 客户端","Local MCP client"]))+'</h3><pre>'+E(JSON.stringify(c.local_config||{},null,2))+'</pre>'+button("copy",["复制连接配置","Copy configuration"]);
 }
