@@ -245,3 +245,5 @@ body:has(.settings-full-page) .workspace-main{max-width:none;width:100%}
 .mcp-advanced{margin-top:24px;border-top:1px solid var(--border);padding-top:18px}.mcp-advanced summary{color:#71839c;font-size:12px}
 .mcp-advanced h3{margin:25px 0 8px;font-size:14px}.mcp-advanced pre{font-size:11px}
 @media(max-width:600px){.mcp-steps{gap:10px;font-size:11px}.mcp-steps span{width:21px;height:21px}.mcp-connection-card{padding:20px}.mcp-main-action .btn{width:100%}}
+
+.mcp-steps a{color:inherit;text-decoration:underline;text-underline-offset:3px}.mcp-main-action a.btn{text-decoration:none}
