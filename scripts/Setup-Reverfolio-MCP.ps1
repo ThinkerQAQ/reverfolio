@@ -34,7 +34,9 @@ if (Test-Path $profile) {
     }
 }
 if (-not (Test-Path $profile)) {
-    $mcpCommand = '"' + $binary + '" --mcp-stdio --config "' + (Join-Path $root 'config.toml') + '"'
+    # tunnel-client parses this string as shell words, even on Windows.
+    # Forward slashes preserve drive-qualified paths through that parser.
+    $mcpCommand = '"' + $binary.Replace('\','/') + '" --mcp-stdio --config "' + (Join-Path $root 'config.toml').Replace('\','/') + '"'
     & $clientPath init --sample sample_mcp_stdio_local --profile-dir $private --profile reverfolio --tunnel-id $TunnelId --mcp-command $mcpCommand --health-listen-addr '127.0.0.1:0'
     if ($LASTEXITCODE -ne 0) { throw 'Tunnel profile initialization failed' }
 }

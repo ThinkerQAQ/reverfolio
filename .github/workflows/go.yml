@@ -37,3 +37,6 @@ jobs:
       - run: go build ./cmd/reverfolio
       - name: Verify real MCP protocol and 39-tool contract with an isolated database
         run: python scripts/check_mcp_contract.py --fixture
+      - name: Check Windows MCP command survives tunnel-client shell parsing
+        if: runner.os == 'Windows'
+        run: python scripts/check_windows_mcp_command.py
