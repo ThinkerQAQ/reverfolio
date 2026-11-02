@@ -36,7 +36,6 @@ func Handler(service Service, token string) http.Handler {
 	}
 	mux.Handle("GET /assets/", http.StripPrefix("/assets/", http.FileServerFS(assets)))
 	service.registerWorkflow(mux)
-	service.registerImpact(mux)
 	write := func(w http.ResponseWriter, value any) {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(value)

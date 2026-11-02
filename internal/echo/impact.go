@@ -18,31 +18,31 @@ type ImpactEvidence struct {
 type ImpactStep struct {
 	Kind      string `json:"kind"`
 	Label     string `json:"label"`
-	At        string `json:"at"`
+	At        string `json:"at,omitempty"`
 	MentionID int64  `json:"mention_id"`
 }
 type ImpactReview struct {
-	Version  int64  `json:"version"`
+	Version  int64  `json:"version,omitempty"`
 	Reason   string `json:"reason"`
 	Reviewer string `json:"reviewer"`
-	At       string `json:"at"`
+	At       string `json:"at,omitempty"`
 }
 type ImpactEvent struct {
-	History        []ImpactReview   `json:"history"`
-	ID             int64            `json:"id"`
+	History        []ImpactReview   `json:"history,omitempty"`
+	ID             int64            `json:"id,omitempty"`
 	Key            string           `json:"event_key"`
 	Title          string           `json:"title"`
 	Kind           string           `json:"kind"`
 	Direction      string           `json:"direction"`
-	TargetURL      string           `json:"target_url"`
+	TargetURL      string           `json:"target_url,omitempty"`
 	State          string           `json:"state"`
-	EffectiveState string           `json:"effective_state"`
+	EffectiveState string           `json:"effective_state,omitempty"`
 	Outcome        string           `json:"outcome"`
-	Summary        string           `json:"summary"`
-	Version        int64            `json:"version"`
-	WorkIDs        []int64          `json:"work_ids"`
-	Evidence       []ImpactEvidence `json:"evidence"`
-	Steps          []ImpactStep     `json:"steps"`
+	Summary        string           `json:"summary,omitempty"`
+	Version        int64            `json:"version,omitempty"`
+	WorkIDs        []int64          `json:"work_ids,omitempty"`
+	Evidence       []ImpactEvidence `json:"evidence,omitempty"`
+	Steps          []ImpactStep     `json:"steps,omitempty"`
 }
 type SaveImpactInput struct {
 	RequestID       string      `json:"request_id"`

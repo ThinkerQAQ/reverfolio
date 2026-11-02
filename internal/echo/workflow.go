@@ -334,6 +334,7 @@ func actionRoute[In any](mux *http.ServeMux, name string, fn func(context.Contex
 	})
 }
 func (s Service) registerWorkflow(mux *http.ServeMux) {
+	s.registerImpact(mux)
 	mux.HandleFunc("GET /api/dashboard", func(w http.ResponseWriter, r *http.Request) {
 		v, err := s.Store.Dashboard(r.Context())
 		if err != nil {
