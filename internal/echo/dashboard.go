@@ -181,7 +181,9 @@ func (s *Store) dashboardSnapshots(ctx context.Context, workID int64) ([]Snapsho
  UNION SELECT id FROM (SELECT id FROM snapshots WHERE work_id=? AND json_extract(payload,'$.traffic.clones') IS NOT NULL ORDER BY captured_at DESC,id DESC LIMIT 1)
  UNION SELECT id FROM (SELECT id FROM snapshots WHERE work_id=? AND json_extract(payload,'$.popular.paths') IS NOT NULL ORDER BY captured_at DESC,id DESC LIMIT 1)
  UNION SELECT id FROM (SELECT id FROM snapshots WHERE work_id=? AND json_extract(payload,'$.popular.referrers') IS NOT NULL ORDER BY captured_at DESC,id DESC LIMIT 1)
- ) ORDER BY captured_at DESC,id DESC`, workID, workID, workID, workID, workID, workID, workID)
+  UNION SELECT id FROM (SELECT id FROM snapshots WHERE work_id=? AND json_extract(payload,'$.stars') IS NOT NULL ORDER BY captured_at DESC,id DESC LIMIT 1)
+ UNION SELECT id FROM (SELECT id FROM snapshots WHERE work_id=? AND json_extract(payload,'$.forks') IS NOT NULL ORDER BY captured_at DESC,id DESC LIMIT 1)
+ ) ORDER BY captured_at DESC,id DESC`, workID, workID, workID, workID, workID, workID, workID, workID, workID)
 	if err != nil {
 		return nil, err
 	}
