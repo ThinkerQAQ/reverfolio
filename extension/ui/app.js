@@ -208,13 +208,14 @@ const heading=(title,sub="",right="")=>'<div class="section-header"><div><h2>'+T
 const stat=(title,value,note,primary=false)=>'<div class="stat-card'+(primary?' primary':'')+'"><div class="stat-label">'+T(title)+'</div><div class="stat-value">'+fmt(value)+'</div><div class="stat-hint">'+T(note)+'</div></div>';
 function projects(){
  return state.data.report.report.sources.map(s=>{
-  const x=s.latest,d=x?.downloads;
-  return {...s,changes:s.last_comparable_changes,downloads:d?(pref("github.download_scope")==="installers"?d.packages:d.total):null,stars:x?.stars??null,clones:x?.traffic?.clones?.count??null,snapshot:x?.captured_at||""};
+  const x=s.latest,d=s.last_release?.downloads||x?.downloads,v=s.valid_metrics||{};
+  return {...s,changes:s.last_comparable_changes,downloads:d?(pref("github.download_scope")==="installers"?d.packages:d.total):null,stars:v.stars?.value??x?.stars??null,clones:v.clones?.value??x?.traffic?.clones?.count??null,snapshot:x?.captured_at||""};
  });
 }
 function downloadLabel(){return pref("github.download_scope")==="installers"?settingsLabel(["程序包下载","Package downloads"]):T("发布资产下载");}
 function downloadDetails(p){
- const d=p.latest?.downloads;
+ const release=p.last_release||p.latest;
+ const d=release?.downloads;
  if(!d)return '<p class="muted">'+settingsLabel(["Release 数据不可用","Release data unavailable"])+'</p>';
  const kinds={package:settingsLabel(["程序包","Package"]),source:settingsLabel(["源码","Source"]),auxiliary:settingsLabel(["辅助文件","Auxiliary"]),other:settingsLabel(["其他／未分类","Other / unclassified"])};
  const changes=p.changes,delta=changes?.known_downloads;
@@ -223,7 +224,7 @@ function downloadDetails(p){
  '<p>'+E(settingsLabel(["程序包","Packages"]))+': '+fmt(d.packages)+' · '+E(kinds.source)+': '+fmt(d.source)+' · '+E(kinds.auxiliary)+': '+fmt(d.auxiliary)+' · '+E(kinds.other)+': '+fmt(d.other)+'</p>'+
  (delta?'<p>'+E(settingsLabel(["已知区间增量","Known interval increase"]))+': +'+fmt(delta.total)+' ('+E(kinds.package)+': +'+fmt(delta.packages)+'); '+E(settingsLabel(["未知增量附件","Assets with unknown changes"]))+': '+fmt(changes.unknown_assets)+'</p><p class="meta">'+dt(changes.from)+' → '+dt(changes.to)+'</p>':'<p class="meta">'+E(settingsLabel(["尚无两个可比较的完整 Release 快照。","Two complete release observations are required for a comparison."]))+'</p>')+
  '<div class="table-wrap"><table class="data-table"><thead><tr><th>'+settingsLabel(["附件","Asset"])+'</th><th>'+settingsLabel(["分类","Category"])+'</th><th>'+settingsLabel(["累计下载","Cumulative downloads"])+'</th></tr></thead><tbody>'+
- (p.latest.assets||[]).map(a=>'<tr><td style="overflow-wrap:anywhere">'+E(a.name)+'</td><td>'+E(kinds[a.category]||kinds.other)+'</td><td>'+fmt(a.download_count)+'</td></tr>').join("")+'</tbody></table></div></details>';
+ (release.assets||[]).map(a=>'<tr><td style="overflow-wrap:anywhere">'+E(a.name)+'</td><td>'+E(kinds[a.category]||kinds.other)+'</td><td>'+fmt(a.download_count)+'</td></tr>').join("")+'</tbody></table></div></details>';
 }
 function overviewView(){
  const {works,report,mentions}=state.data,summary=report.report,rows=projects();
@@ -240,7 +241,7 @@ function overviewView(){
       '<div><span>'+downloadLabel()+'</span><strong>'+fmt(p.downloads)+'</strong></div>'+
       '<div><span>'+T("近期克隆")+'</span><strong>'+fmt(p.clones)+'</strong></div>'+
       '<div><span>'+T("Star")+'</span><strong>'+fmt(p.stars)+'</strong></div>'+
-      '</div><div class="activity-foot"><span>'+T("最近采集")+'</span><time>'+dt(p.snapshot)+'</time></div>'+downloadDetails(p)+'</article>'
+      '</div><div class="activity-foot"><span>'+T("最近采集")+'</span><time>'+dt(p.snapshot)+'</time></div>'+observationStatus(p)+downloadDetails(p)+'</article>'
   ).join("")+'</div>'+
   '<details class="panel activity-details"><summary>'+settingsLabel(["查看 GitHub 原始统计表","View the GitHub metrics table"])+'</summary>'+
   '<div class="table-wrap"><table class="data-table"><thead><tr><th>'+T("仓库")+'</th><th>'+(pref("github.download_scope")==="installers"?settingsLabel(["安装包下载","Installable downloads"]):T("发布资产下载"))+'</th><th>'+T("近期克隆")+'</th><th>'+T("Star")+'</th><th>'+T("最近采集")+'</th></tr></thead><tbody>'+
@@ -767,3 +768,8 @@ window.addEventListener("hashchange",()=>{
  const view=location.hash.replace(/^#/,"");
  if(nav.some(item=>item[0]===view)&&state.view!==view){state.view=view;render();}
 });
+
+function observationStatus(p){
+ const v=p.valid_metrics||{};
+ return '<p class="meta">'+E(settingsLabel(["最近尝试状态","Latest attempt status"]))+': '+E(p.latest?.state||'unknown')+'</p>'+Object.entries(v).map(([key,point])=>'<p class="meta">'+E(key)+' · '+E(settingsLabel(["有效观测时间","Valid observation at"]))+': '+dt(point.observed_at)+(point.observed_at!==p.latest?.captured_at?' · '+E(settingsLabel(["历史值","Historical value"])):'')+'</p>').join('');
+}

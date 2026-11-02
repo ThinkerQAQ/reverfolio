@@ -112,24 +112,19 @@ func (s *Store) GenerateReport(ctx context.Context, id int64) (ReportOutput, err
 		}
 		latest := source.Latest
 		text += latest.State + " at " + stamp(latest.CapturedAt) + "\n"
-		if latest.Stars != nil {
-			text += fmt.Sprintf("  - Stars: %d\n", *latest.Stars)
-		}
-		if latest.Forks != nil {
-			text += fmt.Sprintf("  - Forks: %d\n", *latest.Forks)
-		}
-		if latest.ReleasesOK {
-			annotateSnapshot(latest)
-			d := latest.Downloads
-			text += fmt.Sprintf("  - Release downloads: %d total; %d packages; %d source; %d auxiliary; %d other/unclassified (filename heuristic %s, not users)\n", d.Total, d.Packages, d.Source, d.Auxiliary, d.Other, d.ClassificationVersion)
-			if changes := source.Changes; changes.KnownDownloads != nil {
-				text += fmt.Sprintf("  - Observed interval downloads: %d total; %d packages; %d assets with unknown delta; interval=%s to %s (not a daily rate)\n", changes.KnownDownloads.Total, changes.KnownDownloads.Packages, changes.UnknownAssets, stamp(*changes.From), stamp(*changes.To))
+		for _, key := range []string{"stars", "forks", "downloads", "packages", "views", "clones"} {
+			if point, ok := source.ValidMetrics[key]; ok {
+				text += fmt.Sprintf("  - %s: %d; last valid observation=%s (latest attempt shown above)\n", key, point.Value, stamp(point.ObservedAt))
+			} else {
+				text += fmt.Sprintf("  - %s: unavailable\n", key)
 			}
 		}
-		for _, metric := range []string{"views", "clones"} {
-			if window, ok := latest.Traffic[metric]; ok {
-				text += fmt.Sprintf("  - %s: %d; API window uniques: %d (rolling window, not verified people)\n", metric, window.Count, window.Uniques)
-			}
+		if release := source.LastRelease; release != nil {
+			d := release.Downloads
+			text += fmt.Sprintf("  - Release downloads: %d total; %d packages; %d source; %d auxiliary; %d other/unclassified (filename heuristic %s, not users); observed=%s\n", d.Total, d.Packages, d.Source, d.Auxiliary, d.Other, d.ClassificationVersion, stamp(release.CapturedAt))
+		}
+		if changes := source.Changes; changes.KnownDownloads != nil && changes.From != nil && changes.To != nil {
+			text += fmt.Sprintf("  - Observed interval downloads: %d total; %d packages; %d assets with unknown delta; interval=%s to %s (not a daily rate)\n", changes.KnownDownloads.Total, changes.KnownDownloads.Packages, changes.UnknownAssets, stamp(*changes.From), stamp(*changes.To))
 		}
 	}
 	text += "\n## Site analytics observations\n\n"

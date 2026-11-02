@@ -712,11 +712,13 @@ func (s *Store) ImportHistory(ctx context.Context, in ImportInput) (ImportResult
 }
 
 type SourceSummary struct {
-	WorkID     int64     `json:"work_id"`
-	Title      string    `json:"title"`
-	Repository string    `json:"repository"`
-	Latest     *Snapshot `json:"latest"`
-	Changes    Interval  `json:"last_comparable_changes"`
+	ValidMetrics map[string]MetricObservation `json:"valid_metrics"`
+	LastRelease  *Snapshot                    `json:"last_release"`
+	WorkID       int64                        `json:"work_id"`
+	Title        string                       `json:"title"`
+	Repository   string                       `json:"repository"`
+	Latest       *Snapshot                    `json:"latest"`
+	Changes      Interval                     `json:"last_comparable_changes"`
 }
 type Report struct {
 	ProviderRuns []ProviderRun           `json:"provider_runs"`
@@ -759,11 +761,11 @@ func (s *Store) Report(ctx context.Context, workID int64) (Report, error) {
 		if err != nil {
 			return result, err
 		}
-		summary := SourceSummary{WorkID: work.ID, Title: work.Title, Repository: work.Repository, Changes: overview.Changes}
-		if len(overview.Snapshots) > 0 {
-			latest := overview.Snapshots[0]
-			summary.Latest = &latest
+		snapshots, err := s.dashboardSnapshots(ctx, work.ID)
+		if err != nil {
+			return result, err
 		}
+		summary := summarizeObservations(work, snapshots, overview.Changes)
 		result.Sources = append(result.Sources, summary)
 	}
 	audit, err := s.Audit(ctx)
