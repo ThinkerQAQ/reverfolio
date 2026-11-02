@@ -278,8 +278,8 @@ function overviewView(){
   '</tbody></table></div></details>'+
   '<p class="kpi-note">'+T("离线优先。GitHub 下载、克隆与网站访客标识都不能等同于真实使用者。")+'</p>' : "";
  const evidence=pref("overview.show_evidence")!=="false" ?
-  '<div>'+heading("外部影响证据","已确认的第三方引用与采用记录",'<button class="btn btn-sm" data-action="navigate" data-view="evidence">'+T("查看更多")+'</button>')+
-  '<div class="panel">'+(verified.length?verified.map(m=>'<div class="list-row"><div class="status-line">'+tag(T("已审核"),"verified")+' <strong>'+E(works.find(w=>w.id===m.work_id)?.title||"")+'</strong></div><p class="muted">'+E(m.evidence?.at(-1)?.quote||"")+'</p><div class="evidence-url">'+anchor(m.url)+'</div></div>').join(""):'<div class="empty">'+T("暂无公开链接")+'</div>')+'</div></div>' : "";
+  '<div>'+heading(settingsLabel(["已审核原始证据","Reviewed original evidence"]),settingsLabel(["按来源与生成方式区分，不将转载或曝光当作采用","Classified by origin and generation; reposts and exposure are not adoption"]),'<button class="btn btn-sm" data-action="navigate" data-view="evidence">'+T("查看更多")+'</button>')+
+  '<div class="panel">'+(verified.length?verified.map(m=>'<div class="list-row"><div class="status-line">'+tag(T("已审核"),"verified")+' '+tag(T(m.origin==="self"?"本人":m.origin==="third_party"?"第三方":m.origin==="automated"?"自动生成":"未知"))+' '+tag(T(m.generation==="ai"?"AI 生成":m.type==="adoption"?"采用":m.type==="repost"?"转载":m.type==="aggregation"?"聚合":"原始证据"))+' <strong>'+E(works.find(w=>w.id===m.work_id)?.title||"")+'</strong></div><p class="muted">'+E(m.evidence?.at(-1)?.quote||"")+'</p><div class="evidence-url">'+anchor(m.url)+'</div></div>').join(""):'<div class="empty">'+T("暂无公开链接")+'</div>')+'</div></div>' : "";
  const history=pref("overview.show_history")!=="false" ?
   '<div>'+heading("最近统计与限制","历史统计不自动变成实时数据")+'<div class="panel">'+
   (summary.history||[]).filter(r=>["search_impressions","search_clicks","pageviews_approx","visitor_identifiers"].includes(r.metric)).slice(0,6)
@@ -292,7 +292,7 @@ function overviewView(){
  return '<div class="toolbar"><div class="muted">'+T("历史统计不自动变成实时数据")+'</div><div class="btn-row"><button class="btn btn-sm" data-action="export-md">Markdown</button><button class="btn btn-sm" data-action="export-json">JSON</button></div></div><div class="stat-grid">'+
   stat("已登记作品",works.length,"包括项目、文章及网站")+
   stat("验证页面",summary.verified_pages,"仅统计审核通过的原始页面",true)+
-  stat("传播事件",summary.third_party_events,"同一事件不重复计数")+
+  stat(settingsLabel(["已审核影响事件","Reviewed impact events"]),summary.verified_impact_events,settingsLabel(["贡献、协作、传播与曝光按事件归并","Contributions, collaboration, propagation and exposure grouped by event"]))+
   stat("待审核线索",summary.pending,"需要再次核查原始来源")+'</div>'+
   impactDashboardView()+platformSummary+githubView+liveSourcesView()+(evidence||history?'<div class="grid-2">'+evidence+history+'</div>':"");
 }

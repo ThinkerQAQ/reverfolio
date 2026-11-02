@@ -180,6 +180,10 @@ func (s *Store) GenerateReport(ctx context.Context, id int64) (ReportOutput, err
 	for _, row := range r.History {
 		text += fmt.Sprintf("- %s: %g %s; scope=%s; source=%s; observed=%s\n", row.Metric, row.Value, row.Unit, row.Scope, row.Source, stamp(row.ObservedAt))
 	}
+	text += fmt.Sprintf("\n## Reviewed impact events\n\nVerified events: %d; achieved scoped outcomes: %d. Exposure, reposts and citations are not adoption.\n\n", r.VerifiedImpactEvents, r.AchievedOutcomes)
+	for _, event := range r.ImpactEvents {
+		text += fmt.Sprintf("- %s | kind=%s | direction=%s | review=%s | outcome=%s | %s\n", event.Title, event.Kind, event.Direction, event.EffectiveState, event.Outcome, event.TargetURL)
+	}
 	text += "\n## Verified evidence\n\n"
 	for _, m := range r.Mentions {
 		if m.State == "verified" {

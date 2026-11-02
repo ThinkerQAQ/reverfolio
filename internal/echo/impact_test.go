@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -41,6 +42,10 @@ func TestImpactEventCountsOneOutcomeAcrossWorksAndInvalidatesOnEvidenceReview(t 
 	report, err := s.Report(ctx, 0)
 	if err != nil || report.VerifiedImpactEvents != 1 || report.AchievedOutcomes != 1 {
 		t.Fatalf("%+v %v", report, err)
+	}
+	exported, err := s.GenerateReport(ctx, 0)
+	if err != nil || !strings.Contains(exported.Markdown, "Verified events: 1") || !strings.Contains(exported.Markdown, "kind=adoption | direction=inbound | review=verified | outcome=achieved") {
+		t.Fatal("reviewed event omitted from export", err)
 	}
 	events, err := s.ImpactEvents(ctx, b.ID)
 	if err != nil || len(events) != 1 || len(events[0].WorkIDs) != 2 || len(events[0].Steps) != 1 {
