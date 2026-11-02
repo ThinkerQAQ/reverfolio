@@ -15,6 +15,8 @@ jobs:
         run: git diff --check $(git hash-object -t tree /dev/null) HEAD
       - name: Check local documentation links
         run: python3 scripts/check_docs.py
+      - name: Check installer payload and retained-data boundaries
+        run: python3 -m unittest discover -s scripts -p "test_package_installer.py"
       - name: Check portable publication export
         run: python3 -m unittest discover -s scripts -p "test_publications_to_catalog.py"
       - name: Check extension manifest, icons, localized UI and mock interactions
@@ -22,6 +24,8 @@ jobs:
           node scripts/check_extension.mjs
           node scripts/check_dashboard.mjs
           node scripts/check_propagation.mjs
+          node scripts/check_impact.mjs
+          node scripts/check_discovery.mjs
           node scripts/check_native_host.mjs
           node scripts/check_download_ui.mjs
           node --check extension/ui/dashboard.js
@@ -29,3 +33,7 @@ jobs:
           node --check extension/ui/app.js
           python3 scripts/build_extension_ui.py
           git diff --exit-code -- extension/ui
+      - name: Check guided MCP connection states and retries
+        run: node scripts/check_mcp_guide.mjs
+      - name: Check installer wizard navigation and Finish actions
+        run: node scripts/installer/check-wizard.mjs

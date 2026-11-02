@@ -579,14 +579,17 @@ func (s *Store) ClaimTask(ctx context.Context, in ClaimInput) (Task, error) {
 }
 
 type CompleteInput struct {
-	RequestID   string `json:"request_id"`
-	TaskID      int64  `json:"task_id"`
-	LeaseToken  string `json:"lease_token"`
-	Engine      string `json:"engine"`
-	Scope       string `json:"scope"`
-	Status      string `json:"status"`
-	ResultCount int    `json:"result_count"`
-	Notes       string `json:"notes"`
+	CheckedResult string   `json:"checked_result,omitempty"`
+	Queries       []string `json:"queries,omitempty"`
+	MentionIDs    []int64  `json:"mention_ids,omitempty"`
+	RequestID     string   `json:"request_id"`
+	TaskID        int64    `json:"task_id"`
+	LeaseToken    string   `json:"lease_token"`
+	Engine        string   `json:"engine"`
+	Scope         string   `json:"scope"`
+	Status        string   `json:"status"`
+	ResultCount   int      `json:"result_count"`
+	Notes         string   `json:"notes"`
 }
 
 func (s *Store) CompleteTask(ctx context.Context, in CompleteInput) (Task, error) {
@@ -605,7 +608,15 @@ func (s *Store) CompleteTask(ctx context.Context, in CompleteInput) (Task, error
 		if token == "" || token != in.LeaseToken || state != "running" || until < stamp(time.Now()) {
 			return Task{}, ErrConflict
 		}
-		if _, err = tx.ExecContext(ctx, `INSERT INTO search_runs(task_id,engine,scope,status,result_count,notes,completed_at) VALUES(?,?,?,?,?,?,?)`, in.TaskID, in.Engine, in.Scope, in.Status, in.ResultCount, in.Notes, stamp(time.Now())); err != nil {
+		run, err := tx.ExecContext(ctx, `INSERT INTO search_runs(task_id,engine,scope,status,result_count,notes,completed_at) VALUES(?,?,?,?,?,?,?)`, in.TaskID, in.Engine, in.Scope, in.Status, in.ResultCount, in.Notes, stamp(time.Now()))
+		if err != nil {
+			return Task{}, err
+		}
+		runID, err := run.LastInsertId()
+		if err != nil {
+			return Task{}, err
+		}
+		if err = recordDiscoveryDetails(ctx, tx, in, runID); err != nil {
 			return Task{}, err
 		}
 		if _, err = tx.ExecContext(ctx, `UPDATE discovery_tasks SET state=?,lease_token='',lease_until='' WHERE id=?`, in.Status, in.TaskID); err != nil {
@@ -712,16 +723,21 @@ func (s *Store) ImportHistory(ctx context.Context, in ImportInput) (ImportResult
 }
 
 type SourceSummary struct {
-	WorkID     int64     `json:"work_id"`
-	Title      string    `json:"title"`
-	Repository string    `json:"repository"`
-	Latest     *Snapshot `json:"latest"`
-	Changes    Interval  `json:"last_comparable_changes"`
+	ValidMetrics map[string]MetricObservation `json:"valid_metrics"`
+	LastRelease  *Snapshot                    `json:"last_release"`
+	WorkID       int64                        `json:"work_id"`
+	Title        string                       `json:"title"`
+	Repository   string                       `json:"repository"`
+	Latest       *Snapshot                    `json:"latest"`
+	Changes      Interval                     `json:"last_comparable_changes"`
 }
 type Report struct {
-	ProviderRuns []ProviderRun           `json:"provider_runs"`
-	Sources      []SourceSummary         `json:"sources"`
-	History      []HistoricalObservation `json:"history"`
+	ImpactEvents         []ImpactEvent           `json:"impact_events"`
+	VerifiedImpactEvents int                     `json:"verified_impact_events"`
+	AchievedOutcomes     int                     `json:"achieved_outcomes"`
+	ProviderRuns         []ProviderRun           `json:"provider_runs"`
+	Sources              []SourceSummary         `json:"sources"`
+	History              []HistoricalObservation `json:"history"`
 
 	GeneratedAt            string    `json:"generated_at"`
 	WorkID                 int64     `json:"work_id"`
@@ -759,11 +775,11 @@ func (s *Store) Report(ctx context.Context, workID int64) (Report, error) {
 		if err != nil {
 			return result, err
 		}
-		summary := SourceSummary{WorkID: work.ID, Title: work.Title, Repository: work.Repository, Changes: overview.Changes}
-		if len(overview.Snapshots) > 0 {
-			latest := overview.Snapshots[0]
-			summary.Latest = &latest
+		snapshots, err := s.dashboardSnapshots(ctx, work.ID)
+		if err != nil {
+			return result, err
 		}
+		summary := summarizeObservations(work, snapshots, overview.Changes)
 		result.Sources = append(result.Sources, summary)
 	}
 	audit, err := s.Audit(ctx)
@@ -791,6 +807,18 @@ func (s *Store) Report(ctx context.Context, workID int64) (Report, error) {
 	result.Mentions, err = s.Mentions(ctx, workID)
 	if err != nil {
 		return result, err
+	}
+	result.ImpactEvents, err = s.ImpactEvents(ctx, workID)
+	if err != nil {
+		return result, err
+	}
+	for _, event := range result.ImpactEvents {
+		if event.EffectiveState == "verified" {
+			result.VerifiedImpactEvents++
+			if event.Outcome == "achieved" {
+				result.AchievedOutcomes++
+			}
+		}
 	}
 	identities := map[string]string{}
 	for _, a := range audit.ActorAliases {

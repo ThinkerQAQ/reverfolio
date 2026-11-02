@@ -20,7 +20,7 @@ func TestTOMLSettingsTreePersistsAndVersions(t *testing.T) {
 	}
 	manager := NewConfigManager(path)
 	settings, err := manager.Settings(ctx)
-	if err != nil || len(settings) != 12 {
+	if err != nil || len(settings) != len(preferenceKeys) {
 		t.Fatalf("settings %+v %v", settings, err)
 	}
 	changes := []SettingChange{{Key: "appearance.compact", Value: "true", ExpectedVersion: 1}, {Key: "overview.evidence_limit", Value: "8", ExpectedVersion: 1}}

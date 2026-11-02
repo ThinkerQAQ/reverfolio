@@ -3,7 +3,7 @@
 version = 1
 
 [server]
-listen = "127.0.0.1:18440"
+listen = "127.0.0.1:19452"
 
 [storage]
 database = "Data/state.sqlite"

@@ -112,24 +112,19 @@ func (s *Store) GenerateReport(ctx context.Context, id int64) (ReportOutput, err
 		}
 		latest := source.Latest
 		text += latest.State + " at " + stamp(latest.CapturedAt) + "\n"
-		if latest.Stars != nil {
-			text += fmt.Sprintf("  - Stars: %d\n", *latest.Stars)
-		}
-		if latest.Forks != nil {
-			text += fmt.Sprintf("  - Forks: %d\n", *latest.Forks)
-		}
-		if latest.ReleasesOK {
-			annotateSnapshot(latest)
-			d := latest.Downloads
-			text += fmt.Sprintf("  - Release downloads: %d total; %d packages; %d source; %d auxiliary; %d other/unclassified (filename heuristic %s, not users)\n", d.Total, d.Packages, d.Source, d.Auxiliary, d.Other, d.ClassificationVersion)
-			if changes := source.Changes; changes.KnownDownloads != nil {
-				text += fmt.Sprintf("  - Observed interval downloads: %d total; %d packages; %d assets with unknown delta; interval=%s to %s (not a daily rate)\n", changes.KnownDownloads.Total, changes.KnownDownloads.Packages, changes.UnknownAssets, stamp(*changes.From), stamp(*changes.To))
+		for _, key := range []string{"stars", "forks", "downloads", "packages", "views", "clones"} {
+			if point, ok := source.ValidMetrics[key]; ok {
+				text += fmt.Sprintf("  - %s: %d; last valid observation=%s (latest attempt shown above)\n", key, point.Value, stamp(point.ObservedAt))
+			} else {
+				text += fmt.Sprintf("  - %s: unavailable\n", key)
 			}
 		}
-		for _, metric := range []string{"views", "clones"} {
-			if window, ok := latest.Traffic[metric]; ok {
-				text += fmt.Sprintf("  - %s: %d; API window uniques: %d (rolling window, not verified people)\n", metric, window.Count, window.Uniques)
-			}
+		if release := source.LastRelease; release != nil {
+			d := release.Downloads
+			text += fmt.Sprintf("  - Release downloads: %d total; %d packages; %d source; %d auxiliary; %d other/unclassified (filename heuristic %s, not users); observed=%s\n", d.Total, d.Packages, d.Source, d.Auxiliary, d.Other, d.ClassificationVersion, stamp(release.CapturedAt))
+		}
+		if changes := source.Changes; changes.KnownDownloads != nil && changes.From != nil && changes.To != nil {
+			text += fmt.Sprintf("  - Observed interval downloads: %d total; %d packages; %d assets with unknown delta; interval=%s to %s (not a daily rate)\n", changes.KnownDownloads.Total, changes.KnownDownloads.Packages, changes.UnknownAssets, stamp(*changes.From), stamp(*changes.To))
 		}
 	}
 	text += "\n## Site analytics observations\n\n"
@@ -184,6 +179,10 @@ func (s *Store) GenerateReport(ctx context.Context, id int64) (ReportOutput, err
 	text += "\n## Historical observations\n\n"
 	for _, row := range r.History {
 		text += fmt.Sprintf("- %s: %g %s; scope=%s; source=%s; observed=%s\n", row.Metric, row.Value, row.Unit, row.Scope, row.Source, stamp(row.ObservedAt))
+	}
+	text += fmt.Sprintf("\n## Reviewed impact events\n\nVerified events: %d; achieved scoped outcomes: %d. Exposure, reposts and citations are not adoption.\n\n", r.VerifiedImpactEvents, r.AchievedOutcomes)
+	for _, event := range r.ImpactEvents {
+		text += fmt.Sprintf("- %s | kind=%s | direction=%s | review=%s | outcome=%s | %s\n", event.Title, event.Kind, event.Direction, event.EffectiveState, event.Outcome, event.TargetURL)
 	}
 	text += "\n## Verified evidence\n\n"
 	for _, m := range r.Mentions {
@@ -291,6 +290,13 @@ func (s Service) MCPServer() *mcp.Server {
 	addTool(server, "save_site_source", "Save a site source with expected config version. Optional credential is write-only and stored locally, never returned.", false, func(ctx context.Context, in SaveSiteSourceInput) (any, error) { return s.SaveSiteSource(ctx, in) })
 	addTool(server, "collect_site_source", "Fetch one configured site analytics provider and persist an idempotent, scoped observation run. Missing credentials are blocked, not zero.", false, func(ctx context.Context, in CollectSiteSourceInput) (any, error) { return s.CollectSiteSource(ctx, in) })
 	addTool(server, "get_audit", "Read historical observations, review transitions and recorded search scopes. Lease secrets are omitted.", true, func(ctx context.Context, _ EmptyInput) (any, error) { return s.Store.Audit(ctx) })
+	addTool(server, "list_impact_events", "Read independently reviewed impact events and their work, evidence and outcome timelines. work_id=0 includes outbound contributions without a local work.", true, func(ctx context.Context, in WorkIDInput) (any, error) { return s.Store.ImpactEvents(ctx, in.WorkID) })
+	addTool(server, "save_impact_event", "Create or update an impact event using expected_version, reviewer and reason. Verified events require verified evidence; achieved outcomes require outcome evidence. Never infer adoption from a mention alone.", false, func(ctx context.Context, in SaveImpactInput) (any, error) { return s.Store.SaveImpact(ctx, in) })
+	addTool(server, "renew_discovery_task", "Renew an unexpired discovery lease for ten minutes with its private token; expired or replaced owners cannot renew.", false, func(ctx context.Context, in RenewDiscoveryInput) (any, error) { return s.Store.RenewDiscovery(ctx, in) })
+	addTool(server, "save_work_search_identifier", "Add a historical name/URL, translated title or distinctive phrase for a registered work. Does not execute any search.", false, func(ctx context.Context, in SaveSearchIdentifierInput) (any, error) {
+		return s.Store.SaveSearchIdentifier(ctx, in)
+	})
+	addTool(server, "get_discovery_coverage", "Read the discovery workflow and per-work search plans, publication/alias queries, contribution searches and known-source follow-up seeds, alongside actual checked scopes. Plans are unexecuted guidance, never coverage claims.", true, func(ctx context.Context, _ EmptyInput) (any, error) { return s.Store.DiscoveryCoverage(ctx) })
 	return server
 }
 
@@ -332,6 +338,8 @@ func actionRoute[In any](mux *http.ServeMux, name string, fn func(context.Contex
 	})
 }
 func (s Service) registerWorkflow(mux *http.ServeMux) {
+	s.registerImpact(mux)
+	s.registerDiscoveryCoverage(mux)
 	mux.HandleFunc("GET /api/dashboard", func(w http.ResponseWriter, r *http.Request) {
 		v, err := s.Store.Dashboard(r.Context())
 		if err != nil {

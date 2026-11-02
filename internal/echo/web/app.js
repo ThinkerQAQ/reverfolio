@@ -2,6 +2,7 @@
 
 // Standalone local-first UI: no dependency on any publishing application or plugin.
 const LANG = {
+ "影响事件":"Impact events","按事件审核贡献、采用与实际结果":"Review contributions, adoption and outcomes",
   "影响力观察工作台":"Impact observatory","本地服务":"Local service","已连接":"Connected","工作台":"Workspace",
   "本地优先 · 数据私有":"Local-first · Private data","刷新":"Refresh",
   "影响力总览":"Impact overview","项目管理":"Projects","网站发现":"Discover websites","平台账号":"Creator platforms","分发渠道":"Channels","传播路径":"Propagation paths","引用与采用":"Evidence & adoption",
@@ -67,6 +68,14 @@ const LANG = {
   "本机启动器没有响应，请重新运行安装脚本。":"Native launcher unavailable. Run the installer again.",
   "启动服务无需保留控制台窗口；如失败，请检查本地安装与端口。":"The service starts without a console window. If it fails, check installation and localhost port."
 };
+const workflowGroups = [
+ {id:"works",icon:"▦",label:["我的作品","My works"],views:["works","websites","platforms","channels"],hint:["先添加项目或文章；已有网站和平台账号，可从下面的入口导入。","Add a project or article, or import from a website or creator account below."]},
+ {id:"tasks",icon:"⌕",label:["发现线索","Find evidence"],views:["tasks"],hint:["为作品创建检索任务，再让已连接的 AI 客户端执行搜索。找到的线索进入审核证据。","Create a search task for a work, then ask your connected AI client to run it. Review the resulting evidence next."]},
+ {id:"evidence",icon:"◇",label:["审核证据","Review evidence"],views:["evidence","impact"],hint:["核对原始来源后审核；同一次采用或贡献，可在影响事件中归为一组。","Review original sources, then group evidence of the same adoption or contribution into an impact event."]},
+ {id:"overview",icon:"◫",label:["查看影响","View impact"],views:["overview","propagation","history"],hint:["查看已确认的影响与传播路径；历史统计保留各自的来源和时间。","Explore confirmed impact and propagation; historical metrics retain their sources and dates."]}
+];
+const workflowText = pair => pair[state.lang === "en" ? 1 : 0];
+function workflowGroup(view){return workflowGroups.find(group=>group.views.includes(view));}
 const nav = [
   ["overview","◫","影响力总览","统一查看项目、文章与真实传播证据"],
   ["works","▦","项目管理","管理开源仓库与文章"],
@@ -74,12 +83,13 @@ const nav = [
   ["platforms","◉","平台账号","使用官方 API 读取作者账号、文章及统计，绝不抓取网页登录页面"],
   ["channels","≋","分发渠道","查看中文、英文以及公开平台的文章链接"],
   ["propagation","⇢","传播路径","按作品查看原文、语言版本、分发链接与经核实的第三方传播"],
+  ["impact","◎","影响事件","按事件审核贡献、采用与实际结果"],
   ["evidence","◇","引用与采用","审核第三方引用与实际采用的原始证据"],
   ["tasks","⌕","发现任务","管理 AI 辅助检索及审计记录"],
   ["history","▤","历史统计","查看统计来源与导入历史数据"],
   ["settings","⚙","设置","查看本地连接、权限与语言偏好"]
 ];
-const state = {lang:(localStorage.getItem("reverfolio.lang") || localStorage.getItem("openecho.lang"))==="en"?"en":"zh",view:"overview",data:null,leases:new Map(),preview:null,importInput:"",busy:false,settingsQuery:"",settingsSelected:"",settingsExpanded:new Set(),settingsDraft:{},evidenceFilter:null,propagationWork:null,offlineMessage:"",websitePreview:null,websiteURL:"",devtoPreview:null};
+const state = {lang:(localStorage.getItem("reverfolio.lang") || localStorage.getItem("openecho.lang"))==="en"?"en":"zh",view:"works",data:null,leases:new Map(),preview:null,importInput:"",busy:false,settingsQuery:"",settingsSelected:"",settingsExpanded:new Set(),settingsDraft:{},evidenceFilter:null,propagationWork:null,offlineMessage:"",websitePreview:null,websiteURL:"",devtoPreview:null};
 const $ = id => document.getElementById(id);
 const T = key => state.lang==="en" ? (LANG[key] || key) : key;
 const E = value => String(value ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -163,11 +173,11 @@ async function act(operation,successMessage=T("已保存并更新")) {
 async function refresh(showMessage=true){
  try{
   await ensureLocalService();
-  const [works,report,mentions,tasks,audit,settings,runtime,sources,catalog,dashboard,websites,platformDashboard]=await Promise.all([
-    api("/api/works"),api("/api/report"),api("/api/mentions"),api("/api/tasks"),api("/api/audit"),api("/api/settings"),api("/api/runtime"),api("/api/site-sources"),api("/api/catalog"),api("/api/dashboard"),api("/api/website-sources"),api("/api/platform-dashboard")
+  const [works,report,mentions,tasks,audit,settings,runtime,sources,catalog,dashboard,websites,platformDashboard,impactEvents,discoveryCoverage]=await Promise.all([
+    api("/api/works"),api("/api/report"),api("/api/mentions"),api("/api/tasks"),api("/api/audit"),api("/api/settings"),api("/api/runtime"),api("/api/site-sources"),api("/api/catalog"),api("/api/dashboard"),api("/api/website-sources"),api("/api/platform-dashboard"),api("/api/impact-events"),api("/api/discovery-coverage")
   ]);
   const pairs=await Promise.all(works.map(async w=>[w.id,await api("/api/works/"+w.id+"/channels")]));
-  state.data={works,report,mentions,tasks,audit,settings,runtime,sources,catalog,dashboard,websites,platformDashboard,channels:new Map(pairs)};
+  state.data={works,report,mentions,tasks,audit,settings,runtime,sources,catalog,dashboard,websites,platformDashboard,impactEvents,discoveryCoverage,channels:new Map(pairs)};
   state.offlineMessage="";
   state.lang=pref("interface.language","zh-CN")==="en"?"en":"zh";
   render();
@@ -181,13 +191,24 @@ async function refresh(showMessage=true){
  }
 }
 function navRender(){
-  $("navigation").innerHTML=nav.map(([id,icon,label])=>
-   '<button class="nav-button '+(state.view===id?"active":"")+'" data-action="navigate" data-view="'+id+'" title="'+E(T(label))+'" aria-label="'+E(T(label))+'"><span class="nav-icon" aria-hidden="true">'+icon+'</span><span>'+T(label)+'</span></button>').join("");
+ const active=workflowGroup(state.view);
+ const button=(id,icon,label,selected)=>'<button class="nav-button '+(selected?'active':'')+'" data-action="navigate" data-view="'+id+'"'+(selected?' aria-current="page"':'')+' title="'+E(label)+'"><span class="nav-icon" aria-hidden="true">'+icon+'</span><span>'+E(label)+'</span></button>';
+ $("navigation").innerHTML=workflowGroups.map(g=>button(g.id,g.icon,workflowText(g.label),active===g)).join("");
+ let settings=document.getElementById("settings-navigation");
+ if(!settings){settings=document.createElement("nav");settings.id="settings-navigation";settings.setAttribute("aria-label","Settings");document.querySelector(".sidebar-bottom").before(settings);}
+ settings.innerHTML=button("settings","⚙",T("设置"),state.view==="settings");
+}
+function workflowHeader(){
+ const group=workflowGroup(state.view);
+ if(!group)return "";
+ const labels={works:["作品列表","Works"],websites:["从网站导入","Import website"],platforms:["平台账号","Creator accounts"],channels:["发布链接","Published links"],evidence:["引用与采用","Evidence"],impact:["影响事件","Impact events"],overview:["影响总览","Overview"],propagation:["传播路径","Propagation"],history:["历史统计","History"]};
+ const views=group.views.filter(id=>nav.some(item=>item[0]===id));
+ return '<section class="workflow-guide"><p>'+E(workflowText(group.hint))+'</p>'+(views.length>1?'<nav class="workflow-tabs" aria-label="'+E(workflowText(group.label))+'">'+views.map(id=>'<a href="#'+id+'"'+(state.view===id?' class="active" aria-current="page"':'')+'>'+E(workflowText(labels[id]))+'</a>').join("")+'</nav>':'')+'</section>';
 }
 function shellRender(){
   document.documentElement.lang=state.lang==="en"?"en":"zh-CN";
   const current=nav.find(x=>x[0]===state.view)||nav[0];
-  $("page-title").textContent=T(current[2]);$("page-subtitle").textContent=T(current[3]);
+  $("page-title").textContent=workflowGroup(state.view)?.id===state.view?workflowText(workflowGroup(state.view).label):T(current[2]);$("page-subtitle").textContent=T(current[3]);
   $("locale-button").textContent=state.lang==="zh"?"EN":"中文";
   const newTab=$("open-browser-tab");
   if(newTab)newTab.hidden=!extensionMode;
@@ -199,22 +220,31 @@ function shellRender(){
   navRender();
 }
 function render(){
+  settingsMCPBeforeRender();
   shellRender();if(!state.data){$("view").innerHTML=state.offlineMessage?offlineView():'<div class="loading">Loading…</div>';return;}
   document.body.classList.toggle("compact-layout",pref("appearance.compact")==="true");
-  const pages={overview:overviewView,works:worksView,websites:websiteSourcesView,platforms:platformsView,channels:channelsView,propagation:propagationView,evidence:evidenceView,tasks:tasksView,history:historyView,settings:settingsView};
-  $("view").innerHTML=pages[state.view]();
+  const pages={overview:overviewView,impact:impactEventsView,works:worksView,websites:websiteSourcesView,platforms:platformsView,channels:channelsView,propagation:propagationView,evidence:evidenceView,tasks:tasksView,history:historyView,settings:settingsView};
+  $("view").innerHTML=workflowHeader()+pages[state.view]();
+  settingsMCPAfterRender();
 }
 const heading=(title,sub="",right="")=>'<div class="section-header"><div><h2>'+T(title)+'</h2>'+(sub?'<p>'+T(sub)+'</p>':"")+'</div>'+right+'</div>';
 const stat=(title,value,note,primary=false)=>'<div class="stat-card'+(primary?' primary':'')+'"><div class="stat-label">'+T(title)+'</div><div class="stat-value">'+fmt(value)+'</div><div class="stat-hint">'+T(note)+'</div></div>';
+
+function observationStatus(p){
+ const v=p.valid_metrics||{};
+ return '<p class="meta">'+E(settingsLabel(["最近尝试状态","Latest attempt status"]))+': '+E(p.latest?.state||'unknown')+'</p>'+Object.entries(v).map(([key,point])=>'<p class="meta">'+E(key)+' · '+E(settingsLabel(["有效观测时间","Valid observation at"]))+': '+dt(point.observed_at)+(point.observed_at!==p.latest?.captured_at?' · '+E(settingsLabel(["历史值","Historical value"])):'')+'</p>').join('');
+}
+
 function projects(){
  return state.data.report.report.sources.map(s=>{
-  const x=s.latest,d=x?.downloads;
-  return {...s,changes:s.last_comparable_changes,downloads:d?(pref("github.download_scope")==="installers"?d.packages:d.total):null,stars:x?.stars??null,clones:x?.traffic?.clones?.count??null,snapshot:x?.captured_at||""};
+  const x=s.latest,d=s.last_release?.downloads||x?.downloads,v=s.valid_metrics||{};
+  return {...s,changes:s.last_comparable_changes,downloads:d?(pref("github.download_scope")==="installers"?d.packages:d.total):null,stars:v.stars?.value??x?.stars??null,clones:v.clones?.value??x?.traffic?.clones?.count??null,snapshot:x?.captured_at||""};
  });
 }
 function downloadLabel(){return pref("github.download_scope")==="installers"?settingsLabel(["程序包下载","Package downloads"]):T("发布资产下载");}
 function downloadDetails(p){
- const d=p.latest?.downloads;
+ const release=p.last_release||p.latest;
+ const d=release?.downloads;
  if(!d)return '<p class="muted">'+settingsLabel(["Release 数据不可用","Release data unavailable"])+'</p>';
  const kinds={package:settingsLabel(["程序包","Package"]),source:settingsLabel(["源码","Source"]),auxiliary:settingsLabel(["辅助文件","Auxiliary"]),other:settingsLabel(["其他／未分类","Other / unclassified"])};
  const changes=p.changes,delta=changes?.known_downloads;
@@ -223,7 +253,7 @@ function downloadDetails(p){
  '<p>'+E(settingsLabel(["程序包","Packages"]))+': '+fmt(d.packages)+' · '+E(kinds.source)+': '+fmt(d.source)+' · '+E(kinds.auxiliary)+': '+fmt(d.auxiliary)+' · '+E(kinds.other)+': '+fmt(d.other)+'</p>'+
  (delta?'<p>'+E(settingsLabel(["已知区间增量","Known interval increase"]))+': +'+fmt(delta.total)+' ('+E(kinds.package)+': +'+fmt(delta.packages)+'); '+E(settingsLabel(["未知增量附件","Assets with unknown changes"]))+': '+fmt(changes.unknown_assets)+'</p><p class="meta">'+dt(changes.from)+' → '+dt(changes.to)+'</p>':'<p class="meta">'+E(settingsLabel(["尚无两个可比较的完整 Release 快照。","Two complete release observations are required for a comparison."]))+'</p>')+
  '<div class="table-wrap"><table class="data-table"><thead><tr><th>'+settingsLabel(["附件","Asset"])+'</th><th>'+settingsLabel(["分类","Category"])+'</th><th>'+settingsLabel(["累计下载","Cumulative downloads"])+'</th></tr></thead><tbody>'+
- (p.latest.assets||[]).map(a=>'<tr><td style="overflow-wrap:anywhere">'+E(a.name)+'</td><td>'+E(kinds[a.category]||kinds.other)+'</td><td>'+fmt(a.download_count)+'</td></tr>').join("")+'</tbody></table></div></details>';
+ (release.assets||[]).map(a=>'<tr><td style="overflow-wrap:anywhere">'+E(a.name)+'</td><td>'+E(kinds[a.category]||kinds.other)+'</td><td>'+fmt(a.download_count)+'</td></tr>').join("")+'</tbody></table></div></details>';
 }
 function overviewView(){
  const {works,report,mentions}=state.data,summary=report.report,rows=projects();
@@ -240,7 +270,7 @@ function overviewView(){
       '<div><span>'+downloadLabel()+'</span><strong>'+fmt(p.downloads)+'</strong></div>'+
       '<div><span>'+T("近期克隆")+'</span><strong>'+fmt(p.clones)+'</strong></div>'+
       '<div><span>'+T("Star")+'</span><strong>'+fmt(p.stars)+'</strong></div>'+
-      '</div><div class="activity-foot"><span>'+T("最近采集")+'</span><time>'+dt(p.snapshot)+'</time></div>'+downloadDetails(p)+'</article>'
+      '</div><div class="activity-foot"><span>'+T("最近采集")+'</span><time>'+dt(p.snapshot)+'</time></div>'+observationStatus(p)+downloadDetails(p)+'</article>'
   ).join("")+'</div>'+
   '<details class="panel activity-details"><summary>'+settingsLabel(["查看 GitHub 原始统计表","View the GitHub metrics table"])+'</summary>'+
   '<div class="table-wrap"><table class="data-table"><thead><tr><th>'+T("仓库")+'</th><th>'+(pref("github.download_scope")==="installers"?settingsLabel(["安装包下载","Installable downloads"]):T("发布资产下载"))+'</th><th>'+T("近期克隆")+'</th><th>'+T("Star")+'</th><th>'+T("最近采集")+'</th></tr></thead><tbody>'+
@@ -248,8 +278,8 @@ function overviewView(){
   '</tbody></table></div></details>'+
   '<p class="kpi-note">'+T("离线优先。GitHub 下载、克隆与网站访客标识都不能等同于真实使用者。")+'</p>' : "";
  const evidence=pref("overview.show_evidence")!=="false" ?
-  '<div>'+heading("外部影响证据","已确认的第三方引用与采用记录",'<button class="btn btn-sm" data-action="navigate" data-view="evidence">'+T("查看更多")+'</button>')+
-  '<div class="panel">'+(verified.length?verified.map(m=>'<div class="list-row"><div class="status-line">'+tag(T("已审核"),"verified")+' <strong>'+E(works.find(w=>w.id===m.work_id)?.title||"")+'</strong></div><p class="muted">'+E(m.evidence?.at(-1)?.quote||"")+'</p><div class="evidence-url">'+anchor(m.url)+'</div></div>').join(""):'<div class="empty">'+T("暂无公开链接")+'</div>')+'</div></div>' : "";
+  '<div>'+heading(settingsLabel(["已审核原始证据","Reviewed original evidence"]),settingsLabel(["按来源与生成方式区分，不将转载或曝光当作采用","Classified by origin and generation; reposts and exposure are not adoption"]),'<button class="btn btn-sm" data-action="navigate" data-view="evidence">'+T("查看更多")+'</button>')+
+  '<div class="panel">'+(verified.length?verified.map(m=>'<div class="list-row"><div class="status-line">'+tag(T("已审核"),"verified")+' '+tag(T(m.origin==="self"?"本人":m.origin==="third_party"?"第三方":m.origin==="automated"?"自动生成":"未知"))+' '+tag(T(m.generation==="ai"?"AI 生成":m.type==="adoption"?"采用":m.type==="repost"?"转载":m.type==="aggregation"?"聚合":"原始证据"))+' <strong>'+E(works.find(w=>w.id===m.work_id)?.title||"")+'</strong></div><p class="muted">'+E(m.evidence?.at(-1)?.quote||"")+'</p><div class="evidence-url">'+anchor(m.url)+'</div></div>').join(""):'<div class="empty">'+T("暂无公开链接")+'</div>')+'</div></div>' : "";
  const history=pref("overview.show_history")!=="false" ?
   '<div>'+heading("最近统计与限制","历史统计不自动变成实时数据")+'<div class="panel">'+
   (summary.history||[]).filter(r=>["search_impressions","search_clicks","pageviews_approx","visitor_identifiers"].includes(r.metric)).slice(0,6)
@@ -262,7 +292,7 @@ function overviewView(){
  return '<div class="toolbar"><div class="muted">'+T("历史统计不自动变成实时数据")+'</div><div class="btn-row"><button class="btn btn-sm" data-action="export-md">Markdown</button><button class="btn btn-sm" data-action="export-json">JSON</button></div></div><div class="stat-grid">'+
   stat("已登记作品",works.length,"包括项目、文章及网站")+
   stat("验证页面",summary.verified_pages,"仅统计审核通过的原始页面",true)+
-  stat("传播事件",summary.third_party_events,"同一事件不重复计数")+
+  stat(settingsLabel(["已审核影响事件","Reviewed impact events"]),summary.verified_impact_events,settingsLabel(["贡献、协作、传播与曝光按事件归并","Contributions, collaboration, propagation and exposure grouped by event"]))+
   stat("待审核线索",summary.pending,"需要再次核查原始来源")+'</div>'+
   impactDashboardView()+platformSummary+githubView+liveSourcesView()+(evidence||history?'<div class="grid-2">'+evidence+history+'</div>':"");
 }
@@ -354,14 +384,14 @@ function worksView(){
    (w.kind==="project"?'<div class="btn-row" style="margin-top:15px"><button class="btn btn-sm" data-action="collect" data-id="'+w.id+'">'+T("更新 GitHub")+'</button><button class="btn btn-sm" data-action="show-work" data-id="'+w.id+'">'+T("查看详情")+'</button></div>':'<div class="btn-row" style="margin-top:15px"><button class="btn btn-sm" data-action="navigate" data-view="channels">'+T("关联链接")+'</button></div>')+
    (p?downloadDetails(p):'')+'<details class="work-detail" id="detail-'+w.id+'" hidden><summary>'+T("统计详情")+'</summary><pre>'+E(JSON.stringify(p?.latest||{channels:pages},null,2))+'</pre></details></article>';
  }).join("");
- return '<div class="toolbar"><input class="search" data-filter placeholder="'+T("输入关键词筛选")+'" aria-label="'+T("项目检索")+'"><div class="muted">'+T("已登记作品")+': '+fmt(state.data.works.length)+'</div></div>'+
- catalogPanel()+'<div class="grid-cards">'+cards+'</div>'+
- heading("新增项目或文章")+
+ return '<details class="panel"'+(state.data.works.length?'':' open')+'><summary>'+T("新增项目或文章")+'</summary>'+
  '<div class="panel"><form data-form="work"><div class="form-grid">'+
  select("作品类型","kind",[["project","GitHub 项目"],["article","文章"],["site","网站"]],'id="work-kind"')+
  input("标题","title","text","", "required maxlength='200'")+
  '<label class="field full" id="work-id-field"><span>'+T("仓库路径")+'</span><input name="repository" placeholder="owner/repository" required></label>'+
- '</div><div class="form-actions"><button class="btn btn-primary" type="submit">'+T("新建")+'</button></div></form></div>';
+ '</div><div class="form-actions"><button class="btn btn-primary" type="submit">'+T("新建")+'</button></div></form></div>'+'</details>'+
+ '<div class="toolbar"><input class="search" data-filter placeholder="'+T("输入关键词筛选")+'" aria-label="'+T("项目检索")+'"><div class="muted">'+T("已登记作品")+': '+fmt(state.data.works.length)+'</div></div>'+
+ catalogPanel()+'<div class="grid-cards">'+cards+'</div>';
 }
 function catalogPanel(){
  const preview=state.catalogPreview;
@@ -511,17 +541,20 @@ function tasksView(){
   return '<article class="mini-card filterable" data-search="'+E([task.query,task.state,task.id].join(" ").toLowerCase())+'">'+
    '<div class="work-header"><h3>#'+task.id+' '+E(state.data.works.find(w=>w.id===task.work_id)?.title||"")+'</h3>'+tag(T(stateName),task.state)+'</div>'+
    '<p class="meta">'+E(task.query)+'</p><div class="btn-row">'+
-   '<button class="btn btn-sm" data-action="claim" data-id="'+task.id+'" '+(task.state==="running"?"disabled":"")+'>'+T("认领任务")+'</button></div>'+
+   '<button class="btn btn-sm" data-action="claim" data-id="'+task.id+'" '+(task.state==="running"&&Date.parse(task.lease_until)>Date.now()?"disabled":"")+'>'+T("认领任务")+'</button>'+(leased&&task.state==="running"?'<button class="btn btn-sm" data-action="renew-discovery" data-id="'+task.id+'">'+E(settingsLabel(["续期十分钟","Renew for ten minutes"]))+'</button>':'')+'</div>'+
    (leased&&task.state==="running" ? '<hr class="separator"><form data-form="complete-task" data-task="'+task.id+'"><div class="form-grid">'+
     input("搜索引擎","engine","text","Google / Bing","required")+
     input("实际搜索范围","scope","text","","required")+
+    '<label class="field full"><span>'+E(settingsLabel(["实际执行的查询（每行一条）","Queries actually executed (one per line)"]))+'</span><textarea name="queries" required>'+E(task.query)+'</textarea></label>'+
+    '<label class="field"><span>'+E(settingsLabel(["检查结果","Checked result"]))+'</span><select name="checked_result"><option value="incomplete">'+E(settingsLabel(["检查未完成","Incomplete"]))+'</option><option value="not_found_in_checked_scope">'+E(settingsLabel(["本次范围内未发现","Not found in checked scope"]))+'</option><option value="found">'+E(settingsLabel(["发现候选","Candidates found"]))+'</option></select></label>'+
+    '<label class="field"><span>'+E(settingsLabel(["已提交的候选证据（可多选）","Submitted candidates (multiple)"]))+'</span><select name="mention_ids" multiple>'+state.data.mentions.filter(m=>m.work_id===task.work_id).map(m=>'<option value="'+m.id+'">'+E(m.url)+'</option>').join('')+'</select></label>'+
     input("结果数量","result_count","number","0","required min='0' value='0'")+
     select("完成状态","status",[["complete","已完成"],["partial","部分完成"],["failed","失败"]])+
     '<label class="field full"><span>'+T("备注")+'</span><textarea name="notes"></textarea></label></div>'+
     '<div class="form-actions"><button class="btn btn-primary">'+T("记录搜索结果")+'</button></div></form>' : '')+
    '</article>';
  }).join("");
- return '<p class="desc">'+T("AI 客户端负责搜索；Reverfolio 记录证据与审计，不会自行声称搜索了全网")+'</p>'+
+ return discoveryCoveragePanel()+'<p class="desc">'+T("AI 客户端负责搜索；Reverfolio 记录证据与审计，不会自行声称搜索了全网")+'</p>'+
  '<div class="toolbar"><input class="search" data-filter placeholder="'+T("输入关键词筛选")+'"><span class="muted">'+fmt(state.data.tasks.length)+'</span></div>'+
  '<div class="grid-cards">'+(items||'<div class="empty">'+T("当前无数据")+'</div>')+'</div>'+
  heading("新建搜索任务")+
@@ -649,6 +682,7 @@ async function runClick(button){
  if(action==="edit-source"){state.sourceEdit=state.data.sources.sources.find(x=>x.source.id===button.dataset.source)?.source;render();return;}
  if(action==="collect-site-source"){await act(async()=>send("collect_site_source",{source_id:button.dataset.source}));return;}
  if(action==="collect"){await act(async()=>{await api("/api/works/"+id+"/collect",{method:"POST",headers:{"Idempotency-Key":uuid()}});});return;}
+ if(action==="renew-discovery"){const lease=state.leases.get(id);if(!lease){notification("Lease unavailable",true);return;}await act(async()=>send("renew_discovery_task",{task_id:id,lease_token:lease}));return;}
  if(action==="claim"){await act(async()=>{
   const result=await send("claim_discovery_task",{task_id:id,worker:pref("discovery.worker","Reverfolio web UI")});
   if(result.lease_token)state.leases.set(id,result.lease_token);
@@ -689,6 +723,8 @@ async function runForm(form){
  const body=Object.fromEntries(new FormData(form));
  const name=form.dataset.form;
  if(body.work_id)body.work_id=Number(body.work_id);
+ if(name==="search-identifier"){await act(async()=>send("save_work_search_identifier",{identifier:{work_id:Number(body.work_id),kind:body.kind,value:body.value}}));return;}
+ if(name==="impact-event"||name==="impact-step"){await saveImpactForm(form,name,body);return;}
  if(name==="devto-connect"){
   await act(async()=>{
    await send("connect_devto",body);
@@ -717,7 +753,7 @@ async function runForm(form){
  else if(name==="complete-task"){
   const id=Number(form.dataset.task),lease=state.leases.get(id);
   if(!lease){notification("Expired lease",true);return;}
-  body.task_id=id;body.lease_token=lease;body.result_count=Number(body.result_count||0);
+  body.task_id=id;body.lease_token=lease;body.result_count=Number(body.result_count||0);body.queries=body.queries.split(/\r?\n/).map(q=>q.trim()).filter(Boolean);body.mention_ids=new FormData(form).getAll("mention_ids").map(Number);
   await act(async()=>{await send("complete_discovery_task",body);state.leases.delete(id);});
  }
 }
@@ -732,6 +768,7 @@ document.addEventListener("input",e=>{
  if(e.target.id==="catalog-json"){state.catalogInput=e.target.value;state.catalogPreview=null;const button=document.querySelector('[data-action="apply-catalog"]');if(button)button.disabled=true;}
 
  if(e.target.matches("[data-filter]"))applyFilter(e.target);
+ if(e.target.id==="mcp-tunnel-id")mcpUI.draftID=e.target.value;
  if(e.target.id==="settings-search"||e.target.dataset.settingKey)settingsHandleInput(e.target);
  if(e.target.id==="import-json"){state.preview=null;state.importInput=e.target.value;const b=document.querySelector('[data-action="apply-import"]');if(b)b.disabled=true;}
 });
@@ -767,3 +804,67 @@ window.addEventListener("hashchange",()=>{
  const view=location.hash.replace(/^#/,"");
  if(nav.some(item=>item[0]===view)&&state.view!==view){state.view=view;render();}
 });
+
+const impactKinds=[["upstream_contribution",["上游贡献","Upstream contribution"]],["adoption",["技术采纳","Adoption"]],["collaboration",["技术协作","Collaboration"]],["citation",["引用推荐","Citation"]],["repost",["转载","Repost"]],["exposure",["平台曝光","Exposure"]],["unclassified",["待分类","Unclassified"]]];
+const impactDirections=[["inbound",["外部对作品的影响反馈","Inbound"]],["outbound",["对外部项目的贡献","Outbound"]],["unknown",["待确认","Unknown"]]];
+function impactOptions(rows,current){return rows.map(([key,label])=>'<option value="'+E(key)+'" '+(key===current?'selected':'')+'>'+E(settingsLabel(label))+'</option>').join('');}
+function impactField(label,name,value,required=false){return '<label class="field"><span>'+E(settingsLabel(label))+'</span><input name="'+E(name)+'" value="'+E(value||'')+'" '+(required?'required':'')+'></label>';}
+function impactForm(e={}){
+ const works=e.work_ids||[],evidence=e.evidence||[];
+ return '<form data-form="impact-event" data-id="'+(e.id||0)+'"><div class="form-grid">'+
+ impactField(["事件标识","Event key"],"key",e.event_key,true)+impactField(["标题","Title"],"title",e.title,true)+
+ '<label class="field"><span>'+E(settingsLabel(["类型","Type"]))+'</span><select name="kind">'+impactOptions(impactKinds,e.kind||"unclassified")+'</select></label>'+
+ '<label class="field"><span>'+E(settingsLabel(["方向","Direction"]))+'</span><select name="direction">'+impactOptions(impactDirections,e.direction||"unknown")+'</select></label>'+
+ impactField(["外部项目 URL","External project URL"],"target_url",e.target_url)+
+ '<label class="field"><span>'+E(settingsLabel(["审核状态","Review state"]))+'</span><select name="state">'+impactOptions([["pending",["待审核","Pending"]],["verified",["已核实","Verified"]],["rejected",["已拒绝","Rejected"]]],e.state||"pending")+'</select></label>'+
+ '<label class="field"><span>'+E(settingsLabel(["实际结果","Outcome"]))+'</span><select name="outcome">'+impactOptions([["not_confirmed",["尚未证实","Not confirmed"]],["in_progress",["进行中","In progress"]],["achieved",["结果已达成","Achieved"]]],e.outcome||"not_confirmed")+'</select></label>'+
+ '<label class="field full"><span>'+E(settingsLabel(["结果说明","Outcome description"]))+'</span><textarea name="summary" maxlength="4000">'+E(e.summary||"")+'</textarea></label>'+
+ '<label class="field"><span>'+E(settingsLabel(["关联作品（可多选）","Works (multiple)"]))+'</span><select name="work_ids" multiple>'+state.data.works.map(w=>'<option value="'+w.id+'" '+(works.includes(w.id)?'selected':'')+'>'+E(w.title)+'</option>').join('')+'</select></label>'+
+ '<label class="field"><span>'+E(settingsLabel(["关联证据（可多选）","Evidence (multiple)"]))+'</span><select name="mention_ids" multiple>'+state.data.mentions.map(m=>'<option value="'+m.id+'" '+(evidence.some(x=>x.mention_id===m.id)?'selected':'')+'>'+E(m.state+' · '+m.url)+'</option>').join('')+'</select></label>'+
+ '<label class="field"><span>'+E(settingsLabel(["证明实际结果的证据","Outcome evidence"]))+'</span><select name="outcome_mention_id"><option value="">—</option>'+state.data.mentions.map(m=>'<option value="'+m.id+'" '+(evidence.some(x=>x.mention_id===m.id&&x.role==="outcome")?'selected':'')+'>'+E(m.url)+'</option>').join('')+'</select></label>'+
+ impactField(["审核／修改理由","Review / change reason"],"reason","",true)+
+ '</div><button class="btn btn-primary">'+E(settingsLabel(["保存事件","Save event"]))+'</button></form>';
+}
+function impactEventsView(){
+ const events=state.data.impactEvents||[];
+ return heading(settingsLabel(["影响事件","Impact events"]),settingsLabel(["一件工程结果可以关联多篇作品和多条证据；页面数量不等于采用次数。","One outcome can link multiple works and evidence pages; pages are not adoptions."]))+
+ '<div class="stat-grid">'+stat(settingsLabel(["已核实的独立事件","Verified independent events"]),events.filter(e=>e.effective_state==="verified").length)+stat(settingsLabel(["实际结果已达成","Achieved outcomes"]),events.filter(e=>e.effective_state==="verified"&&e.outcome==="achieved").length)+'</div>'+
+ events.map(e=>'<article class="panel"><h3>'+E(e.title)+' '+tag(E(e.effective_state),e.effective_state)+'</h3><p>'+E(settingsLabel(impactKinds.find(x=>x[0]===e.kind)?.[1]||e.kind))+' · '+E(settingsLabel(impactDirections.find(x=>x[0]===e.direction)?.[1]||e.direction))+' · '+E(e.outcome)+'</p>'+
+ (e.target_url?'<p>'+anchor(e.target_url)+'</p>':'')+'<p>'+E(e.summary)+'</p>'+
+ '<p class="meta">'+(e.work_ids||[]).map(id=>E(state.data.works.find(w=>w.id===id)?.title||id)).join(' · ')+'</p>'+
+ '<ol>'+(e.steps||[]).map(step=>'<li><strong>'+E(step.label)+'</strong> · '+E(step.kind)+' · '+(step.at?dt(step.at):E(settingsLabel(["时间未知","Time unknown"])))+' · '+anchor(state.data.mentions.find(m=>m.id===step.mention_id)?.url||'')+'</li>').join('')+'</ol>'+
+ (e.evidence||[]).map(proof=>{const m=state.data.mentions.find(m=>m.id===proof.mention_id);return '<p>'+E(proof.role)+' · '+E(m?.state)+' · '+anchor(m?.url||'')+'</p>';}).join('')+
+ '<details><summary>'+E(settingsLabel(["审核历史","Review history"]))+'</summary>'+(e.history||[]).map(h=>'<p>'+E(h.reviewer)+' · '+dt(h.at)+' · '+E(h.reason)+'</p>').join('')+'</details><details><summary>'+E(settingsLabel(["编辑与审核","Edit and review"]))+'</summary>'+impactForm(e)+'</details>'+
+ '<details><summary>'+E(settingsLabel(["添加时间节点","Add timeline step"]))+'</summary><form data-form="impact-step" data-id="'+e.id+'"><div class="form-grid">'+
+ '<label class="field"><span>'+E(settingsLabel(["节点类型","Step type"]))+'</span><select name="kind">'+["submitted","approved","merged","released","retained","cited","adopted","fixed","validated","closed","other"].map(k=>'<option>'+k+'</option>').join('')+'</select></label>'+
+ impactField(["节点说明","Step description"],"label","",true)+
+ '<label class="field"><span>'+E(settingsLabel(["发生时间（可留空）","Occurrence time (optional)"]))+'</span><input type="datetime-local" name="at"></label>'+
+ '<label class="field"><span>'+E(settingsLabel(["证据页面","Evidence page"]))+'</span><select name="mention_id" required>'+state.data.mentions.map(m=>'<option value="'+m.id+'">'+E(m.url)+'</option>').join('')+'</select></label>'+
+ impactField(["修改理由","Change reason"],"reason","",true)+'</div><button class="btn">'+E(settingsLabel(["添加节点","Add step"]))+'</button></form></details></article>').join('')+
+ '<details class="panel"><summary>'+E(settingsLabel(["创建影响事件","Create impact event"]))+'</summary>'+impactForm()+'</details>';
+}
+async function saveImpactForm(form,name,body){
+ const old=(state.data.impactEvents||[]).find(e=>e.id===Number(form.dataset.id));
+ let event;
+ if(name==="impact-step"){
+  if(!old)return;
+  event={...old,steps:[...(old.steps||[]),{kind:body.kind,label:body.label,at:body.at?new Date(body.at).toISOString():"",mention_id:Number(body.mention_id)}],evidence:(old.evidence||[]).slice()};
+  if(!event.evidence.some(m=>m.mention_id===Number(body.mention_id)))event.evidence.push({mention_id:Number(body.mention_id),role:"context"});
+ }else{
+  const data=new FormData(form),proofs=data.getAll("mention_ids").map(Number);
+  if(body.outcome_mention_id&&!proofs.includes(Number(body.outcome_mention_id)))proofs.push(Number(body.outcome_mention_id));
+  event={id:old?.id||0,event_key:body.key,title:body.title,kind:body.kind,direction:body.direction,target_url:body.target_url,state:body.state,outcome:body.outcome,summary:body.summary,work_ids:data.getAll("work_ids").map(Number),evidence:proofs.map(id=>({mention_id:id,role:id===Number(body.outcome_mention_id)?"outcome":old?.evidence?.find(m=>m.mention_id===id)?.role||"source"})),steps:old?.steps||[]};
+ }
+ await act(async()=>send("save_impact_event",{event,expected_version:old?.version||0,reason:body.reason,reviewer:pref("evidence.reviewer","local-ui")}));
+}
+
+function discoveryCoveragePanel(){
+ const coverage=state.data.discoveryCoverage||{runs:[],identifiers:[],suggested_queries:{}};
+ const results={found:["发现候选（仍需审核）","Candidates found (review required)"],not_found_in_checked_scope:["本次范围内未发现","Not found in checked scope"],incomplete:["检查未完成","Incomplete"],legacy_unlinked:["历史结果尚未关联候选","Legacy results without candidates"],legacy_unknown:["历史检查结果未知","Unknown legacy outcome"]};
+ return '<details class="panel"><summary>'+E(settingsLabel(["AI 检索步骤与防漏查清单","AI search workflow and coverage checklist"]))+'</summary><ol>'+(state.lang==='en'?(coverage.workflow||[]):['先读取作品、发布链接、历史名称和已检查范围。','按原名、译名、旧 URL、特征句扩展查询。','分别检查第三方引用、采用、上游 PR 与排障协作。','从已知证据追查作者、原始来源、Issue 与 PR。','核验原页，区分本人分发、转载、聚合和 AI 引用。','关联候选证据并记录实际查询、来源、日期与未完成范围；未查到不代表全网没有。']).map(step=>'<li>'+E(step)+'</li>').join('')+'</ol><p>'+E(settingsLabel(["让已连接的 AI 先读取 get_discovery_coverage，再按作品执行检索计划；生成计划不代表已经搜索。","Ask your connected AI to read get_discovery_coverage and execute each work plan. A generated plan is not a completed search."]))+'</p></details>'+heading(settingsLabel(["检查范围与候选证据","Checked scopes and candidate evidence"]),settingsLabel(["记录只适用于列出的查询、来源和时间，不代表全网没有引用。","Records apply only to the listed queries, sources and times; they do not establish global absence."]))+
+ (coverage.runs||[]).map(r=>'<article class="panel"><h3>#'+r.task_id+' · '+E(r.engine)+'</h3><p>'+E(r.scope)+' · '+dt(r.completed_at)+'</p><p>'+E(settingsLabel(results[r.checked_result]||r.checked_result))+' · '+E(r.status)+'</p><ul>'+r.queries.map(q=>'<li>'+E(q)+'</li>').join('')+'</ul>'+r.mention_ids.map(id=>{const m=state.data.mentions.find(m=>m.id===id);return '<p>'+E(m?.state||'unknown')+' · '+anchor(m?.url||'')+'</p>';}).join('')+'</article>').join('')+
+ '<details class="panel"><summary>'+E(settingsLabel(["按作品查看建议查询","Suggested queries by work"]))+'</summary>'+state.data.works.map(w=>'<h3>'+E(w.title)+'</h3><ul>'+(coverage.suggested_queries[w.id]||[]).map(q=>'<li><code>'+E(q)+'</code></li>').join('')+'</ul>').join('')+'</details>'+
+ '<details class="panel"><summary>'+E(settingsLabel(["补充历史名称、旧 URL 或特征句","Add a historical name, URL or distinctive phrase"]))+'</summary><form data-form="search-identifier"><div class="form-grid">'+workSelection()+
+ '<label class="field"><span>'+E(settingsLabel(["类型","Type"]))+'</span><select name="kind"><option value="historical_name">'+E(settingsLabel(["历史名称","Historical name"]))+'</option><option value="historical_url">'+E(settingsLabel(["历史 URL","Historical URL"]))+'</option><option value="translated_title">'+E(settingsLabel(["翻译标题","Translated title"]))+'</option><option value="phrase">'+E(settingsLabel(["特征句","Distinctive phrase"]))+'</option></select></label>'+
+ '<label class="field full"><span>'+E(settingsLabel(["内容","Value"]))+'</span><input name="value" maxlength="2000" required></label></div><button class="btn">'+E(settingsLabel(["保存检索标识","Save search identifier"]))+'</button></form></details>';
+}

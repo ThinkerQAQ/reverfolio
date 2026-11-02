@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ThinkerQAQ/reverfolio/internal/echo"
 	"io"
 	"net/http"
 	"os"
@@ -19,7 +20,6 @@ import (
 
 const (
 	nativeHostName   = "com.reverfolio.bridge"
-	localHealth      = "http://127.0.0.1:19452/healthz"
 	maxNativeMessage = 8 * 1024
 	extensionOrigin  = "chrome-extension://khdciakflcmilakmaiejamcgmggnkego/"
 )
@@ -67,9 +67,25 @@ func serve(r io.Reader, w io.Writer, handle func(string) nativeReply) error {
 	}
 	return writeFrame(w, handle(request.Command))
 }
+func healthURL(configPath string) (string, error) {
+	c, err := echo.LoadConfig(configPath)
+	if err != nil {
+		return "", err
+	}
+	origin, err := echo.LocalAPIOrigin(c.Server.Listen)
+	return origin + "/healthz", err
+}
 func healthy() bool {
+	exe, err := os.Executable()
+	if err != nil {
+		return false
+	}
+	endpoint, err := healthURL(filepath.Join(filepath.Dir(filepath.Dir(exe)), "config.toml"))
+	if err != nil {
+		return false
+	}
 	client := &http.Client{Timeout: 750 * time.Millisecond}
-	resp, err := client.Get(localHealth)
+	resp, err := client.Get(endpoint)
 	if err != nil {
 		return false
 	}
@@ -122,6 +138,12 @@ func ensure() nativeReply {
 	return nativeReply{Error: "service startup timed out; check the local config and port"}
 }
 func main() {
+	if len(os.Args) == 2 && os.Args[1] == "--ensure-service" {
+		if !ensure().OK {
+			os.Exit(1)
+		}
+		return
+	}
 	// The OS/browser manifest pins allowed_origins, and this extra check rejects
 	// an unexpected caller in Chromium's documented argv[1] form.
 	if len(os.Args) > 1 && os.Args[1] != "--native-host" && os.Args[1] != extensionOrigin {

@@ -106,8 +106,17 @@ func Open(path string) (*Store, error) {
 	if err = db.QueryRow(`PRAGMA user_version`).Scan(&version); err != nil {
 		return fail(err)
 	}
-	if version > 7 {
-		return fail(fmt.Errorf("database schema %d is newer than supported version 7", version))
+	if version > 9 {
+		return fail(fmt.Errorf("database schema %d is newer than supported version 9", version))
+	}
+	if version > 0 && version < 9 {
+		backup := path + ".before-impact-" + time.Now().UTC().Format("20060102T150405.000000000") + ".sqlite"
+		if _, err = db.Exec("VACUUM INTO ?", backup); err != nil {
+			return fail(fmt.Errorf("pre-migration backup failed: %w", err))
+		}
+		if err = os.Chmod(backup, 0600); err != nil {
+			return fail(err)
+		}
 	}
 	if version == 0 {
 		tx, err := db.Begin()
@@ -144,6 +153,12 @@ func Open(path string) (*Store, error) {
 		return fail(err)
 	}
 	if err = store.migratePlatformMetrics(); err != nil {
+		return fail(err)
+	}
+	if err = store.migrateImpact(); err != nil {
+		return fail(err)
+	}
+	if err = store.migrateDiscovery(); err != nil {
 		return fail(err)
 	}
 	return store, nil

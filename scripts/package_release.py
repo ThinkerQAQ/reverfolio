@@ -23,7 +23,10 @@ subprocess.run(['node', 'scripts/check_extension.mjs'], cwd=ROOT, check=True)
 subprocess.run(['node', 'scripts/check_download_ui.mjs'], cwd=ROOT, check=True)
 subprocess.run(['node', 'scripts/check_dashboard.mjs'], cwd=ROOT, check=True)
 subprocess.run(['node', 'scripts/check_propagation.mjs'], cwd=ROOT, check=True)
+subprocess.run(['node', 'scripts/check_impact.mjs'], cwd=ROOT, check=True)
+subprocess.run(['node', 'scripts/check_discovery.mjs'], cwd=ROOT, check=True)
 subprocess.run(['node', 'scripts/check_native_host.mjs'], cwd=ROOT, check=True)
+subprocess.run(['node', 'scripts/check_mcp_guide.mjs'], cwd=ROOT, check=True)
 subprocess.run(['go', 'test', './...'], cwd=ROOT, check=True)
 subprocess.run(['python3', 'scripts/check_docs.py'], cwd=ROOT, check=True)
 # Ship actual dependency license texts, not only a notice pointing upstream.
@@ -52,12 +55,17 @@ for operating_system in ('windows', 'linux', 'darwin'):
                 shutil.copytree(ROOT / 'extension', root / 'extension')
                 for script in ('Start-Reverfolio.cmd', 'Run-Reverfolio.ps1',
                                'Install-Reverfolio.ps1', 'Initialize-ReverfolioExtension.ps1',
-                               'Register-ReverfolioNativeHost.ps1','Start-Reverfolio-Hidden.vbs'):
+                               'Register-ReverfolioNativeHost.ps1','Start-Reverfolio-Hidden.vbs','Open-Reverfolio.ps1'):
                     shutil.copy2(ROOT / 'scripts/windows' / script, root / script)
             for name in ('config.example.toml', 'README.md', 'README_ZH.md', 'LICENSE'):
                 shutil.copy2(ROOT / name, root / name)
             shutil.copy2(licenses, root / 'THIRD_PARTY_LICENSES.txt')
             (root / 'scripts').mkdir()
+            shutil.copytree(ROOT / 'third_party', root / 'third_party')
+            for script in ('setup-mcp.sh', 'manage-mcp.sh', 'Setup-Reverfolio-MCP.ps1', 'Manage-Reverfolio-MCP.ps1'):
+                shutil.copy2(ROOT / 'scripts' / script, root / 'scripts' / script)
+            if operating_system != 'windows':
+                shutil.copy2(ROOT / 'scripts/Open-Reverfolio.sh', root / 'Open-Reverfolio.sh')
             shutil.copy2(ROOT / 'scripts/publications_to_catalog.py', root / 'scripts/publications_to_catalog.py')
             shutil.copy2(ROOT / 'scripts/check_mcp_contract.py', root / 'scripts/check_mcp_contract.py')
             prefix = 'Reverfolio-' + version + '-' + operating_system + '-' + architecture

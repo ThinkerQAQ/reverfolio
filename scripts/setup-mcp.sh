@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+set -euo pipefail
+root="$(cd "$(dirname "$0")/.." && pwd)"
+os="$(uname -s)"
+app="$root/bin/reverfolio"
+[[ -x "$app" ]] || { echo "Reverfolio binary missing" >&2; exit 1; }
+[[ -f "$root/config.toml" ]] || { echo "Reverfolio config.toml missing" >&2; exit 1; }
+client="$(command -v tunnel-client || true)"
+[[ -n "$client" ]] || client="$HOME/.local/bin/tunnel-client"
+[[ -x "$client" ]] || { echo "Install official openai/tunnel-client first: https://github.com/openai/tunnel-client" >&2; exit 1; }
+id="${REVERFOLIO_TUNNEL_ID:-}"
+if [[ -z "$id" ]]; then read -r -p "Reverfolio Tunnel ID: " id; fi
+[[ "$id" =~ ^tunnel_([a-z0-9]{32}|[a-z0-9]{4}_[a-z0-9]{32})$ ]] || { echo "Invalid Tunnel ID" >&2; exit 1; }
+private="${XDG_CONFIG_HOME:-$HOME/.config}/reverfolio/mcp"
+profile_dir="${XDG_CONFIG_HOME:-$HOME/.config}/tunnel-client"
+mkdir -p "$private" "$profile_dir"
+chmod 700 "$private"
+env_file="$private/runtime.env"
+if [[ ! -f "$env_file" ]]; then
+  key="${CONTROL_PLANE_API_KEY:-}"
+  if [[ -z "$key" ]]; then
+    read -r -s -p "Restricted runtime API key (Tunnels Read + Use): " key
+    printf '\n'
+  fi
+  [[ "$key" =~ ^[a-zA-Z0-9_-]{16,}$ ]] || { echo "Invalid runtime key" >&2; exit 1; }
+  (umask 077; printf 'CONTROL_PLANE_API_KEY=%s\n' "$key" > "$env_file")
+fi
+chmod 600 "$env_file"
+set -a
+# shellcheck disable=SC1090
+source "$env_file"
+set +a
+profile="$profile_dir/reverfolio.yaml"
+if [[ -f "$profile" ]] && ! grep -Fq -- "$id" "$profile"; then
+  echo "Tunnel ID differs from existing Reverfolio profile. Reuse the saved ID or explicitly edit the profile." >&2
+  exit 1
+fi
+if [[ ! -f "$profile" ]]; then
+  "$client" init --sample sample_mcp_stdio_local --profile-dir "$profile_dir" --profile reverfolio \
+    --tunnel-id "$id" --mcp-command "\"$app\" --mcp-stdio --config \"$root/config.toml\"" --health-listen-addr 127.0.0.1:0
+fi
+chmod 600 "$profile"
+"$client" doctor --config "$profile"
+if [[ "$os" == "Linux" ]] && command -v systemctl >/dev/null && systemctl --user is-system-running >/dev/null 2>&1; then
+  unit="$HOME/.config/systemd/user/reverfolio-tunnel.service"
+  mkdir -p "$(dirname "$unit")"
+  cat > "$unit" <<EOF
+[Unit]
+Description=Reverfolio MCP Tunnel
+After=network-online.target
+Wants=network-online.target
+[Service]
+Type=simple
+EnvironmentFile="$env_file"
+ExecStart="$client" run --config "$profile" --health.url-file "$private/health.url"
+Restart=on-failure
+RestartSec=5
+UMask=0077
+[Install]
+WantedBy=default.target
+EOF
+  systemctl --user daemon-reload
+  systemctl --user enable --now reverfolio-tunnel.service
+  echo "Reverfolio MCP tunnel started as a systemd user service."
+elif [[ "$os" == "Darwin" ]]; then
+  runner="$private/run.sh"
+  cat > "$runner" <<EOF
+#!/bin/bash
+set -a
+source "$env_file"
+set +a
+exec "$client" run --config "$profile" --health.url-file "$private/health.url"
+EOF
+  chmod 700 "$runner"
+  runner_xml="$(printf "%s" "$runner" | sed -e "s/\&/\&amp;/g" -e "s/</\&lt;/g" -e "s/>/\&gt;/g")"
+  agent="$HOME/Library/LaunchAgents/com.reverfolio.mcp.plist"
+  mkdir -p "$(dirname "$agent")"
+  cat > "$agent" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>Label</key><string>com.reverfolio.mcp</string>
+<key>ProgramArguments</key><array><string>$runner_xml</string></array>
+<key>RunAtLoad</key><true/><key>KeepAlive</key><true/>
+</dict></plist>
+EOF
+  launchctl bootout "gui/$(id -u)/com.reverfolio.mcp" >/dev/null 2>&1 || true
+  if launchctl bootstrap "gui/$(id -u)" "$agent"; then
+    echo "Reverfolio MCP tunnel started through LaunchAgent."
+  else
+    echo "No GUI launchctl session. Start manually: $client run --config $profile" >&2
+  fi
+else
+  echo "No supported service manager. Start manually: $client run --config $profile"
+fi
+echo "Finish in ChatGPT Plugins -> Add custom MCP server -> Tunnel."

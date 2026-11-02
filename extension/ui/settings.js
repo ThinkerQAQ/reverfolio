@@ -6,6 +6,7 @@
  * Leaf controls are bound only to Reverfolio's allowlisted settings API.
  */
 const settingTree = [
+ {id:"mcp-connection",name:["MCP 连接","MCP connection"],desc:["按引导连接 ChatGPT 或本地 AI 客户端","Connect ChatGPT or a local AI client"],kind:"mcp-connection"},
  {id:"interface",name:["界面与语言","Interface & language"],desc:["界面语言、首页、布局","Language, dashboard and layout"],children:[
    {id:"ui-language",name:["界面语言","Interface language"],desc:["简体中文或 English（保存在 config.toml）","Simplified Chinese or English (saved to config.toml)"],kind:"language"},
    {id:"dashboard",name:["首页总览","Dashboard"],desc:["调整首页的展示方式","Control the overview layout"],children:[
@@ -30,7 +31,9 @@ const settingTree = [
      {id:"github-schedule",name:["自动采集计划","Automatic collection"],desc:["设置采集间隔，无需重启","Set the interval without restarting"],fields:[
        {key:"collection.interval",name:["采集频率","Collection interval"],help:["一分钟内生效；电脑和本地服务须保持运行。关闭计划不会删除已采集数据。","Applied within one minute while the computer and local service are running. Disabling preserves observations."],type:"select",options:[["0",["关闭","Disabled"]],["1h",["每小时","Hourly"]],["6h",["每 6 小时","Every 6 hours"]],["24h",["每天","Daily"]],["168h",["每周","Weekly"]]]}
      ]},
-     {id:"github-runtime",name:["采集运行状态","Collection runtime"],desc:["定时采集与账号授权","Scheduling and authorization"],kind:"github-runtime"}
+     {id:"github-auth",name:["GitHub 授权方式","GitHub authentication"],desc:["更改后重启服务生效","Restart the service after changing"],fields:[
+ {key:"github.auth",name:["凭据来源","Credential source"],help:["环境变量 GITHUB_TOKEN 或本机已登录的 gh；密钥不写入配置。更改后重启。","Use GITHUB_TOKEN or the signed-in local gh CLI. Secrets are not written to config. Restart required."],type:"select",options:[["env",["环境变量","Environment"]],["gh",["本机 GitHub CLI","Local GitHub CLI"]]]}]},
+ {id:"github-runtime",name:["采集运行状态","Collection runtime"],desc:["定时采集与账号授权","Scheduling and authorization"],kind:"github-runtime"}
    ]},
    {id:"search-sources",name:["搜索与站点统计","Search and site analytics"],desc:["GSC、Bing、Umami 当前支持情况","Current GSC, Bing and Umami coverage"],children:[
      {id:"search-gsc",name:["Google Search Console","Google Search Console"],desc:["搜索曝光和点击","Impressions and clicks"],kind:"gsc"},
@@ -61,7 +64,10 @@ const settingTree = [
    {id:"backup-location",name:["数据库备份","SQLite backup"],desc:["导出和恢复的安全说明","Export and restore guidance"],kind:"backup"}
  ]},
  {id:"system-settings",name:["运行环境","Runtime"],desc:["本地访问与独立部署","Local access and standalone deployment"],children:[
-   {id:"local-security",name:["本地访问与安全","Local access & security"],desc:["本地网页会话与 MCP 鉴权","Browser session and MCP authentication"],kind:"security"},
+   {id:"startup-config",name:["高级启动配置","Advanced startup configuration"],desc:["监听地址、数据库；重启后生效","Listener and database; restart required"],fields:[
+ {key:"server.listen",name:["本机监听地址","Loopback listener"],help:["仅允许回环 IP 与端口。保存同步扩展地址；重启服务后访问新地址，并重新加载扩展。","Loopback IP and port only. Saving synchronizes extension metadata. Restart the service, open the new address, and reload the extension."],type:"text",max:100},
+ {key:"storage.database",name:["SQLite 数据库路径","SQLite database path"],help:["高级操作：仅可选择已存在的 Reverfolio SQLite 文件。相对路径以配置文件目录为准；不会移动或复制旧数据，重启后生效。","Advanced: select an existing Reverfolio SQLite file. Relative to the config directory. Does not move or copy data. Restart required."],type:"text",max:1000}]},
+ {id:"local-security",name:["本地访问与安全","Local access & security"],desc:["本地网页会话与 MCP 鉴权","Browser session and MCP authentication"],kind:"security"},
    {id:"about-reverfolio",name:["关于 Reverfolio","About Reverfolio"],desc:["版本、架构及独立性","Version, architecture and independence"],kind:"about"}
  ]}
 ];
@@ -151,6 +157,7 @@ function settingsFieldInput(field){
 }
 function settingsReadOnly(node){
  const kind=node.kind;
+ if(kind==="mcp-connection")return mcpSettingsPanel();
  const status=(label,badge,detail)=>'<div class="settings-status"><div class="work-header"><strong>'+E(label)+'</strong>'+tag(E(badge),badge==="Active"?"complete":"partial")+'</div>'+
   '<p class="muted">'+E(detail)+'</p></div>';
  if(kind==="language")
@@ -191,7 +198,7 @@ function settingsDetail(){
     '<small>'+E(settingsLabel(child.desc))+'</small></span><span>›</span></button>').join("")+'</div>';
  const controls=node.fields?
   '<form data-form="setting-edit"><div class="settings-fields">'+node.fields.map(settingsFieldInput).join("")+'</div>'+
-  '<div class="settings-savebar"><span class="settings-hint">'+E(settingsLabel(["修改在保存后生效","Changes take effect after saving"]))+'</span>'+
+  '<div class="settings-savebar"><span class="settings-hint">'+E(settingsLabel(node.fields.some(f=>["server.listen","storage.database","github.auth"].includes(f.key))?["保存配置后需重启服务；改监听地址还需重新加载扩展。","Restart the service after saving; listener changes also require extension reload."]:["修改在保存后生效","Changes take effect after saving"]))+'</span>'+
   '<button class="btn" type="button" data-action="settings-cancel">'+E(settingsLabel(["取消","Cancel"]))+'</button>'+
   '<button class="btn btn-primary" type="button" data-action="settings-save">'+E(settingsLabel(["保存设置","Save settings"]))+'</button></div></form>':
   settingsReadOnly(node);
@@ -214,7 +221,7 @@ function settingsIndexRows(){
  return settingTree.map(node=>
   '<button type="button" class="settings-category-card" data-action="settings-select" data-id="'+E(node.id)+'">'+
   '<span><strong>'+E(settingsLabel(node.name))+'</strong><small>'+E(settingsLabel(node.desc))+'</small></span>'+
-  '<span class="settings-category-meta">'+settingLeaves(node.children||[])+' <span class="settings-category-chevron">›</span></span></button>'
+  '<span class="settings-category-meta">'+(node.children?settingLeaves(node.children):'')+' <span class="settings-category-chevron">›</span></span></button>'
  ).join("");
 }
 function renderSettingsTree(){
@@ -231,6 +238,11 @@ function settingsRenderSidebar(){
  const area=$("settings-tree");if(area)area.innerHTML=settingsIndexRows();
 }
 async function settingsHandleAction(button){
+ if(button.dataset.action.startsWith("settings-mcp-")){
+  await mcpHandleAction(button.dataset.action.slice("settings-mcp-".length));return;
+ }
+ if(button.dataset.id==="mcp-connection"){try{state.mcpConnection=await api("/api/mcp-connection");}catch(err){notification(err.message,true);}}
+
  switch(button.dataset.action){
   case "settings-home":{
    state.settingsSelected="";
@@ -279,4 +291,109 @@ async function settingsHandleForm(){
   await send("update_settings",{updates});
   for(const item of updates)delete state.settingsDraft[item.key];
  });
+}
+
+const mcpUI={draftID:null,busy:"",error:"",deadline:0,timer:null,polling:false,advanced:false,pollError:false};
+function mcpActive(){return !!state.data&&state.view==="settings"&&state.settingsSelected==="mcp-connection";}
+function settingsMCPBeforeRender(){
+ const input=document.getElementById("mcp-tunnel-id");
+ if(input)mcpUI.draftID=input.value;
+ const advanced=document.getElementById("mcp-advanced");
+ if(advanced)mcpUI.advanced=advanced.open;
+}
+function settingsMCPAfterRender(){
+ clearTimeout(mcpUI.timer);mcpUI.timer=null;
+ if(mcpActive())mcpUI.timer=setTimeout(mcpPoll,4000);
+}
+async function mcpReadStatus(){
+ const previous=JSON.stringify(state.mcpConnection);
+ state.mcpConnection=await api("/api/mcp-connection");
+ let changed=previous!==JSON.stringify(state.mcpConnection);
+ if(mcpUI.pollError||state.mcpConnection.ready){if(mcpUI.error)changed=true;mcpUI.error="";mcpUI.pollError=false;}
+ if(mcpUI.busy==="waiting"){
+  if(state.mcpConnection.ready){mcpUI.busy="";mcpUI.error="";changed=true;}
+  else if(Date.now()>mcpUI.deadline){
+   mcpUI.busy="";mcpUI.error=settingsLabel(["连接尚未完成。首次配置请先完成本机窗口中的提示，再重试连接。","Connection is not ready. Finish the prompts in the local setup window, then retry."]);changed=true;
+  }
+ }
+ return changed;
+}
+async function mcpPoll(){
+ if(!mcpActive()||mcpUI.polling)return;
+ mcpUI.polling=true;
+ try{if(await mcpReadStatus())render();}
+ catch(err){
+  const message=settingsLabel(["无法读取连接状态：","Cannot read connection status: "])+String(err.message||err);
+  if(mcpUI.error!==message){mcpUI.error=message;mcpUI.pollError=true;render();}
+ }finally{mcpUI.polling=false;settingsMCPAfterRender();}
+}
+async function mcpHandleAction(action){
+ if(action==="copy"){
+  await navigator.clipboard.writeText(JSON.stringify(state.mcpConnection?.local_config||{},null,2));
+  notification(settingsLabel(["已复制","Copied"]));return;
+ }
+ if(mcpUI.busy)return;
+ mcpUI.error="";
+ try{
+  if(action==="refresh"){await mcpReadStatus();render();return;}
+  const c=state.mcpConnection||{};
+  const tunnel_id=(mcpUI.draftID??c.tunnel_id??"").trim();
+  if(action==="connect"&&!c.configured&&!/^tunnel_(?:[a-z0-9]{32}|[a-z0-9]{4}_[a-z0-9]{32})$/.test(tunnel_id)){
+   mcpUI.error=settingsLabel(["请粘贴 ChatGPT 提供的完整 Tunnel ID。","Paste the complete Tunnel ID provided by ChatGPT."]);render();return;
+  }
+  const post=action=>api("/api/mcp-connection",{method:"POST",body:JSON.stringify({action,tunnel_id})});
+  if(action==="connect"){
+   if(!c.client_installed){mcpUI.busy="preparing";render();await post("install-client");}
+   mcpUI.busy=c.configured?"connecting":"configuring";render();
+   await post(c.configured?"start":"setup");
+  }else{
+   mcpUI.busy=action==="stop"?"stopping":"connecting";render();await post(action);
+  }
+  mcpUI.busy=action==="stop"?"":"waiting";mcpUI.deadline=Date.now()+120000;
+  await mcpReadStatus();render();
+ }catch(err){mcpUI.busy="";mcpUI.error=String(err.message||err);render();}
+ finally{settingsMCPAfterRender();}
+}
+function mcpSettingsPanel(){
+ const c=state.mcpConnection||{},ready=!!c.ready,busy=!!mcpUI.busy;
+ const L=settingsLabel;
+ const chatGPTSettingsURL="https://chatgpt.com/settings/plugins-settings";
+ const chatGPTLink=(label,classes="")=>'<a class="'+classes+'" href="'+chatGPTSettingsURL+'" target="_blank" rel="noopener noreferrer">'+E(L(label))+'</a>';
+ const button=(action,label,primary=false)=>'<button type="button" class="btn'+(primary?' btn-primary':'')+'" data-action="settings-mcp-'+action+'"'+(busy?' disabled':'')+'>'+E(L(label))+'</button>';
+ const phase={
+  preparing:["正在准备连接…","Preparing your connection…"],
+  configuring:["正在打开本机配置…","Opening local setup…"],
+  connecting:["正在连接…","Connecting…"],
+  waiting:["正在检查连接…","Checking the connection…"],
+  stopping:["正在断开连接…","Disconnecting…"]
+ };
+ let title,description;
+ if(busy){
+  title=phase[mcpUI.busy]||phase.waiting;
+  description=mcpUI.busy==="waiting"&&!c.configured
+   ?["首次连接请在本机配置窗口中输入运行密钥；已有凭据会自动复用。完成后本页会自动继续。","For a first connection, enter your runtime key in the local setup window. Saved credentials are reused. This page will continue automatically."]
+   :["请稍候，连接状态会自动更新。","Please wait. Connection status updates automatically."];
+ }else if(ready){
+  title=["本机连接已就绪","Your local connection is ready"];
+  description=["在插件设置中打开 Reverfolio，按提示启用或授权。已经连接过，可直接开始聊天。","Open Reverfolio in plugin settings to enable it or complete authorization. If already connected, start chatting."];
+ }else if(c.configured){
+  title=["连接已保存","Your connection is saved"];
+  description=["点击连接即可启动本机服务，无需重新填写配置。","Connect to start the local service. You do not need to enter the configuration again."];
+ }else{
+  title=["连接到 ChatGPT","Connect to ChatGPT"];
+  description=["在 ChatGPT 的自定义 MCP 连接中选择 Tunnel，将页面提供的 Tunnel ID 粘贴到下方。","Choose Tunnel when creating a custom MCP connection in ChatGPT, then paste the provided Tunnel ID below."];
+ }
+ const step=ready?3:(c.configured||busy?2:1);
+ const steps=[["填写连接信息","Connection details"],["启动本机连接","Start local connection"],["在 ChatGPT 中启用","Enable in ChatGPT"]];
+ const progress='<ol class="mcp-steps" aria-label="'+E(L(["连接步骤","Connection steps"]))+'">'+steps.map((label,i)=>'<li class="'+(i+1===step?'current':i+1<step?'done':'')+'"'+(i+1===step?' aria-current="step"':'')+'><span>'+(i+1<step?'✓':i+1)+'</span>'+(i===2?chatGPTLink(label):E(L(label)))+'</li>').join("")+'</ol>';
+ const input=!c.configured?'<label class="mcp-id-field" for="mcp-tunnel-id">Tunnel ID<input id="mcp-tunnel-id" autocomplete="off" spellcheck="false" maxlength="80" value="'+E(mcpUI.draftID??c.tunnel_id??"")+'" placeholder="tunnel_…"'+(busy?' disabled':'')+'></label>':"";
+ const action=(!ready||busy)?'<div class="mcp-main-action">'+button("connect",busy?phase[mcpUI.busy]:(mcpUI.error?["重试连接","Retry connection"]:c.configured?["连接","Connect"]:["连接 ChatGPT","Connect ChatGPT"]),true)+'</div>':'<div class="mcp-main-action">'+chatGPTLink(["打开 ChatGPT 插件设置","Open ChatGPT plugin settings"],"btn btn-primary")+'</div>';
+ const advanced='<details id="mcp-advanced" class="mcp-advanced"'+(mcpUI.advanced?' open':'')+'><summary>'+E(L(["高级选项与本地客户端","Advanced options and local clients"]))+'</summary>'+
+  (c.tunnel_id?'<p class="muted">Tunnel ID: <code>'+E(c.tunnel_id)+'</code></p>':"")+
+  '<div class="btn-row">'+(c.configured?button("restart",["重新连接","Reconnect"])+button("stop",["断开连接","Disconnect"]):"")+button("refresh",["检查连接","Check connection"])+'</div>'+
+  '<h3>'+E(L(["用于本地 AI 客户端","For a local AI client"]))+'</h3><p class="muted">'+E(L(["仅在本机 AI 客户端需要 JSON 配置时使用。","Use this only if your local AI client requires JSON configuration."]))+'</p>'+
+  '<pre>'+E(JSON.stringify(c.local_config||{},null,2))+'</pre>'+button("copy",["复制本地配置","Copy local configuration"])+'</details>';
+ return '<div class="mcp-guide">'+progress+'<section class="mcp-connection-card'+(ready?' is-ready':'')+'" aria-busy="'+busy+'">'+
+ '<div class="mcp-state-symbol" aria-hidden="true">'+(ready?'✓':busy?'…':'↗')+'</div><h3>'+E(L(title))+'</h3><p class="mcp-description" role="status" aria-live="polite">'+E(L(description))+'</p>'+
+ input+(mcpUI.error?'<p class="mcp-error" role="alert">'+E(mcpUI.error)+'</p>':"")+action+'</section>'+advanced+'</div>';
 }

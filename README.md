@@ -11,236 +11,237 @@
 
 ## 1. Introduction
 
-After publishing a project or an article, its feedback is often scattered across several places. GitHub shows stars, release downloads, and repository traffic; a personal website has search and visitor statistics; publishing platforms report their own views and reactions. Following the progress of a work over time means checking and piecing together all those records.
+After publishing a project or article, its feedback is scattered across different places: GitHub has downloads and repository traffic, websites have search and visitor statistics, and other authors may cite an article or apply its methods. Download counts alone do not establish who used a work; a list of links does not explain what a contribution achieved.
 
-Reverfolio brings them into one place. You can register your projects and articles, see available metrics and how they change over time, record mentions from other sites or projects, and review the supporting evidence. You can start with a single GitHub repository and add your website or publishing platforms later.
+Reverfolio organizes these records locally. Register works and publication links, collect metrics from supported APIs, use an AI client to find external leads, then retain original evidence, review it and group related pages into impact events. It also records accepted upstream PRs, troubleshooting collaboration, reposts and directory listings, preserving what each record actually proves.
+
+> This guide describes the forthcoming installer and guided workflow. Use its matching preview build before publication; public Releases may still contain older portable packages that cannot validate the new interface.
 
 ## 2. Quick Start
 
-Register a public GitHub repository and collect its available metrics, from installation to your first result. On Windows, this walkthrough also sets up the browser extension.
+Start with one public GitHub project: install Reverfolio, register the project and collect its first observation. Continue to ChatGPT setup if you want AI-assisted discovery. The browser extension can be installed later.
 
-### 2.1. Prepare the environment
+### 2.1. Choose a build
 
-Use Windows, Linux, or macOS (x64/ARM64). The Windows browser extension supports Edge and Chrome; Linux/macOS portable packages use the Web UI **without an extension**. A release archive needs no Go, Node.js, publishing tool, or API key for the initial project.
+Open [Releases](https://github.com/ThinkerQAQ/reverfolio/releases) and choose your operating system and CPU architecture. Use the executable, launchers and extension from the same release or preview build.
 
-For your CPU architecture, check Windows **Settings → System → About**, macOS **About This Mac**, or run `uname -m` on Linux (`x86_64` = amd64, `aarch64` = arm64).
+| System | Package and entry point |
+| --- | --- |
+| Windows | Prefer the native `.exe` installer for your architecture; portable alternatives end in `windows-amd64.zip` or `windows-arm64.zip` |
+| Linux | Extract `linux-amd64.tar.gz` or `linux-arm64.tar.gz` and use the included launcher |
+| macOS | Use `darwin-arm64.tar.gz` for Apple Silicon or `darwin-amd64.tar.gz` for Intel, then use the included launcher |
 
-### 2.2. Download and install
+Check Windows **Settings → System → About**, macOS **About This Mac**, or run `uname -m` on Linux: `x86_64` means amd64 and `aarch64` means arm64. Release packages require no Go, Node.js or publishing application.
 
-1. Open the [latest Release](https://github.com/ThinkerQAQ/reverfolio/releases/latest). Choose the archive whose name ends in `windows-amd64.zip`, `windows-arm64.zip`, `linux-amd64.tar.gz`, `linux-arm64.tar.gz`, `darwin-amd64.tar.gz`, or `darwin-arm64.tar.gz` for your platform.
-2. Also download `SHA256SUMS`. In the download directory, calculate the archive hash: Windows `Get-FileHash .\Reverfolio-*.zip -Algorithm SHA256`, Linux `sha256sum ./Reverfolio-*.tar.gz`, or macOS `shasum -a 256 ./Reverfolio-*.tar.gz`. Compare with the entry for the **same archive filename** in `SHA256SUMS`; do not install a mismatched archive.
-3. Extract the **entire** archive into a permanent private directory. The resulting `Reverfolio/` installation root directly contains `bin/` and `config.example.toml`. On Windows it also contains `extension/` and `Start-Reverfolio.cmd`. Do not run anything inside the compressed archive.
+Download the build's SHA-256 checksum file and compare your selected file against the entry for the **same filename**. Use `Get-FileHash` on Windows, `sha256sum` on Linux or `shasum -a 256` on macOS. Download again if the values differ.
 
-**Windows:** open PowerShell and replace the sample path with the actual extracted directory:
+### 2.2. Install and open the workspace
 
-```powershell
-Set-Location 'C:\path\to\Reverfolio'
-.\Start-Reverfolio.cmd
-```
+**Windows native installer:**
 
-This command runs installation setup as needed, creates `config.toml` and `Data/` without replacing existing files, prepares the extension credentials, **registers** the native messaging host for Edge/Chrome, and starts the local service hidden. No manual host registration or pairing code is required. Open [http://127.0.0.1:19452](http://127.0.0.1:19452); refresh if the process is still starting.
+1. Run the installer and choose a permanent installation directory.
+2. Read and accept the license, then install. Components and shortcuts use the default arrangement without separate selection pages.
+3. Leave **Open Reverfolio** selected on the finish page and finish. Select **Set up the Chrome / Edge extension** only if you want the optional extension; see [4.1](#41-install-the-browser-extension-windows).
+4. When the workspace opens in your browser, confirm **Local service → Connected** and **My works** in the sidebar. Use the Start menu entry to open Reverfolio again.
 
-**Linux/macOS:** open a terminal in the extracted `Reverfolio/` directory:
+Initialization creates missing `config.toml` and local data files and prepares extension authorization and the native launcher. Existing configuration and data are retained. Normal local use requires no manual API token, pairing code or Native Messaging Host registration.
 
-```bash
-# Copy only on a fresh installation; do not overwrite an existing config.
-cp config.example.toml config.toml
-./bin/reverfolio -config ./config.toml
-```
-
-Keep the terminal running and open [http://127.0.0.1:18440](http://127.0.0.1:18440). Portable Unix archives do not install a background service. An unsigned macOS binary may require operating-system approval.
-
-### 2.3. Install the browser extension (Windows)
-
-Run [2.2](#22-download-and-install) **first**, so the Windows installer can initialize the extension.
-
-1. Open `edge://extensions` in Edge or `chrome://extensions` in Chrome.
-2. Enable **Developer mode**, then select **Load unpacked**.
-3. Select the `extension/` directory **inside the extracted Reverfolio installation**. That directory must directly contain `manifest.json`. Do not select the ZIP, `bin/`, or the repository root.
-4. Find Reverfolio in the browser's Extensions menu, optionally pin it, and click its icon. It opens a **side panel**, not a popup.
-5. Confirm **Local service → Connected**, then open **Projects** and verify that the page loads. The side panel and [local Web UI](http://127.0.0.1:19452) share the same data.
-
-If the panel says **Service disconnected**, click **Start local service**, then **Retry connection**. If native messaging is unavailable or the extension is unauthorized, run `.\Start-Reverfolio.cmd` again from the **same installation root**, then **Reload** the extension from the extensions page. Moving the installation requires running the launcher again from its new location. **Loading the extension is the only manual browser installation step**; the installer registers the native host automatically.
-
-Linux/macOS users **skip this section** and continue through the Web UI.
-
-### 2.4. Register and collect your first project
-
-Use the extension side panel on Windows or the Web UI on Linux/macOS:
-
-1. Open **Projects** from the left navigation and scroll down to the **Add a project or article** form.
-2. Select **GitHub project** under **Type**, enter a **Title**, and set **Repository** to `ThinkerQAQ/reverfolio` (a public example). You can use your own `owner/repo` instead.
-3. Select **Create** and confirm the project card appears.
-4. Select **Collect GitHub** on that card, then check **Details** or **Impact overview** for the results and collection time.
-
-Public metrics may be available without credentials; some repository traffic requires GitHub authorization. The first cumulative download count is a baseline, not newly gained downloads.
-
-### 2.5. Verify the result
-
-Check the corresponding health endpoint from another terminal:
+**Windows portable package:** extract the entire ZIP to a permanent directory. Open PowerShell in the installation root containing `bin/`, `extension/` and `config.example.toml`, then run:
 
 ```powershell
-# Windows
-Invoke-RestMethod http://127.0.0.1:19452/healthz
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Open-Reverfolio.ps1
 ```
+
+The launcher initializes missing configuration, starts the service and opens its configured address. Do not run the application inside the ZIP.
+
+**Linux/macOS portable package:** extract the complete archive and run this in its `Reverfolio/` directory:
 
 ```bash
-# Linux/macOS
-curl -fsS http://127.0.0.1:18440/healthz
+bash ./Open-Reverfolio.sh
 ```
 
-The response should contain `"status":"ok"`. Refresh **Projects** and confirm the registered project is still present.
+The launcher creates missing configuration, starts the local service in the background and opens your browser. Linux needs `curl` and `xdg-open`; macOS uses its system `open` command. An unsigned application may require approval through the operating system after checking its source. Unix portable packages use the Web UI without requiring the Windows extension.
 
-To check persistence, restart the service:
+New configurations default to [http://127.0.0.1:19452](http://127.0.0.1:19452). Existing installations use `server.listen` from their own `config.toml`; the launcher opens that address. Do not create a separate configuration or empty database to recover a connection.
 
-- **Windows:** in Task Manager → **Details**, end the `reverfolio.exe` process started by this installation. Run `Start-Reverfolio.cmd` again from the installation directory, then reopen the workspace.
-- **Linux/macOS:** press `Ctrl+C` in the service terminal, then rerun `./bin/reverfolio -config ./config.toml`.
+### 2.3. Register and collect your first project
 
-If the project survives restart, it has been saved to the local database. Collection can be successful, partial, or failed: for example, public downloads may be available while repository traffic requires additional authorization. Missing values are not zeros.
+1. Open **My works → Works**, then expand **Add a project or article** at the top. The form opens automatically when no works exist.
+2. Select **GitHub project**, enter a title and your `owner/repository`. The public repository `ThinkerQAQ/reverfolio` can also be used to check the flow.
+3. Select **Create** and confirm the work card appears.
+4. Select **Collect GitHub** on the card, then inspect **Details** or **View impact → Overview** for metrics, collection times and errors.
 
-### 2.6. Troubleshooting
+Public metrics may be available without credentials; repository traffic normally needs appropriate read permissions. For authorization, install [GitHub CLI](https://cli.github.com/) if needed and run `gh auth login` locally, then choose **Local GitHub CLI** under **Settings → Data sources → GitHub → GitHub authentication** and restart the service. Alternatively, select the environment option and provide your own `GITHUB_TOKEN` to the service process.
 
-- **Workspace or extension cannot connect:** check the [Windows address](http://127.0.0.1:19452) or [Linux/macOS address](http://127.0.0.1:18440). On Windows, run `Start-Reverfolio.cmd` from the installation root and reload the browser extension.
-- **Extension reports unauthorized:** make sure you loaded the `extension/` folder containing `manifest.json` from the current installation, rerun setup, and reload the extension.
-- **GitHub collection fails:** check repository permissions, API rate limits, and local authentication. Unavailable metrics are not measured zeros.
-- **Projects disappear after an upgrade:** verify `config.toml` and `storage.database`; the service may be pointing to a different database.
+The first cumulative download observation is a baseline, not newly gained downloads. A failed metric does not mean every metric failed, and missing values are not zeros.
 
-If needed, [open an Issue](https://github.com/ThinkerQAQ/reverfolio/issues) with your OS, steps to reproduce, and redacted error messages. Do not upload `Data/` or credentials.
+### 2.4. Connect ChatGPT when you need AI assistance
+
+This connects your local installation to your own ChatGPT connection. Your account or workspace must allow custom MCP/Tunnel connections. Otherwise, continue with the workspace or a [local MCP client](#45-connect-a-local-mcp-client).
+
+1. Open [OpenAI Tunnel management](https://platform.openai.com/settings/organization/tunnels), select your organization, and create a Reverfolio Tunnel or reuse a dedicated one. Keep its Tunnel ID. Creation requires Tunnels Read + Manage; the Tunnel must match the intended ChatGPT workspace. Stop the previous installation's MCP runtime before reusing its Tunnel; do not run two clients for the same Tunnel.
+2. In that organization's [Runtime API keys](https://platform.openai.com/settings/organization/api-keys), create a restricted runtime key with Tunnels Read + Use, or reuse a suitable key. Do not run the service with an Admin API key.
+3. In Reverfolio, open **Settings → MCP connection**, paste the Tunnel ID and select **Connect ChatGPT**. The guide downloads and installs the official client if missing.
+4. Enter the prepared runtime key when prompted locally. Do not paste it into chat. Saved credentials are reused. Windows uses a local setup window; Linux/macOS use the terminal prompt for initial credentials.
+5. Wait for **Your local connection is ready**, then select **Open ChatGPT plugin settings**. For a new connection, add a custom MCP named Reverfolio, choose **Tunnel**, select the same Tunnel, and finish installation/authorization. For an existing connection, open its entry to enable or refresh it. See [ChatGPT plugin documentation](https://learn.chatgpt.com/docs/plugins) for interface and account restrictions.
+6. Select that connection in ChatGPT and send this read-only check:
+
+```text
+Use Reverfolio to call list_works and get_collection_status read-only.
+Confirm that the project I just registered is present and report the service version.
+Do not collect or change data, and do not output credentials.
+```
+
+Seeing the registered project confirms that ChatGPT reads this installation. Local readiness confirms tunnel health; it does not confirm ChatGPT authorization. Runtime key creation and permissions are described by the [official tunnel-client](https://github.com/openai/tunnel-client).
+
+### 2.5. Complete the first-use workflow
+
+Follow the sidebar in order:
+
+| Entry | What to do | Continue to |
+| --- | --- | --- |
+| My works | Register projects and articles, import website articles and link public publications | Find evidence |
+| Find evidence | Create tasks and have the connected AI client execute searches and record checked scopes | Review evidence |
+| Review evidence | Inspect originals, review citations and adoption, then associate evidence with impact events | View impact |
+| View impact | Inspect overview, propagation and historical metrics; export the report | Follow new leads |
+
+After a successful project collection, set a schedule under **Settings → Data sources → GitHub → Automatic collection** if needed. The computer and service must remain running. Settings stays at the bottom of the sidebar.
+
+Open the application again from its installation entry point and confirm your project remains. If using ChatGPT, repeat the read-only request. This completes the local persistence and remote-read checks.
 
 ## 3. Configuration
 
-### 3.1. Common settings
+### 3.1. Change settings in the workspace
 
-Private configuration is stored in `config.toml` at the installation root, with local data under `Data/`. See [config.example.toml](config.example.toml) for the complete configuration. Nonsecret collection options can also be changed in **Settings → Data sources**.
+Configuration is stored in `config.toml` at the installation root; the database is normally `Data/state.sqlite`. See [config.example.toml](config.example.toml) for all fields.
 
-- `server.listen`: loopback address. The Windows extension uses `127.0.0.1:19452`; Linux/macOS default to `127.0.0.1:18440`.
-- `storage.database`: SQLite path, normally `Data/state.sqlite`.
-- `collection.interval`: collection schedule; `0` disables it. The service must be running to collect.
-- `github.auth`: `env` reads `GITHUB_TOKEN`; `gh` uses the authorized GitHub CLI session of the service account.
-- `github.download_scope`: all release assets or installable packages.
-- `interface.language`: `zh-CN` or `en`.
+| Need | Settings location | When it applies |
+| --- | --- | --- |
+| ChatGPT connection or local client configuration | MCP connection | Follow the connection check |
+| Language, layout and overview sections | Interface & language | After saving |
+| GitHub credential source | Data sources → GitHub → GitHub authentication | Service restart |
+| Collection interval and download scope | Data sources → GitHub | Interval within one minute; display scope after saving |
+| GSC, Bing and Umami endpoints, properties and authorization | Data sources → Search and site analytics | Save, explicitly collect, then check results |
+| Reviewer, initial filter and task worker name | Evidence & review; AI discovery | Subsequent operations after saving |
+| Local listener and database path | Runtime → Advanced startup configuration | Service restart; reload extension after address changes |
 
-The local Web UI and installed extension do not require you to enter an API token. Enter third-party credentials in their respective local settings.
+Only loopback IPs are accepted for the listener. A port change synchronizes the extension's endpoint, permissions and connection policy. Database switching accepts an existing Reverfolio SQLite file; saving settings does not move or copy data. Back up first and check that you selected the intended database.
 
-### 3.2. Upgrade, backup, and restore
+### 3.2. Upgrade, back up and restore
 
-1. Stop Reverfolio and back up `config.toml`, `Data/`, and any private provider credentials.
-2. Download the new release and replace the application files in the installation root while **preserving your configuration and data**.
-3. On Windows, rerun `Start-Reverfolio.cmd` and reload the extension. On Linux/macOS, start the new binary with the existing `config.toml`.
-4. Open **Projects** and confirm your works and history are present.
+1. Export SQLite through **Settings → Statistics & backup → SQLite backup**. Separately retain `config.toml` and private provider credentials.
+2. Stop this installation's service and MCP connection. On Windows, use the executable path in Task Manager to identify its `reverfolio.exe`; for a foreground terminal process, use `Ctrl+C`.
+3. Point the native installer at the same installation directory. For a portable upgrade, replace application files while preserving your configuration, database and private credentials.
+4. Reopen through the same launcher and reload the browser extension if installed. Confirm works, evidence history and settings before reconnecting MCP.
 
-To restore a SQLite backup, stop the service and run `reverfolio -restore BACKUP -db NEW_PATH` (`reverfolio.exe` on Windows). Restore to a **new database path**, never over the live file.
+Restore while the service is stopped: place the backup at a new file path and point `storage.database` at that file. Alternatively, run `reverfolio -restore BACKUP -db NEW_PATH` (`reverfolio.exe` on Windows); the restore destination must not already exist. Do not overwrite the live SQLite file.
+
+### 3.3. Troubleshooting
+
+| Symptom | Check and recover |
+| --- | --- |
+| Workspace does not open | Launch again from the same installation; check `server.listen` and port conflicts. On Unix, inspect `Data/service.log` |
+| Extension disconnected or unauthorized | Rerun the installation launcher and reload that installation's extension; use **Start local service** and **Retry connection** if needed |
+| Local connection ready but ChatGPT cannot call tools | Check the same Tunnel in plugin settings, complete enablement/authorization and repeat the read-only check |
+| GitHub or site collection fails | Inspect the latest attempt and last successful observation, then check permissions, credentials and network. Failed values are not zeros |
+| Data seems missing after an upgrade | Check installation, configuration and database paths; recover the original database before importing again |
+
+For further help, [open an Issue](https://github.com/ThinkerQAQ/reverfolio/issues) with your system, reproduction steps and redacted errors.
 
 ## 4. Optional Features
 
-These cases are optional and independent. Start with the Quick Start before connecting external data.
+### 4.1. Install the browser extension (Windows)
 
-### 4.1. Case 1: Import articles from your own website
+The installer finish page can open the extension guide. To add it after the main walkthrough:
 
-1. Open **Discover websites** and enter the public website or feed URL you control.
-2. Preview discovered RSS, Atom or Sitemap candidates. Check the titles and URLs; discovery does not itself register a publication.
-3. Select the articles you want, then import them.
-4. Open **Projects** and **Channels** to confirm the imported works and publication URLs.
+1. Open Reverfolio once through its installed launcher to initialize local access.
+2. Open `edge://extensions` in Edge or `chrome://extensions` in Chrome and enable **Developer mode**.
+3. Choose **Load unpacked** and select **the current installation's `extension/` folder**, directly containing `manifest.json`.
+4. Click its icon to open the side panel. Confirm **Local service → Connected** and your registered project.
 
-Only explicitly selected URLs are imported. A feed or sitemap might not list every article. Matching titles do not automatically merge two works.
+The extension and webpage share data. The browser requires you to load an unpacked extension manually; the installer prepares local authorization and host registration. After moving the installation, rerun its launcher and reload the extension.
 
-### 4.2. Case 2: Connect DEV.to
+### 4.2. Import website articles and DEV.to publications
 
-1. Obtain your own DEV.to API key and enter it in the local **Creator platforms** UI.
-2. Connect the account and preview its published articles.
-3. Select and link the articles to existing works, or import the selected publications.
-4. Run the DEV.to collection action, then inspect **Creator platforms** and its metric history.
+- Website: open **My works → Import website**, enter your public website or feed URL, preview RSS/Atom/sitemap candidates and select the articles to import.
+- DEV.to: open **My works → Creator accounts**, enter your own API key locally, connect, preview published articles, select and associate or import them, then collect metrics.
+- After importing: confirm works under **Works** and originals, translations and public channel URLs under **Published links**. Unselected articles are not imported; matching titles do not automatically merge works.
 
-The key is stored locally and is not accepted by an MCP enrollment tool. DEV.to is the implemented creator-platform API integration; other creator-platform accounts are not automatically supported.
+DEV.to is the implemented creator-platform statistics API. Other platforms are not implicitly supported. Neither import path requires Inkerio or SyndiRelay.
 
-### 4.3. Case 3: Connect website and search analytics
+### 4.3. Connect website and search analytics
 
-1. Register the website as a work in **Projects**.
-2. Open **Settings → Data sources → Search and site analytics** and choose Umami, Google Search Console (GSC) or Bing Webmaster.
-3. Enter the provider-specific site/property ID, timezone, observation window and an authorized credential. GSC requires a property you can read; Bing requires a verified site and its API key. Umami supports a token or a separately authorized local browser session.
-4. Save and explicitly enable the source, then start collection.
-5. Review the source status and observations. Saving a source does not mean that any metrics were collected.
+First register the website under **My works**, then open **Settings → Data sources → Search and site analytics**. Choose Umami, GSC or Bing and configure the source ID, associated work, site/property, timezone and observation window. Configure the provider's required credentials locally. Save and enable the source, explicitly collect once, then inspect its status and results.
 
-The providers return different measurements; keep their scopes separate. Browser sign-in alone is not permission to export cookies or extract credentials.
+GSC needs a readable property; Bing needs a verified site. Umami supports a token or a separately authorized local browser session. Saving is not collection success, and browser sign-in is not permission to export cookies. Preserve each source's own click, impression, visitor-identifier and view scopes.
 
-### 4.4. Case 4: Review external citations
+### 4.4. Discover, review and group impact events
 
-1. Register the work's published original, translation, or syndication links under **Channels**.
-2. Submit a possible external citation in **Evidence & adoption**.
-3. Check the original webpage or API evidence, then explicitly approve or reject the citation.
-4. Inspect verified records in the propagation and history views.
+Register the work's **Published links** first. Historical names, old URLs, translated titles and distinctive phrases can be added in the advanced area of **Find evidence**. Then give your connected AI client a specific request, for example:
 
-**Discovery tasks** can be handled by an external AI client. Creating a task does not itself search the web.
-
-### 4.5. Case 5: Local MCP integration
-
-For a **local stdio MCP client**, configure the absolute paths to your installed executable and config:
-
-```json
-{
-  "mcpServers": {
-    "reverfolio": {
-      "command": "/absolute/path/Reverfolio/bin/reverfolio",
-      "args": ["-mcp-stdio", "-config", "/absolute/path/Reverfolio/config.toml"]
-    }
-  }
-}
+```text
+Use Reverfolio to find external impact leads for the work I select.
+Read the work, publication links and get_discovery_coverage, then execute its search plan.
+Inspect original pages. Distinguish self-publication, third-party citation, reposts,
+directory listings, AI-generated content and actual adoption.
+Save candidates as pending evidence and record actual queries, sources, dates and
+unfinished scopes. Do not automatically approve the evidence.
 ```
 
-Use `bin/reverfolio.exe` on Windows. Reconnect the MCP client and call `get_dashboard`, `list_works` and `get_collection_status` to verify that it reads the same installation. The stdio process does not start a second collection scheduler.
+The AI must execute the searches, claim and renew tasks as needed, then link candidate evidence and record results. Creating tasks or plans does not start an autonomous web crawl.
 
-MCP includes read tools for dashboards, sources, works, evidence and collection status, plus explicit write tools for imports, observations and reviews. Writes require a unique `request_id` and, where applicable, an expected version. A remote ChatGPT connection requires a separately authenticated MCP tunnel; the author's private connector is not a public one-click installation. Never expose the loopback HTTP service directly to the Internet.
+Under **Review evidence → Evidence**, inspect originals, check relevance and provenance, enter a reason and review the record. Under **Impact events**, group related articles, issues and PRs into one event, associate works and evidence, and record submitted, approved, merged or validated stages. Keep outcomes unconfirmed when result evidence is missing. Finally, check event totals and export under **View impact**.
+
+An upstream merge proves contribution acceptance; reposts and directories prove propagation or exposure. None converts to a count of real users. Multiple pages for one event are not multiple adopters, and a scoped search with no result does not prove global absence.
+
+### 4.5. Connect a local MCP client
+
+Open **Settings → MCP connection → Advanced options and local clients**, copy the generated JSON into your local AI client's MCP configuration and reconnect. It uses absolute paths for this installation, avoiding another person's directory layout.
+
+Call `list_works` and `get_collection_status` to confirm it reads the same data. Local stdio needs no ChatGPT Tunnel and does not start a second collection scheduler. Writes need a unique `request_id`; reviews and event updates also require the expected version.
 
 ## 5. Development
 
-### 5.1. Build and run from source
+### 5.1. Build and run
 
-Development requires Git and a Go toolchain satisfying [go.mod](go.mod); the complete repository checks also use Python 3 and Node.js.
-
-**Linux/macOS:**
+Development needs Git and a Go toolchain satisfying [go.mod](go.mod). Complete repository checks also use Python 3 and Node.js.
 
 ```bash
 git clone https://github.com/ThinkerQAQ/reverfolio.git
 cd reverfolio
 go test -race ./...
 go vet ./...
-go build -o reverfolio ./cmd/reverfolio
-mkdir -p Data
-./reverfolio -db ./Data/state.sqlite -collect-interval 0
+go build -o bin/reverfolio ./cmd/reverfolio
+# Initialize only when absent; preserve existing configuration.
+test -f config.toml || cp config.example.toml config.toml
+./bin/reverfolio --config ./config.toml --collect-interval 0
 ```
 
-**Windows PowerShell:**
+Use these corresponding build, configuration and startup commands in Windows PowerShell:
 
 ```powershell
-git clone https://github.com/ThinkerQAQ/reverfolio.git
-Set-Location reverfolio
-go test -race ./...
-go vet ./...
-go build -o reverfolio.exe ./cmd/reverfolio
-New-Item -ItemType Directory -Force Data | Out-Null
-.\reverfolio.exe -db .\Data\state.sqlite -collect-interval 0
+go build -o bin/reverfolio.exe ./cmd/reverfolio
+if (!(Test-Path config.toml)) { Copy-Item config.example.toml config.toml }
+.\bin\reverfolio.exe --config .\config.toml --collect-interval 0
 ```
 
-After starting from source, open [http://127.0.0.1:18440](http://127.0.0.1:18440) and register a test repository as in [2.4](#24-register-and-collect-your-first-project). The source Web UI does not require the extension.
+Open the configured listener in your browser and register a test work as in Quick Start. Source Web UI development needs no extension. Build `./cmd/reverfolio-host` separately when developing the Windows native launcher.
 
-### 5.2. Additional checks and packaging
+### 5.2. Check and package
 
 ```sh
 python3 scripts/check_docs.py
 python3 scripts/check_mcp_contract.py --fixture
-python3 -m unittest discover -s scripts -p 'test_publications_to_catalog.py'
 node scripts/check_extension.mjs
-node scripts/check_dashboard.mjs
+node scripts/check_native_host.mjs
 ```
 
-The MCP fixture uses an isolated database and does not require a live provider credential. CI also runs the remaining extension checks, Go race tests, vet and cross-platform builds. A passing fixture is not proof of a real account authorization or a native GUI install.
+The MCP fixture uses isolated data; real provider authorization and native installation need separate acceptance. CI covers Go tests, race/vet and Windows, Linux and macOS builds.
 
-To generate portable archives for the intended release tag, run `python3 scripts/package_release.py vX.Y.Z` (replace the placeholder). Packaging verifies six OS/architecture archives, checksums and bundled upstream dependency licenses. Changes go through feature branches, PR review and Squash Merge.
+Generate portable packages with `python3 scripts/package_release.py vX.Y.Z`, replacing the version argument with the intended release. For native installers, install Qt Installer Framework on the target operating system, inspect `python3 scripts/package_installer.py --help` and use a clean extracted portable package as the stage. Never include live configuration, SQLite or private access files.
 
 ## 6. License
 
-Reverfolio is local-first, **not** a publicly hosted API. Its loopback HTTP API and MCP require their own credentials; the Windows extension uses a separate installation-specific local capability. Protect your OS account, `Data/`, SQLite, private configuration and tokens. Do not commit them or include user content, browser profiles or reports in release archives. MCP responses explicitly requested by a connected client may be transmitted to that client or its AI service.
+Original code and project visual assets use the [MIT License](LICENSE). Third-party code and dependencies retain their licenses, whose text is included in release packages. User writing, photography and provider data are outside the code license.
 
-Report security issues privately to **contact@mail.thinkerqaq.com**, without publishing private data or working credentials.
-
-Original source code and project visual assets use the [MIT License](LICENSE). User writing, photographs, provider data and third-party content are not covered. Dependencies retain their upstream licenses: `go.mod`/`go.sum` record the module graph, and portable releases contain `THIRD_PARTY_LICENSES.txt` with upstream license/notice text. This file is generated and validated during packaging.
+Protect local accounts, configuration, `Data/` and credentials; keep personal data out of Git and installers. Content explicitly returned over MCP may reach the connected AI service. Report security issues privately to **contact@mail.thinkerqaq.com**, without posting working credentials in public Issues.

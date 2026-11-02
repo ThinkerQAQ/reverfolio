@@ -8,7 +8,6 @@ New-Item -ItemType Directory -Path $Data -Force | Out-Null
 if (!(Test-Path -LiteralPath $ConfigPath)) {
   if (!(Test-Path -LiteralPath $Template)) { throw 'config.example.toml is missing' }
   $Text = [System.IO.File]::ReadAllText($Template)
-  $Text = $Text.Replace('listen = "127.0.0.1:18440"','listen = "127.0.0.1:19452"')
   $Text = $Text.Replace('interval = "24h"','interval = "0"')
   $Text = $Text.Replace('auth = "gh"','auth = "env"')
   $Encoding = New-Object System.Text.UTF8Encoding($false)

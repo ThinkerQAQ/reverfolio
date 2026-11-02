@@ -26,3 +26,9 @@ $Script = '"use strict";' + [Environment]::NewLine +
   'window.REVERFOLIO_EXTENSION_ACCESS = "' + $Key + '";' + [Environment]::NewLine
 [System.IO.File]::WriteAllText($ScriptPath, $Script, (New-Object System.Text.UTF8Encoding($false)))
 Write-Output 'Reverfolio extension UI local authorization synchronized. No manual token entry required.'
+
+$Executable = Join-Path $Root 'bin\reverfolio.exe'
+if (Test-Path -LiteralPath $Executable) {
+ & $Executable --config (Join-Path $Root 'config.toml') --sync-extension-config
+ if ($LASTEXITCODE -ne 0) { throw 'Extension endpoint synchronization failed' }
+}
