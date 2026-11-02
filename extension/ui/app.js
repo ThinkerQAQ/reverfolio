@@ -208,7 +208,7 @@ function workflowHeader(){
 function shellRender(){
   document.documentElement.lang=state.lang==="en"?"en":"zh-CN";
   const current=nav.find(x=>x[0]===state.view)||nav[0];
-  $("page-title").textContent=T(current[2]);$("page-subtitle").textContent=T(current[3]);
+  $("page-title").textContent=workflowGroup(state.view)?.id===state.view?workflowText(workflowGroup(state.view).label):T(current[2]);$("page-subtitle").textContent=T(current[3]);
   $("locale-button").textContent=state.lang==="zh"?"EN":"中文";
   const newTab=$("open-browser-tab");
   if(newTab)newTab.hidden=!extensionMode;
@@ -384,14 +384,14 @@ function worksView(){
    (w.kind==="project"?'<div class="btn-row" style="margin-top:15px"><button class="btn btn-sm" data-action="collect" data-id="'+w.id+'">'+T("更新 GitHub")+'</button><button class="btn btn-sm" data-action="show-work" data-id="'+w.id+'">'+T("查看详情")+'</button></div>':'<div class="btn-row" style="margin-top:15px"><button class="btn btn-sm" data-action="navigate" data-view="channels">'+T("关联链接")+'</button></div>')+
    (p?downloadDetails(p):'')+'<details class="work-detail" id="detail-'+w.id+'" hidden><summary>'+T("统计详情")+'</summary><pre>'+E(JSON.stringify(p?.latest||{channels:pages},null,2))+'</pre></details></article>';
  }).join("");
- return '<div class="toolbar"><input class="search" data-filter placeholder="'+T("输入关键词筛选")+'" aria-label="'+T("项目检索")+'"><div class="muted">'+T("已登记作品")+': '+fmt(state.data.works.length)+'</div></div>'+
- catalogPanel()+'<div class="grid-cards">'+cards+'</div>'+
- heading("新增项目或文章")+
+ return '<details class="panel"'+(state.data.works.length?'':' open')+'><summary>'+T("新增项目或文章")+'</summary>'+
  '<div class="panel"><form data-form="work"><div class="form-grid">'+
  select("作品类型","kind",[["project","GitHub 项目"],["article","文章"],["site","网站"]],'id="work-kind"')+
  input("标题","title","text","", "required maxlength='200'")+
  '<label class="field full" id="work-id-field"><span>'+T("仓库路径")+'</span><input name="repository" placeholder="owner/repository" required></label>'+
- '</div><div class="form-actions"><button class="btn btn-primary" type="submit">'+T("新建")+'</button></div></form></div>';
+ '</div><div class="form-actions"><button class="btn btn-primary" type="submit">'+T("新建")+'</button></div></form></div>'+'</details>'+
+ '<div class="toolbar"><input class="search" data-filter placeholder="'+T("输入关键词筛选")+'" aria-label="'+T("项目检索")+'"><div class="muted">'+T("已登记作品")+': '+fmt(state.data.works.length)+'</div></div>'+
+ catalogPanel()+'<div class="grid-cards">'+cards+'</div>';
 }
 function catalogPanel(){
  const preview=state.catalogPreview;
