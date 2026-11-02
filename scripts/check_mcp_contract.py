@@ -23,7 +23,7 @@ get_collection_status get_dashboard get_trends get_work import_devto import_cata
 link_identity link_propagation_event list_platform_accounts list_catalog list_discovery_tasks list_mentions
 list_settings list_site_sources list_website_sources list_works preview_devto preview_website review_mention save_site_source
 set_monitoring submit_mention unlink_identity update_setting update_settings
-upsert_work""".split())
+upsert_work list_impact_events save_impact_event""".split())
 
 
 class Client:
@@ -171,6 +171,13 @@ def verify(client, fixture=False):
         "scope": "one synthetic result", "status": "complete",
         "result_count": 1, "notes": "No real web search performed",
     })
+    event=client.tool("save_impact_event", {
+        "request_id":"fixture-impact", "expected_version":0,
+        "reason":"Synthetic original-source event", "reviewer":"test-suite",
+        "event":{"event_key":"fixture-impact","title":"Synthetic citation event","kind":"citation","direction":"inbound","state":"verified","outcome":"not_confirmed","work_ids":[wid],"evidence":[{"mention_id":mention["id"],"role":"source"}]}
+    })
+    events=client.tool("list_impact_events",{"work_id":wid})
+    assert len(events)==1 and events[0]["id"]==event["id"]
     report = client.tool("generate_report", {"work_id": wid})
     assert report["report"]["verified_pages"] == 1
     assert report["report"]["third_party_events"] == 1

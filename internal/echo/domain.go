@@ -721,9 +721,12 @@ type SourceSummary struct {
 	Changes      Interval                     `json:"last_comparable_changes"`
 }
 type Report struct {
-	ProviderRuns []ProviderRun           `json:"provider_runs"`
-	Sources      []SourceSummary         `json:"sources"`
-	History      []HistoricalObservation `json:"history"`
+	ImpactEvents         []ImpactEvent           `json:"impact_events"`
+	VerifiedImpactEvents int                     `json:"verified_impact_events"`
+	AchievedOutcomes     int                     `json:"achieved_outcomes"`
+	ProviderRuns         []ProviderRun           `json:"provider_runs"`
+	Sources              []SourceSummary         `json:"sources"`
+	History              []HistoricalObservation `json:"history"`
 
 	GeneratedAt            string    `json:"generated_at"`
 	WorkID                 int64     `json:"work_id"`
@@ -793,6 +796,18 @@ func (s *Store) Report(ctx context.Context, workID int64) (Report, error) {
 	result.Mentions, err = s.Mentions(ctx, workID)
 	if err != nil {
 		return result, err
+	}
+	result.ImpactEvents, err = s.ImpactEvents(ctx, workID)
+	if err != nil {
+		return result, err
+	}
+	for _, event := range result.ImpactEvents {
+		if event.EffectiveState == "verified" {
+			result.VerifiedImpactEvents++
+			if event.Outcome == "achieved" {
+				result.AchievedOutcomes++
+			}
+		}
 	}
 	identities := map[string]string{}
 	for _, a := range audit.ActorAliases {

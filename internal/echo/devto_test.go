@@ -81,7 +81,7 @@ func TestDEVToOfficialAPIE2EMCPAndHTTP(t *testing.T) {
 	defer session.Close()
 	var v int
 	store.db.QueryRow("PRAGMA user_version").Scan(&v)
-	if v != 7 {
+	if v != 8 {
 		t.Fatal(v)
 	}
 	account, err := service.DEVToConnect(ctx, ConnectDEVToInput{RequestID: "connect-1", APIKey: "test-private-forem-key"})

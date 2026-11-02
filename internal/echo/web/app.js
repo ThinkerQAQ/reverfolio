@@ -2,6 +2,7 @@
 
 // Standalone local-first UI: no dependency on any publishing application or plugin.
 const LANG = {
+ "影响事件":"Impact events","按事件审核贡献、采用与实际结果":"Review contributions, adoption and outcomes",
   "影响力观察工作台":"Impact observatory","本地服务":"Local service","已连接":"Connected","工作台":"Workspace",
   "本地优先 · 数据私有":"Local-first · Private data","刷新":"Refresh",
   "影响力总览":"Impact overview","项目管理":"Projects","网站发现":"Discover websites","平台账号":"Creator platforms","分发渠道":"Channels","传播路径":"Propagation paths","引用与采用":"Evidence & adoption",
@@ -74,6 +75,7 @@ const nav = [
   ["platforms","◉","平台账号","使用官方 API 读取作者账号、文章及统计，绝不抓取网页登录页面"],
   ["channels","≋","分发渠道","查看中文、英文以及公开平台的文章链接"],
   ["propagation","⇢","传播路径","按作品查看原文、语言版本、分发链接与经核实的第三方传播"],
+  ["impact","◎","影响事件","按事件审核贡献、采用与实际结果"],
   ["evidence","◇","引用与采用","审核第三方引用与实际采用的原始证据"],
   ["tasks","⌕","发现任务","管理 AI 辅助检索及审计记录"],
   ["history","▤","历史统计","查看统计来源与导入历史数据"],
@@ -163,11 +165,11 @@ async function act(operation,successMessage=T("已保存并更新")) {
 async function refresh(showMessage=true){
  try{
   await ensureLocalService();
-  const [works,report,mentions,tasks,audit,settings,runtime,sources,catalog,dashboard,websites,platformDashboard]=await Promise.all([
-    api("/api/works"),api("/api/report"),api("/api/mentions"),api("/api/tasks"),api("/api/audit"),api("/api/settings"),api("/api/runtime"),api("/api/site-sources"),api("/api/catalog"),api("/api/dashboard"),api("/api/website-sources"),api("/api/platform-dashboard")
+  const [works,report,mentions,tasks,audit,settings,runtime,sources,catalog,dashboard,websites,platformDashboard,impactEvents]=await Promise.all([
+    api("/api/works"),api("/api/report"),api("/api/mentions"),api("/api/tasks"),api("/api/audit"),api("/api/settings"),api("/api/runtime"),api("/api/site-sources"),api("/api/catalog"),api("/api/dashboard"),api("/api/website-sources"),api("/api/platform-dashboard"),api("/api/impact-events")
   ]);
   const pairs=await Promise.all(works.map(async w=>[w.id,await api("/api/works/"+w.id+"/channels")]));
-  state.data={works,report,mentions,tasks,audit,settings,runtime,sources,catalog,dashboard,websites,platformDashboard,channels:new Map(pairs)};
+  state.data={works,report,mentions,tasks,audit,settings,runtime,sources,catalog,dashboard,websites,platformDashboard,impactEvents,channels:new Map(pairs)};
   state.offlineMessage="";
   state.lang=pref("interface.language","zh-CN")==="en"?"en":"zh";
   render();
@@ -201,7 +203,7 @@ function shellRender(){
 function render(){
   shellRender();if(!state.data){$("view").innerHTML=state.offlineMessage?offlineView():'<div class="loading">Loading…</div>';return;}
   document.body.classList.toggle("compact-layout",pref("appearance.compact")==="true");
-  const pages={overview:overviewView,works:worksView,websites:websiteSourcesView,platforms:platformsView,channels:channelsView,propagation:propagationView,evidence:evidenceView,tasks:tasksView,history:historyView,settings:settingsView};
+  const pages={overview:overviewView,impact:impactEventsView,works:worksView,websites:websiteSourcesView,platforms:platformsView,channels:channelsView,propagation:propagationView,evidence:evidenceView,tasks:tasksView,history:historyView,settings:settingsView};
   $("view").innerHTML=pages[state.view]();
 }
 const heading=(title,sub="",right="")=>'<div class="section-header"><div><h2>'+T(title)+'</h2>'+(sub?'<p>'+T(sub)+'</p>':"")+'</div>'+right+'</div>';
@@ -696,6 +698,7 @@ async function runForm(form){
  const body=Object.fromEntries(new FormData(form));
  const name=form.dataset.form;
  if(body.work_id)body.work_id=Number(body.work_id);
+ if(name==="impact-event"||name==="impact-step"){await saveImpactForm(form,name,body);return;}
  if(name==="devto-connect"){
   await act(async()=>{
    await send("connect_devto",body);
@@ -774,3 +777,56 @@ window.addEventListener("hashchange",()=>{
  const view=location.hash.replace(/^#/,"");
  if(nav.some(item=>item[0]===view)&&state.view!==view){state.view=view;render();}
 });
+
+const impactKinds=[["upstream_contribution",["上游贡献","Upstream contribution"]],["adoption",["技术采纳","Adoption"]],["collaboration",["技术协作","Collaboration"]],["citation",["引用推荐","Citation"]],["repost",["转载","Repost"]],["exposure",["平台曝光","Exposure"]],["unclassified",["待分类","Unclassified"]]];
+const impactDirections=[["inbound",["外部对作品的影响反馈","Inbound"]],["outbound",["对外部项目的贡献","Outbound"]],["unknown",["待确认","Unknown"]]];
+function impactOptions(rows,current){return rows.map(([key,label])=>'<option value="'+E(key)+'" '+(key===current?'selected':'')+'>'+E(settingsLabel(label))+'</option>').join('');}
+function impactField(label,name,value,required=false){return '<label class="field"><span>'+E(settingsLabel(label))+'</span><input name="'+E(name)+'" value="'+E(value||'')+'" '+(required?'required':'')+'></label>';}
+function impactForm(e={}){
+ const works=e.work_ids||[],evidence=e.evidence||[];
+ return '<form data-form="impact-event" data-id="'+(e.id||0)+'"><div class="form-grid">'+
+ impactField(["事件标识","Event key"],"key",e.event_key,true)+impactField(["标题","Title"],"title",e.title,true)+
+ '<label class="field"><span>'+E(settingsLabel(["类型","Type"]))+'</span><select name="kind">'+impactOptions(impactKinds,e.kind||"unclassified")+'</select></label>'+
+ '<label class="field"><span>'+E(settingsLabel(["方向","Direction"]))+'</span><select name="direction">'+impactOptions(impactDirections,e.direction||"unknown")+'</select></label>'+
+ impactField(["外部项目 URL","External project URL"],"target_url",e.target_url)+
+ '<label class="field"><span>'+E(settingsLabel(["审核状态","Review state"]))+'</span><select name="state">'+impactOptions([["pending",["待审核","Pending"]],["verified",["已核实","Verified"]],["rejected",["已拒绝","Rejected"]]],e.state||"pending")+'</select></label>'+
+ '<label class="field"><span>'+E(settingsLabel(["实际结果","Outcome"]))+'</span><select name="outcome">'+impactOptions([["not_confirmed",["尚未证实","Not confirmed"]],["in_progress",["进行中","In progress"]],["achieved",["结果已达成","Achieved"]]],e.outcome||"not_confirmed")+'</select></label>'+
+ '<label class="field full"><span>'+E(settingsLabel(["结果说明","Outcome description"]))+'</span><textarea name="summary" maxlength="4000">'+E(e.summary||"")+'</textarea></label>'+
+ '<label class="field"><span>'+E(settingsLabel(["关联作品（可多选）","Works (multiple)"]))+'</span><select name="work_ids" multiple>'+state.data.works.map(w=>'<option value="'+w.id+'" '+(works.includes(w.id)?'selected':'')+'>'+E(w.title)+'</option>').join('')+'</select></label>'+
+ '<label class="field"><span>'+E(settingsLabel(["关联证据（可多选）","Evidence (multiple)"]))+'</span><select name="mention_ids" multiple>'+state.data.mentions.map(m=>'<option value="'+m.id+'" '+(evidence.some(x=>x.mention_id===m.id)?'selected':'')+'>'+E(m.state+' · '+m.url)+'</option>').join('')+'</select></label>'+
+ '<label class="field"><span>'+E(settingsLabel(["证明实际结果的证据","Outcome evidence"]))+'</span><select name="outcome_mention_id"><option value="">—</option>'+state.data.mentions.map(m=>'<option value="'+m.id+'" '+(evidence.some(x=>x.mention_id===m.id&&x.role==="outcome")?'selected':'')+'>'+E(m.url)+'</option>').join('')+'</select></label>'+
+ impactField(["审核／修改理由","Review / change reason"],"reason","",true)+
+ '</div><button class="btn btn-primary">'+E(settingsLabel(["保存事件","Save event"]))+'</button></form>';
+}
+function impactEventsView(){
+ const events=state.data.impactEvents||[];
+ return heading(settingsLabel(["影响事件","Impact events"]),settingsLabel(["一件工程结果可以关联多篇作品和多条证据；页面数量不等于采用次数。","One outcome can link multiple works and evidence pages; pages are not adoptions."]))+
+ '<div class="stat-grid">'+stat(settingsLabel(["已核实的独立事件","Verified independent events"]),events.filter(e=>e.effective_state==="verified").length)+stat(settingsLabel(["实际结果已达成","Achieved outcomes"]),events.filter(e=>e.effective_state==="verified"&&e.outcome==="achieved").length)+'</div>'+
+ events.map(e=>'<article class="panel"><h3>'+E(e.title)+' '+tag(E(e.effective_state),e.effective_state)+'</h3><p>'+E(settingsLabel(impactKinds.find(x=>x[0]===e.kind)?.[1]||e.kind))+' · '+E(settingsLabel(impactDirections.find(x=>x[0]===e.direction)?.[1]||e.direction))+' · '+E(e.outcome)+'</p>'+
+ (e.target_url?'<p>'+anchor(e.target_url)+'</p>':'')+'<p>'+E(e.summary)+'</p>'+
+ '<p class="meta">'+(e.work_ids||[]).map(id=>E(state.data.works.find(w=>w.id===id)?.title||id)).join(' · ')+'</p>'+
+ '<ol>'+(e.steps||[]).map(step=>'<li><strong>'+E(step.label)+'</strong> · '+E(step.kind)+' · '+(step.at?dt(step.at):E(settingsLabel(["时间未知","Time unknown"])))+' · '+anchor(state.data.mentions.find(m=>m.id===step.mention_id)?.url||'')+'</li>').join('')+'</ol>'+
+ (e.evidence||[]).map(proof=>{const m=state.data.mentions.find(m=>m.id===proof.mention_id);return '<p>'+E(proof.role)+' · '+E(m?.state)+' · '+anchor(m?.url||'')+'</p>';}).join('')+
+ '<details><summary>'+E(settingsLabel(["审核历史","Review history"]))+'</summary>'+(e.history||[]).map(h=>'<p>'+E(h.reviewer)+' · '+dt(h.at)+' · '+E(h.reason)+'</p>').join('')+'</details><details><summary>'+E(settingsLabel(["编辑与审核","Edit and review"]))+'</summary>'+impactForm(e)+'</details>'+
+ '<details><summary>'+E(settingsLabel(["添加时间节点","Add timeline step"]))+'</summary><form data-form="impact-step" data-id="'+e.id+'"><div class="form-grid">'+
+ '<label class="field"><span>'+E(settingsLabel(["节点类型","Step type"]))+'</span><select name="kind">'+["submitted","approved","merged","released","retained","cited","adopted","fixed","validated","closed","other"].map(k=>'<option>'+k+'</option>').join('')+'</select></label>'+
+ impactField(["节点说明","Step description"],"label","",true)+
+ '<label class="field"><span>'+E(settingsLabel(["发生时间（可留空）","Occurrence time (optional)"]))+'</span><input type="datetime-local" name="at"></label>'+
+ '<label class="field"><span>'+E(settingsLabel(["证据页面","Evidence page"]))+'</span><select name="mention_id" required>'+state.data.mentions.map(m=>'<option value="'+m.id+'">'+E(m.url)+'</option>').join('')+'</select></label>'+
+ impactField(["修改理由","Change reason"],"reason","",true)+'</div><button class="btn">'+E(settingsLabel(["添加节点","Add step"]))+'</button></form></details></article>').join('')+
+ '<details class="panel"><summary>'+E(settingsLabel(["创建影响事件","Create impact event"]))+'</summary>'+impactForm()+'</details>';
+}
+async function saveImpactForm(form,name,body){
+ const old=(state.data.impactEvents||[]).find(e=>e.id===Number(form.dataset.id));
+ let event;
+ if(name==="impact-step"){
+  if(!old)return;
+  event={...old,steps:[...(old.steps||[]),{kind:body.kind,label:body.label,at:body.at?new Date(body.at).toISOString():"",mention_id:Number(body.mention_id)}],evidence:(old.evidence||[]).slice()};
+  if(!event.evidence.some(m=>m.mention_id===Number(body.mention_id)))event.evidence.push({mention_id:Number(body.mention_id),role:"context"});
+ }else{
+  const data=new FormData(form),proofs=data.getAll("mention_ids").map(Number);
+  if(body.outcome_mention_id&&!proofs.includes(Number(body.outcome_mention_id)))proofs.push(Number(body.outcome_mention_id));
+  event={id:old?.id||0,event_key:body.key,title:body.title,kind:body.kind,direction:body.direction,target_url:body.target_url,state:body.state,outcome:body.outcome,summary:body.summary,work_ids:data.getAll("work_ids").map(Number),evidence:proofs.map(id=>({mention_id:id,role:id===Number(body.outcome_mention_id)?"outcome":old?.evidence?.find(m=>m.mention_id===id)?.role||"source"})),steps:old?.steps||[]};
+ }
+ await act(async()=>send("save_impact_event",{event,expected_version:old?.version||0,reason:body.reason,reviewer:pref("evidence.reviewer","local-ui")}));
+}
