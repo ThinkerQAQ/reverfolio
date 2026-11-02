@@ -31,3 +31,5 @@ jobs:
           node --check extension/ui/app.js
           python3 scripts/build_extension_ui.py
           git diff --exit-code -- extension/ui
+      - name: Check installer wizard navigation and Finish actions
+        run: node scripts/installer/check-wizard.mjs
