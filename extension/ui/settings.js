@@ -198,7 +198,7 @@ function settingsDetail(){
     '<small>'+E(settingsLabel(child.desc))+'</small></span><span>›</span></button>').join("")+'</div>';
  const controls=node.fields?
   '<form data-form="setting-edit"><div class="settings-fields">'+node.fields.map(settingsFieldInput).join("")+'</div>'+
-  '<div class="settings-savebar"><span class="settings-hint">'+E(settingsLabel(["修改在保存后生效","Changes take effect after saving"]))+'</span>'+
+  '<div class="settings-savebar"><span class="settings-hint">'+E(settingsLabel(node.fields.some(f=>["server.listen","storage.database","github.auth"].includes(f.key))?["保存配置后需重启服务；改监听地址还需重新加载扩展。","Restart the service after saving; listener changes also require extension reload."]:["修改在保存后生效","Changes take effect after saving"]))+'</span>'+
   '<button class="btn" type="button" data-action="settings-cancel">'+E(settingsLabel(["取消","Cancel"]))+'</button>'+
   '<button class="btn btn-primary" type="button" data-action="settings-save">'+E(settingsLabel(["保存设置","Save settings"]))+'</button></div></form>':
   settingsReadOnly(node);
