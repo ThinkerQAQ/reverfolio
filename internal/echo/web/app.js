@@ -165,11 +165,11 @@ async function act(operation,successMessage=T("已保存并更新")) {
 async function refresh(showMessage=true){
  try{
   await ensureLocalService();
-  const [works,report,mentions,tasks,audit,settings,runtime,sources,catalog,dashboard,websites,platformDashboard,impactEvents]=await Promise.all([
-    api("/api/works"),api("/api/report"),api("/api/mentions"),api("/api/tasks"),api("/api/audit"),api("/api/settings"),api("/api/runtime"),api("/api/site-sources"),api("/api/catalog"),api("/api/dashboard"),api("/api/website-sources"),api("/api/platform-dashboard"),api("/api/impact-events")
+  const [works,report,mentions,tasks,audit,settings,runtime,sources,catalog,dashboard,websites,platformDashboard,impactEvents,discoveryCoverage]=await Promise.all([
+    api("/api/works"),api("/api/report"),api("/api/mentions"),api("/api/tasks"),api("/api/audit"),api("/api/settings"),api("/api/runtime"),api("/api/site-sources"),api("/api/catalog"),api("/api/dashboard"),api("/api/website-sources"),api("/api/platform-dashboard"),api("/api/impact-events"),api("/api/discovery-coverage")
   ]);
   const pairs=await Promise.all(works.map(async w=>[w.id,await api("/api/works/"+w.id+"/channels")]));
-  state.data={works,report,mentions,tasks,audit,settings,runtime,sources,catalog,dashboard,websites,platformDashboard,impactEvents,channels:new Map(pairs)};
+  state.data={works,report,mentions,tasks,audit,settings,runtime,sources,catalog,dashboard,websites,platformDashboard,impactEvents,discoveryCoverage,channels:new Map(pairs)};
   state.offlineMessage="";
   state.lang=pref("interface.language","zh-CN")==="en"?"en":"zh";
   render();
@@ -513,17 +513,20 @@ function tasksView(){
   return '<article class="mini-card filterable" data-search="'+E([task.query,task.state,task.id].join(" ").toLowerCase())+'">'+
    '<div class="work-header"><h3>#'+task.id+' '+E(state.data.works.find(w=>w.id===task.work_id)?.title||"")+'</h3>'+tag(T(stateName),task.state)+'</div>'+
    '<p class="meta">'+E(task.query)+'</p><div class="btn-row">'+
-   '<button class="btn btn-sm" data-action="claim" data-id="'+task.id+'" '+(task.state==="running"?"disabled":"")+'>'+T("认领任务")+'</button></div>'+
+   '<button class="btn btn-sm" data-action="claim" data-id="'+task.id+'" '+(task.state==="running"&&Date.parse(task.lease_until)>Date.now()?"disabled":"")+'>'+T("认领任务")+'</button>'+(leased&&task.state==="running"?'<button class="btn btn-sm" data-action="renew-discovery" data-id="'+task.id+'">'+E(settingsLabel(["续期十分钟","Renew for ten minutes"]))+'</button>':'')+'</div>'+
    (leased&&task.state==="running" ? '<hr class="separator"><form data-form="complete-task" data-task="'+task.id+'"><div class="form-grid">'+
     input("搜索引擎","engine","text","Google / Bing","required")+
     input("实际搜索范围","scope","text","","required")+
+    '<label class="field full"><span>'+E(settingsLabel(["实际执行的查询（每行一条）","Queries actually executed (one per line)"]))+'</span><textarea name="queries" required>'+E(task.query)+'</textarea></label>'+
+    '<label class="field"><span>'+E(settingsLabel(["检查结果","Checked result"]))+'</span><select name="checked_result"><option value="incomplete">'+E(settingsLabel(["检查未完成","Incomplete"]))+'</option><option value="not_found_in_checked_scope">'+E(settingsLabel(["本次范围内未发现","Not found in checked scope"]))+'</option><option value="found">'+E(settingsLabel(["发现候选","Candidates found"]))+'</option></select></label>'+
+    '<label class="field"><span>'+E(settingsLabel(["已提交的候选证据（可多选）","Submitted candidates (multiple)"]))+'</span><select name="mention_ids" multiple>'+state.data.mentions.filter(m=>m.work_id===task.work_id).map(m=>'<option value="'+m.id+'">'+E(m.url)+'</option>').join('')+'</select></label>'+
     input("结果数量","result_count","number","0","required min='0' value='0'")+
     select("完成状态","status",[["complete","已完成"],["partial","部分完成"],["failed","失败"]])+
     '<label class="field full"><span>'+T("备注")+'</span><textarea name="notes"></textarea></label></div>'+
     '<div class="form-actions"><button class="btn btn-primary">'+T("记录搜索结果")+'</button></div></form>' : '')+
    '</article>';
  }).join("");
- return '<p class="desc">'+T("AI 客户端负责搜索；Reverfolio 记录证据与审计，不会自行声称搜索了全网")+'</p>'+
+ return discoveryCoveragePanel()+'<p class="desc">'+T("AI 客户端负责搜索；Reverfolio 记录证据与审计，不会自行声称搜索了全网")+'</p>'+
  '<div class="toolbar"><input class="search" data-filter placeholder="'+T("输入关键词筛选")+'"><span class="muted">'+fmt(state.data.tasks.length)+'</span></div>'+
  '<div class="grid-cards">'+(items||'<div class="empty">'+T("当前无数据")+'</div>')+'</div>'+
  heading("新建搜索任务")+
@@ -651,6 +654,7 @@ async function runClick(button){
  if(action==="edit-source"){state.sourceEdit=state.data.sources.sources.find(x=>x.source.id===button.dataset.source)?.source;render();return;}
  if(action==="collect-site-source"){await act(async()=>send("collect_site_source",{source_id:button.dataset.source}));return;}
  if(action==="collect"){await act(async()=>{await api("/api/works/"+id+"/collect",{method:"POST",headers:{"Idempotency-Key":uuid()}});});return;}
+ if(action==="renew-discovery"){const lease=state.leases.get(id);if(!lease){notification("Lease unavailable",true);return;}await act(async()=>send("renew_discovery_task",{task_id:id,lease_token:lease}));return;}
  if(action==="claim"){await act(async()=>{
   const result=await send("claim_discovery_task",{task_id:id,worker:pref("discovery.worker","Reverfolio web UI")});
   if(result.lease_token)state.leases.set(id,result.lease_token);
@@ -691,6 +695,7 @@ async function runForm(form){
  const body=Object.fromEntries(new FormData(form));
  const name=form.dataset.form;
  if(body.work_id)body.work_id=Number(body.work_id);
+ if(name==="search-identifier"){await act(async()=>send("save_work_search_identifier",{identifier:{work_id:Number(body.work_id),kind:body.kind,value:body.value}}));return;}
  if(name==="impact-event"||name==="impact-step"){await saveImpactForm(form,name,body);return;}
  if(name==="devto-connect"){
   await act(async()=>{
@@ -720,7 +725,7 @@ async function runForm(form){
  else if(name==="complete-task"){
   const id=Number(form.dataset.task),lease=state.leases.get(id);
   if(!lease){notification("Expired lease",true);return;}
-  body.task_id=id;body.lease_token=lease;body.result_count=Number(body.result_count||0);
+  body.task_id=id;body.lease_token=lease;body.result_count=Number(body.result_count||0);body.queries=body.queries.split(/\r?\n/).map(q=>q.trim()).filter(Boolean);body.mention_ids=new FormData(form).getAll("mention_ids").map(Number);
   await act(async()=>{await send("complete_discovery_task",body);state.leases.delete(id);});
  }
 }
@@ -822,4 +827,15 @@ async function saveImpactForm(form,name,body){
   event={id:old?.id||0,event_key:body.key,title:body.title,kind:body.kind,direction:body.direction,target_url:body.target_url,state:body.state,outcome:body.outcome,summary:body.summary,work_ids:data.getAll("work_ids").map(Number),evidence:proofs.map(id=>({mention_id:id,role:id===Number(body.outcome_mention_id)?"outcome":old?.evidence?.find(m=>m.mention_id===id)?.role||"source"})),steps:old?.steps||[]};
  }
  await act(async()=>send("save_impact_event",{event,expected_version:old?.version||0,reason:body.reason,reviewer:pref("evidence.reviewer","local-ui")}));
+}
+
+function discoveryCoveragePanel(){
+ const coverage=state.data.discoveryCoverage||{runs:[],identifiers:[],suggested_queries:{}};
+ const results={found:["发现候选（仍需审核）","Candidates found (review required)"],not_found_in_checked_scope:["本次范围内未发现","Not found in checked scope"],incomplete:["检查未完成","Incomplete"],legacy_unlinked:["历史结果尚未关联候选","Legacy results without candidates"],legacy_unknown:["历史检查结果未知","Unknown legacy outcome"]};
+ return heading(settingsLabel(["检查范围与候选证据","Checked scopes and candidate evidence"]),settingsLabel(["记录只适用于列出的查询、来源和时间，不代表全网没有引用。","Records apply only to the listed queries, sources and times; they do not establish global absence."]))+
+ (coverage.runs||[]).map(r=>'<article class="panel"><h3>#'+r.task_id+' · '+E(r.engine)+'</h3><p>'+E(r.scope)+' · '+dt(r.completed_at)+'</p><p>'+E(settingsLabel(results[r.checked_result]||r.checked_result))+' · '+E(r.status)+'</p><ul>'+r.queries.map(q=>'<li>'+E(q)+'</li>').join('')+'</ul>'+r.mention_ids.map(id=>{const m=state.data.mentions.find(m=>m.id===id);return '<p>'+E(m?.state||'unknown')+' · '+anchor(m?.url||'')+'</p>';}).join('')+'</article>').join('')+
+ '<details class="panel"><summary>'+E(settingsLabel(["按作品查看建议查询","Suggested queries by work"]))+'</summary>'+state.data.works.map(w=>'<h3>'+E(w.title)+'</h3><ul>'+(coverage.suggested_queries[w.id]||[]).map(q=>'<li><code>'+E(q)+'</code></li>').join('')+'</ul>').join('')+'</details>'+
+ '<details class="panel"><summary>'+E(settingsLabel(["补充历史名称、旧 URL 或特征句","Add a historical name, URL or distinctive phrase"]))+'</summary><form data-form="search-identifier"><div class="form-grid">'+workSelection()+
+ '<label class="field"><span>'+E(settingsLabel(["类型","Type"]))+'</span><select name="kind"><option value="historical_name">'+E(settingsLabel(["历史名称","Historical name"]))+'</option><option value="historical_url">'+E(settingsLabel(["历史 URL","Historical URL"]))+'</option><option value="translated_title">'+E(settingsLabel(["翻译标题","Translated title"]))+'</option><option value="phrase">'+E(settingsLabel(["特征句","Distinctive phrase"]))+'</option></select></label>'+
+ '<label class="field full"><span>'+E(settingsLabel(["内容","Value"]))+'</span><input name="value" maxlength="2000" required></label></div><button class="btn">'+E(settingsLabel(["保存检索标识","Save search identifier"]))+'</button></form></details>';
 }

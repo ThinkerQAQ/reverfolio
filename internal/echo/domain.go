@@ -579,14 +579,17 @@ func (s *Store) ClaimTask(ctx context.Context, in ClaimInput) (Task, error) {
 }
 
 type CompleteInput struct {
-	RequestID   string `json:"request_id"`
-	TaskID      int64  `json:"task_id"`
-	LeaseToken  string `json:"lease_token"`
-	Engine      string `json:"engine"`
-	Scope       string `json:"scope"`
-	Status      string `json:"status"`
-	ResultCount int    `json:"result_count"`
-	Notes       string `json:"notes"`
+	CheckedResult string   `json:"checked_result,omitempty"`
+	Queries       []string `json:"queries,omitempty"`
+	MentionIDs    []int64  `json:"mention_ids,omitempty"`
+	RequestID     string   `json:"request_id"`
+	TaskID        int64    `json:"task_id"`
+	LeaseToken    string   `json:"lease_token"`
+	Engine        string   `json:"engine"`
+	Scope         string   `json:"scope"`
+	Status        string   `json:"status"`
+	ResultCount   int      `json:"result_count"`
+	Notes         string   `json:"notes"`
 }
 
 func (s *Store) CompleteTask(ctx context.Context, in CompleteInput) (Task, error) {
@@ -605,7 +608,15 @@ func (s *Store) CompleteTask(ctx context.Context, in CompleteInput) (Task, error
 		if token == "" || token != in.LeaseToken || state != "running" || until < stamp(time.Now()) {
 			return Task{}, ErrConflict
 		}
-		if _, err = tx.ExecContext(ctx, `INSERT INTO search_runs(task_id,engine,scope,status,result_count,notes,completed_at) VALUES(?,?,?,?,?,?,?)`, in.TaskID, in.Engine, in.Scope, in.Status, in.ResultCount, in.Notes, stamp(time.Now())); err != nil {
+		run, err := tx.ExecContext(ctx, `INSERT INTO search_runs(task_id,engine,scope,status,result_count,notes,completed_at) VALUES(?,?,?,?,?,?,?)`, in.TaskID, in.Engine, in.Scope, in.Status, in.ResultCount, in.Notes, stamp(time.Now()))
+		if err != nil {
+			return Task{}, err
+		}
+		runID, err := run.LastInsertId()
+		if err != nil {
+			return Task{}, err
+		}
+		if err = recordDiscoveryDetails(ctx, tx, in, runID); err != nil {
 			return Task{}, err
 		}
 		if _, err = tx.ExecContext(ctx, `UPDATE discovery_tasks SET state=?,lease_token='',lease_until='' WHERE id=?`, in.Status, in.TaskID); err != nil {

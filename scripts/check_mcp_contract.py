@@ -23,7 +23,7 @@ get_collection_status get_dashboard get_trends get_work import_devto import_cata
 link_identity link_propagation_event list_platform_accounts list_catalog list_discovery_tasks list_mentions
 list_settings list_site_sources list_website_sources list_works preview_devto preview_website review_mention save_site_source
 set_monitoring submit_mention unlink_identity update_setting update_settings
-upsert_work list_impact_events save_impact_event""".split())
+upsert_work renew_discovery_task get_discovery_coverage save_work_search_identifier list_impact_events save_impact_event""".split())
 
 
 class Client:
@@ -165,17 +165,21 @@ def verify(client, fixture=False):
         "reason": "Synthetic fixture verified, not real-world adoption",
         "reviewer": "test-suite",
     })
+    client.tool("renew_discovery_task", {"request_id":"fixture-renew", "task_id":task["id"], "lease_token":lease["lease_token"]})
     client.tool("complete_discovery_task", {
         "request_id": "fixture-complete-1", "task_id": task["id"],
         "lease_token": lease["lease_token"], "engine": "fixture",
         "scope": "one synthetic result", "status": "complete",
         "result_count": 1, "notes": "No real web search performed",
+        "checked_result":"found", "queries":["Synthetic exact URL citations"], "mention_ids":[mention["id"]],
     })
     event=client.tool("save_impact_event", {
         "request_id":"fixture-impact", "expected_version":0,
         "reason":"Synthetic original-source event", "reviewer":"test-suite",
         "event":{"event_key":"fixture-impact","title":"Synthetic citation event","kind":"citation","direction":"inbound","state":"verified","outcome":"not_confirmed","work_ids":[wid],"evidence":[{"mention_id":mention["id"],"role":"source"}]}
     })
+    coverage=client.tool("get_discovery_coverage")
+    assert coverage["runs"][0]["checked_result"]=="found" and coverage["runs"][0]["mention_ids"]==[mention["id"]]
     events=client.tool("list_impact_events",{"work_id":wid})
     assert len(events)==1 and events[0]["id"]==event["id"]
     report = client.tool("generate_report", {"work_id": wid})

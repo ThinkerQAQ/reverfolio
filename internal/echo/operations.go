@@ -315,7 +315,7 @@ func RestoreDatabase(ctx context.Context, source, destination string) error {
 		err = probe.QueryRowContext(ctx, `PRAGMA user_version`).Scan(&version)
 	}
 	probe.Close()
-	if err != nil || integrity != "ok" || version < 1 || version > 8 {
+	if err != nil || integrity != "ok" || version < 1 || version > 9 {
 		return ErrInvalid
 	}
 	store, err := Open(name)
