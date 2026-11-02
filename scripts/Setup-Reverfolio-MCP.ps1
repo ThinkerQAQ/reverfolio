@@ -80,3 +80,6 @@ if (-not $already) {
     Start-Process -FilePath (Get-Command powershell.exe).Source -ArgumentList @('-NoProfile','-WindowStyle','Hidden','-File',('"' + $launcher + '"')) -WindowStyle Hidden
 }
 Write-Host 'Reverfolio Tunnel configured. In ChatGPT: Plugins -> Add custom MCP server -> Tunnel.'
+
+# Close a successful guided setup; -NoExit keeps failures visible.
+exit 0
