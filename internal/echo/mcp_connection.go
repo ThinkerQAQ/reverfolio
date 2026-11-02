@@ -59,6 +59,7 @@ func tunnelReady(ctx context.Context, client, health string) bool {
 	ctx, cancel := context.WithTimeout(ctx, 1800*time.Millisecond)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, client, "health", "--url-file", health, "--require-control-plane-poll", "--json")
+	configureMCPProcess(cmd, false)
 	cmd.Stdout, cmd.Stderr = io.Discard, io.Discard
 	return cmd.Run() == nil
 }
@@ -140,7 +141,9 @@ func mcpCommand(goos, root, action, id string) (*exec.Cmd, error) {
 		} else {
 			args = append(args, "-Action", action)
 		}
-		return exec.Command("powershell.exe", args...), nil
+		cmd := exec.Command("powershell.exe", args...)
+		configureMCPProcess(cmd, action == "setup")
+		return cmd, nil
 	}
 	if goos != "linux" && goos != "darwin" {
 		return nil, ErrInvalid
@@ -234,6 +237,7 @@ func (s Service) registerMCPManagement(mux *http.ServeMux) {
 				defer cancel()
 				managed := exec.CommandContext(ctx, cmd.Path, cmd.Args[1:]...)
 				managed.Dir = root
+				managed.SysProcAttr = cmd.SysProcAttr
 				if err = managed.Run(); err != nil {
 					http.Error(w, "service action failed; check local service configuration", 409)
 					return

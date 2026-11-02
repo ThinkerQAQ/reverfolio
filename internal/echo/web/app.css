@@ -228,3 +228,20 @@ body:has(.settings-full-page) .workspace-main{max-width:none;width:100%}
 .offline-panel p{overflow-wrap:anywhere;line-height:1.7}
 .offline-panel .btn-row{margin-top:22px}
 .online-dot.offline{background:#9ca8b6;box-shadow:none}
+
+/* One next action; operational details stay collapsed. */
+.mcp-guide{max-width:720px;margin:22px auto 0}
+.mcp-steps{list-style:none;display:flex;gap:20px;padding:0;margin:0 0 24px;color:var(--sub);font-size:12px;flex-wrap:wrap}
+.mcp-steps li{display:flex;align-items:center;gap:7px}.mcp-steps span{display:grid;place-items:center;width:25px;height:25px;border-radius:50%;background:#edf2f8;font-weight:700}
+.mcp-steps .current{color:var(--blue);font-weight:650}.mcp-steps .current span{background:#e6efff}.mcp-steps .done{color:#168063}.mcp-steps .done span{background:#e8f7ef}
+.mcp-connection-card{border:1px solid var(--border);border-radius:14px;padding:28px;background:#fbfcff}
+.mcp-connection-card.is-ready{background:#f5fcf8;border-color:#cde8d9}.mcp-state-symbol{display:grid;place-items:center;width:40px;height:40px;border-radius:12px;background:#e8f0ff;color:var(--blue);font-size:23px;margin-bottom:16px}
+.is-ready .mcp-state-symbol{background:#e0f3e7;color:#168063}.mcp-connection-card h3{margin:0 0 10px;font-size:20px;color:#233a56}
+.mcp-description{font-size:14px;line-height:1.75;color:#637894;margin:0 0 20px;max-width:590px}
+.mcp-id-field{display:grid;gap:8px;font-size:13px;font-weight:600;color:#405779;margin:22px 0}
+.mcp-id-field input{width:100%;min-width:0;border:1px solid #cfdbe9;border-radius:8px;padding:12px;background:white;color:#253e5f;font-size:14px;font-weight:400}
+.mcp-main-action{margin-top:20px}.mcp-main-action .btn{min-width:140px;padding:11px 20px}
+.mcp-error{color:#9b3737;background:#fff1ef;padding:12px;border-radius:8px;line-height:1.6;font-size:13px}
+.mcp-advanced{margin-top:24px;border-top:1px solid var(--border);padding-top:18px}.mcp-advanced summary{color:#71839c;font-size:12px}
+.mcp-advanced h3{margin:25px 0 8px;font-size:14px}.mcp-advanced pre{font-size:11px}
+@media(max-width:600px){.mcp-steps{gap:10px;font-size:11px}.mcp-steps span{width:21px;height:21px}.mcp-connection-card{padding:20px}.mcp-main-action .btn{width:100%}}

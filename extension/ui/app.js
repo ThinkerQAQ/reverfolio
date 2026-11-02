@@ -201,10 +201,12 @@ function shellRender(){
   navRender();
 }
 function render(){
+  settingsMCPBeforeRender();
   shellRender();if(!state.data){$("view").innerHTML=state.offlineMessage?offlineView():'<div class="loading">Loading…</div>';return;}
   document.body.classList.toggle("compact-layout",pref("appearance.compact")==="true");
   const pages={overview:overviewView,impact:impactEventsView,works:worksView,websites:websiteSourcesView,platforms:platformsView,channels:channelsView,propagation:propagationView,evidence:evidenceView,tasks:tasksView,history:historyView,settings:settingsView};
   $("view").innerHTML=pages[state.view]();
+  settingsMCPAfterRender();
 }
 const heading=(title,sub="",right="")=>'<div class="section-header"><div><h2>'+T(title)+'</h2>'+(sub?'<p>'+T(sub)+'</p>':"")+'</div>'+right+'</div>';
 const stat=(title,value,note,primary=false)=>'<div class="stat-card'+(primary?' primary':'')+'"><div class="stat-label">'+T(title)+'</div><div class="stat-value">'+fmt(value)+'</div><div class="stat-hint">'+T(note)+'</div></div>';
@@ -747,6 +749,7 @@ document.addEventListener("input",e=>{
  if(e.target.id==="catalog-json"){state.catalogInput=e.target.value;state.catalogPreview=null;const button=document.querySelector('[data-action="apply-catalog"]');if(button)button.disabled=true;}
 
  if(e.target.matches("[data-filter]"))applyFilter(e.target);
+ if(e.target.id==="mcp-tunnel-id")mcpUI.draftID=e.target.value;
  if(e.target.id==="settings-search"||e.target.dataset.settingKey)settingsHandleInput(e.target);
  if(e.target.id==="import-json"){state.preview=null;state.importInput=e.target.value;const b=document.querySelector('[data-action="apply-import"]');if(b)b.disabled=true;}
 });
