@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -83,5 +85,22 @@ func TestNativeInvalidJSONDoesNotInvokeStart(t *testing.T) {
 	}
 	if !strings.Contains(decode(t, out.Bytes()).Error, "invalid") {
 		t.Fatal("missing error response")
+	}
+}
+
+func TestNativeHealthEndpointUsesInstalledConfig(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.toml")
+	if err := os.WriteFile(path, []byte("[server]\nlisten = \"127.0.0.1:24561\"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	got, err := healthURL(path)
+	if err != nil || got != "http://127.0.0.1:24561/healthz" {
+		t.Fatal(got, err)
+	}
+	if err := os.WriteFile(path, []byte("[server]\nlisten = \"0.0.0.0:24561\"\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = healthURL(path); err == nil {
+		t.Fatal("remote listener accepted")
 	}
 }

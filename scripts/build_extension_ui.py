@@ -5,9 +5,13 @@ Use the same app logic/CSS, not a separately implemented launcher UI.
 Static resources come from this repository; no external CDN dependency.
 """
 from pathlib import Path
+import re
+import json
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "internal/echo/web"
+listen=re.search(r'(?m)^listen\s*=\s*"([^"]+)"',(ROOT/"config.example.toml").read_text()).group(1)
+origin="http://"+listen
 DEST = ROOT / "extension/ui"
 DEST.mkdir(parents=True, exist_ok=True)
 
@@ -25,7 +29,7 @@ for src, dest in (
     html = html.replace(src, dest)
 html = html.replace(
     '<title>Reverfolio',
-    '<meta name="reverfolio-api-origin" content="http://127.0.0.1:19452">\n'
+    f'<meta name="reverfolio-api-origin" content="{origin}">\n'
     '<title>Reverfolio',
     1,
 )
@@ -39,3 +43,9 @@ html = html.replace(
 for name in ("app.css", "app.js", "settings.js", "dashboard.js", "favicon.svg"):
     (DEST / name).write_bytes((SOURCE / name).read_bytes())
 print("Reverfolio extension UI synchronized with main embedded Web UI")
+
+manifestPath=ROOT/"extension/manifest.json"
+manifest=json.loads(manifestPath.read_text())
+manifest["host_permissions"]=[origin+"/*"]
+manifest["content_security_policy"]["extension_pages"]="script-src 'self'; object-src 'self'; connect-src 'self' "+origin
+manifestPath.write_text(json.dumps(manifest,indent=2)+"\n")

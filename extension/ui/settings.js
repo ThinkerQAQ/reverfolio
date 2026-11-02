@@ -31,7 +31,9 @@ const settingTree = [
      {id:"github-schedule",name:["自动采集计划","Automatic collection"],desc:["设置采集间隔，无需重启","Set the interval without restarting"],fields:[
        {key:"collection.interval",name:["采集频率","Collection interval"],help:["一分钟内生效；电脑和本地服务须保持运行。关闭计划不会删除已采集数据。","Applied within one minute while the computer and local service are running. Disabling preserves observations."],type:"select",options:[["0",["关闭","Disabled"]],["1h",["每小时","Hourly"]],["6h",["每 6 小时","Every 6 hours"]],["24h",["每天","Daily"]],["168h",["每周","Weekly"]]]}
      ]},
-     {id:"github-runtime",name:["采集运行状态","Collection runtime"],desc:["定时采集与账号授权","Scheduling and authorization"],kind:"github-runtime"}
+     {id:"github-auth",name:["GitHub 授权方式","GitHub authentication"],desc:["更改后重启服务生效","Restart the service after changing"],fields:[
+ {key:"github.auth",name:["凭据来源","Credential source"],help:["环境变量 GITHUB_TOKEN 或本机已登录的 gh；密钥不写入配置。更改后重启。","Use GITHUB_TOKEN or the signed-in local gh CLI. Secrets are not written to config. Restart required."],type:"select",options:[["env",["环境变量","Environment"]],["gh",["本机 GitHub CLI","Local GitHub CLI"]]]}]},
+ {id:"github-runtime",name:["采集运行状态","Collection runtime"],desc:["定时采集与账号授权","Scheduling and authorization"],kind:"github-runtime"}
    ]},
    {id:"search-sources",name:["搜索与站点统计","Search and site analytics"],desc:["GSC、Bing、Umami 当前支持情况","Current GSC, Bing and Umami coverage"],children:[
      {id:"search-gsc",name:["Google Search Console","Google Search Console"],desc:["搜索曝光和点击","Impressions and clicks"],kind:"gsc"},
@@ -62,7 +64,10 @@ const settingTree = [
    {id:"backup-location",name:["数据库备份","SQLite backup"],desc:["导出和恢复的安全说明","Export and restore guidance"],kind:"backup"}
  ]},
  {id:"system-settings",name:["运行环境","Runtime"],desc:["本地访问与独立部署","Local access and standalone deployment"],children:[
-   {id:"local-security",name:["本地访问与安全","Local access & security"],desc:["本地网页会话与 MCP 鉴权","Browser session and MCP authentication"],kind:"security"},
+   {id:"startup-config",name:["高级启动配置","Advanced startup configuration"],desc:["监听地址、数据库；重启后生效","Listener and database; restart required"],fields:[
+ {key:"server.listen",name:["本机监听地址","Loopback listener"],help:["仅允许回环 IP 与端口。保存同步扩展地址；重启服务后访问新地址，并重新加载扩展。","Loopback IP and port only. Saving synchronizes extension metadata. Restart the service, open the new address, and reload the extension."],type:"text",max:100},
+ {key:"storage.database",name:["SQLite 数据库路径","SQLite database path"],help:["高级操作：仅可选择已存在的 Reverfolio SQLite 文件。相对路径以配置文件目录为准；不会移动或复制旧数据，重启后生效。","Advanced: select an existing Reverfolio SQLite file. Relative to the config directory. Does not move or copy data. Restart required."],type:"text",max:1000}]},
+ {id:"local-security",name:["本地访问与安全","Local access & security"],desc:["本地网页会话与 MCP 鉴权","Browser session and MCP authentication"],kind:"security"},
    {id:"about-reverfolio",name:["关于 Reverfolio","About Reverfolio"],desc:["版本、架构及独立性","Version, architecture and independence"],kind:"about"}
  ]}
 ];
