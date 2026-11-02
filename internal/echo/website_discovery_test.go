@@ -46,7 +46,7 @@ func TestWebsitePreviewImportMCPAndMigration(t *testing.T) {
 	}
 	defer session.Close()
 	var version int
-	if err = store.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 7 {
+	if err = store.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 8 {
 		t.Fatalf("schema=%d err=%v", version, err)
 	}
 	preview := callMCP[WebsitePreview](t, session, "preview_website", WebsitePreviewInput{WebsiteURL: "https://example.org/"})
@@ -166,7 +166,7 @@ func TestWebsiteSchemaFiveUpgradePreservesWorks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = store.db.Exec("DROP TABLE platform_points; DROP TABLE platform_runs; DROP TABLE platform_publications; DROP TABLE platform_accounts; DROP TABLE website_sources; PRAGMA user_version=5;"); err != nil {
+	if _, err = store.db.Exec("DROP TABLE impact_event_history; DROP TABLE impact_event_steps; DROP TABLE impact_event_mentions; DROP TABLE impact_event_works; DROP TABLE impact_events; DROP TABLE platform_points; DROP TABLE platform_runs; DROP TABLE platform_publications; DROP TABLE platform_accounts; DROP TABLE website_sources; PRAGMA user_version=5;"); err != nil {
 		t.Fatal(err)
 	}
 	store.Close()
@@ -180,7 +180,7 @@ func TestWebsiteSchemaFiveUpgradePreservesWorks(t *testing.T) {
 		t.Fatalf("migration corrupted prior work: %+v %v", found, err)
 	}
 	var v int
-	if err = upgraded.db.QueryRow("PRAGMA user_version").Scan(&v); err != nil || v != 7 {
+	if err = upgraded.db.QueryRow("PRAGMA user_version").Scan(&v); err != nil || v != 8 {
 		t.Fatalf("schema version %v %v", v, err)
 	}
 	sources, err := upgraded.WebsiteSources(context.Background())

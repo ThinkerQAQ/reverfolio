@@ -291,6 +291,8 @@ func (s Service) MCPServer() *mcp.Server {
 	addTool(server, "save_site_source", "Save a site source with expected config version. Optional credential is write-only and stored locally, never returned.", false, func(ctx context.Context, in SaveSiteSourceInput) (any, error) { return s.SaveSiteSource(ctx, in) })
 	addTool(server, "collect_site_source", "Fetch one configured site analytics provider and persist an idempotent, scoped observation run. Missing credentials are blocked, not zero.", false, func(ctx context.Context, in CollectSiteSourceInput) (any, error) { return s.CollectSiteSource(ctx, in) })
 	addTool(server, "get_audit", "Read historical observations, review transitions and recorded search scopes. Lease secrets are omitted.", true, func(ctx context.Context, _ EmptyInput) (any, error) { return s.Store.Audit(ctx) })
+	addTool(server, "list_impact_events", "Read independently reviewed impact events and their work, evidence and outcome timelines. work_id=0 includes outbound contributions without a local work.", true, func(ctx context.Context, in WorkIDInput) (any, error) { return s.Store.ImpactEvents(ctx, in.WorkID) })
+	addTool(server, "save_impact_event", "Create or update an impact event using expected_version, reviewer and reason. Verified events require verified evidence; achieved outcomes require outcome evidence. Never infer adoption from a mention alone.", false, func(ctx context.Context, in SaveImpactInput) (any, error) { return s.Store.SaveImpact(ctx, in) })
 	return server
 }
 
