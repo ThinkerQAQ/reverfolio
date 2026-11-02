@@ -297,7 +297,7 @@ func (s Service) MCPServer() *mcp.Server {
 	addTool(server, "save_work_search_identifier", "Add a historical name/URL, translated title or distinctive phrase for a registered work. Does not execute any search.", false, func(ctx context.Context, in SaveSearchIdentifierInput) (any, error) {
 		return s.Store.SaveSearchIdentifier(ctx, in)
 	})
-	addTool(server, "get_discovery_coverage", "Read actual checked scopes, queries, linked candidate mentions and historical search identifiers. No global absence or web coverage claim.", true, func(ctx context.Context, _ EmptyInput) (any, error) { return s.Store.DiscoveryCoverage(ctx) })
+	addTool(server, "get_discovery_coverage", "Read the discovery workflow and per-work search plans, publication/alias queries, contribution searches and known-source follow-up seeds, alongside actual checked scopes. Plans are unexecuted guidance, never coverage claims.", true, func(ctx context.Context, _ EmptyInput) (any, error) { return s.Store.DiscoveryCoverage(ctx) })
 	return server
 }
 
