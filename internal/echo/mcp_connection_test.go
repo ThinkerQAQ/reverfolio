@@ -45,7 +45,7 @@ func TestMCPCommandBoundaries(t *testing.T) {
 }
 func TestMCPPaths(t *testing.T) {
 	profile, health := mcpPaths("linux", "/home/example", "", "/tmp/config")
-	if profile != "/tmp/config/tunnel-client/reverfolio.yaml" || health != "/tmp/config/reverfolio/mcp/health.url" {
+	if profile != filepath.Join("/tmp/config", "tunnel-client", "reverfolio.yaml") || health != filepath.Join("/tmp/config", "reverfolio", "mcp", "health.url") {
 		t.Fatal(profile, health)
 	}
 }
