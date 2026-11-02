@@ -247,3 +247,23 @@ body:has(.settings-full-page) .workspace-main{max-width:none;width:100%}
 @media(max-width:600px){.mcp-steps{gap:10px;font-size:11px}.mcp-steps span{width:21px;height:21px}.mcp-connection-card{padding:20px}.mcp-main-action .btn{width:100%}}
 
 .mcp-steps a{color:inherit;text-decoration:underline;text-underline-offset:3px}.mcp-main-action a.btn{text-decoration:none}
+
+/* Task-oriented navigation. Keep settings visible and names legible in panels. */
+.sidebar #navigation{flex:1;min-height:0;overflow-y:auto}
+.sidebar #settings-navigation{flex:none;margin-top:16px;padding-top:10px;border-top:1px solid var(--border)}
+.sidebar-bottom{margin-top:12px}
+.workflow-guide{margin-bottom:22px}
+.workflow-guide p{color:var(--sub);margin:0 0 14px;line-height:1.7}
+.workflow-tabs{display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid var(--border);padding-bottom:12px}
+.workflow-tabs a{padding:8px 13px;border-radius:8px;text-decoration:none;color:#596a82;background:white}
+.workflow-tabs a.active{background:#e9f1ff;color:#2262ca;font-weight:700}
+.workflow-tabs a:focus-visible,.nav-button:focus-visible{outline:2px solid #2563eb;outline-offset:2px}
+.reverfolio-extension .sidebar{flex-basis:84px;width:84px;min-width:84px}
+.reverfolio-extension .sidebar .nav-button{flex-direction:column;gap:7px;padding:11px 2px}
+.reverfolio-extension .nav-button span:last-child{display:block;font-size:11px;white-space:normal;text-align:center}
+.reverfolio-extension .sidebar #navigation{overflow-y:auto}
+@media(max-width:700px){
+ .sidebar #navigation{flex-wrap:wrap;overflow:visible}
+ .sidebar #settings-navigation{margin-top:6px;padding-top:6px}
+ .reverfolio-extension .sidebar #settings-navigation{margin-top:16px;padding-top:10px}
+}

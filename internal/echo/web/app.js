@@ -68,6 +68,14 @@ const LANG = {
   "本机启动器没有响应，请重新运行安装脚本。":"Native launcher unavailable. Run the installer again.",
   "启动服务无需保留控制台窗口；如失败，请检查本地安装与端口。":"The service starts without a console window. If it fails, check installation and localhost port."
 };
+const workflowGroups = [
+ {id:"works",icon:"▦",label:["我的作品","My works"],views:["works","websites","platforms","channels"],hint:["先添加项目或文章；已有网站和平台账号，可从下面的入口导入。","Add a project or article, or import from a website or creator account below."]},
+ {id:"tasks",icon:"⌕",label:["发现线索","Find evidence"],views:["tasks"],hint:["为作品创建检索任务，再让已连接的 AI 客户端执行搜索。找到的线索进入审核证据。","Create a search task for a work, then ask your connected AI client to run it. Review the resulting evidence next."]},
+ {id:"evidence",icon:"◇",label:["审核证据","Review evidence"],views:["evidence","impact"],hint:["核对原始来源后审核；同一次采用或贡献，可在影响事件中归为一组。","Review original sources, then group evidence of the same adoption or contribution into an impact event."]},
+ {id:"overview",icon:"◫",label:["查看影响","View impact"],views:["overview","propagation","history"],hint:["查看已确认的影响与传播路径；历史统计保留各自的来源和时间。","Explore confirmed impact and propagation; historical metrics retain their sources and dates."]}
+];
+const workflowText = pair => pair[state.lang === "en" ? 1 : 0];
+function workflowGroup(view){return workflowGroups.find(group=>group.views.includes(view));}
 const nav = [
   ["overview","◫","影响力总览","统一查看项目、文章与真实传播证据"],
   ["works","▦","项目管理","管理开源仓库与文章"],
@@ -81,7 +89,7 @@ const nav = [
   ["history","▤","历史统计","查看统计来源与导入历史数据"],
   ["settings","⚙","设置","查看本地连接、权限与语言偏好"]
 ];
-const state = {lang:(localStorage.getItem("reverfolio.lang") || localStorage.getItem("openecho.lang"))==="en"?"en":"zh",view:"overview",data:null,leases:new Map(),preview:null,importInput:"",busy:false,settingsQuery:"",settingsSelected:"",settingsExpanded:new Set(),settingsDraft:{},evidenceFilter:null,propagationWork:null,offlineMessage:"",websitePreview:null,websiteURL:"",devtoPreview:null};
+const state = {lang:(localStorage.getItem("reverfolio.lang") || localStorage.getItem("openecho.lang"))==="en"?"en":"zh",view:"works",data:null,leases:new Map(),preview:null,importInput:"",busy:false,settingsQuery:"",settingsSelected:"",settingsExpanded:new Set(),settingsDraft:{},evidenceFilter:null,propagationWork:null,offlineMessage:"",websitePreview:null,websiteURL:"",devtoPreview:null};
 const $ = id => document.getElementById(id);
 const T = key => state.lang==="en" ? (LANG[key] || key) : key;
 const E = value => String(value ?? "").replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -183,8 +191,19 @@ async function refresh(showMessage=true){
  }
 }
 function navRender(){
-  $("navigation").innerHTML=nav.map(([id,icon,label])=>
-   '<button class="nav-button '+(state.view===id?"active":"")+'" data-action="navigate" data-view="'+id+'" title="'+E(T(label))+'" aria-label="'+E(T(label))+'"><span class="nav-icon" aria-hidden="true">'+icon+'</span><span>'+T(label)+'</span></button>').join("");
+ const active=workflowGroup(state.view);
+ const button=(id,icon,label,selected)=>'<button class="nav-button '+(selected?'active':'')+'" data-action="navigate" data-view="'+id+'"'+(selected?' aria-current="page"':'')+' title="'+E(label)+'"><span class="nav-icon" aria-hidden="true">'+icon+'</span><span>'+E(label)+'</span></button>';
+ $("navigation").innerHTML=workflowGroups.map(g=>button(g.id,g.icon,workflowText(g.label),active===g)).join("");
+ let settings=document.getElementById("settings-navigation");
+ if(!settings){settings=document.createElement("nav");settings.id="settings-navigation";settings.setAttribute("aria-label","Settings");document.querySelector(".sidebar-bottom").before(settings);}
+ settings.innerHTML=button("settings","⚙",T("设置"),state.view==="settings");
+}
+function workflowHeader(){
+ const group=workflowGroup(state.view);
+ if(!group)return "";
+ const labels={works:["作品列表","Works"],websites:["从网站导入","Import website"],platforms:["平台账号","Creator accounts"],channels:["发布链接","Published links"],evidence:["引用与采用","Evidence"],impact:["影响事件","Impact events"],overview:["影响总览","Overview"],propagation:["传播路径","Propagation"],history:["历史统计","History"]};
+ const views=group.views.filter(id=>nav.some(item=>item[0]===id));
+ return '<section class="workflow-guide"><p>'+E(workflowText(group.hint))+'</p>'+(views.length>1?'<nav class="workflow-tabs" aria-label="'+E(workflowText(group.label))+'">'+views.map(id=>'<a href="#'+id+'"'+(state.view===id?' class="active" aria-current="page"':'')+'>'+E(workflowText(labels[id]))+'</a>').join("")+'</nav>':'')+'</section>';
 }
 function shellRender(){
   document.documentElement.lang=state.lang==="en"?"en":"zh-CN";
@@ -205,7 +224,7 @@ function render(){
   shellRender();if(!state.data){$("view").innerHTML=state.offlineMessage?offlineView():'<div class="loading">Loading…</div>';return;}
   document.body.classList.toggle("compact-layout",pref("appearance.compact")==="true");
   const pages={overview:overviewView,impact:impactEventsView,works:worksView,websites:websiteSourcesView,platforms:platformsView,channels:channelsView,propagation:propagationView,evidence:evidenceView,tasks:tasksView,history:historyView,settings:settingsView};
-  $("view").innerHTML=pages[state.view]();
+  $("view").innerHTML=workflowHeader()+pages[state.view]();
   settingsMCPAfterRender();
 }
 const heading=(title,sub="",right="")=>'<div class="section-header"><div><h2>'+T(title)+'</h2>'+(sub?'<p>'+T(sub)+'</p>':"")+'</div>'+right+'</div>';
