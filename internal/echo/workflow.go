@@ -288,6 +288,11 @@ func (s Service) MCPServer() *mcp.Server {
 	addTool(server, "get_audit", "Read historical observations, review transitions and recorded search scopes. Lease secrets are omitted.", true, func(ctx context.Context, _ EmptyInput) (any, error) { return s.Store.Audit(ctx) })
 	addTool(server, "list_impact_events", "Read independently reviewed impact events and their work, evidence and outcome timelines. work_id=0 includes outbound contributions without a local work.", true, func(ctx context.Context, in WorkIDInput) (any, error) { return s.Store.ImpactEvents(ctx, in.WorkID) })
 	addTool(server, "save_impact_event", "Create or update an impact event using expected_version, reviewer and reason. Verified events require verified evidence; achieved outcomes require outcome evidence. Never infer adoption from a mention alone.", false, func(ctx context.Context, in SaveImpactInput) (any, error) { return s.Store.SaveImpact(ctx, in) })
+	addTool(server, "renew_discovery_task", "Renew an unexpired discovery lease for ten minutes with its private token; expired or replaced owners cannot renew.", false, func(ctx context.Context, in RenewDiscoveryInput) (any, error) { return s.Store.RenewDiscovery(ctx, in) })
+	addTool(server, "save_work_search_identifier", "Add a historical name/URL, translated title or distinctive phrase for a registered work. Does not execute any search.", false, func(ctx context.Context, in SaveSearchIdentifierInput) (any, error) {
+		return s.Store.SaveSearchIdentifier(ctx, in)
+	})
+	addTool(server, "get_discovery_coverage", "Read actual checked scopes, queries, linked candidate mentions and historical search identifiers. No global absence or web coverage claim.", true, func(ctx context.Context, _ EmptyInput) (any, error) { return s.Store.DiscoveryCoverage(ctx) })
 	return server
 }
 
@@ -330,6 +335,7 @@ func actionRoute[In any](mux *http.ServeMux, name string, fn func(context.Contex
 }
 func (s Service) registerWorkflow(mux *http.ServeMux) {
 	s.registerImpact(mux)
+	s.registerDiscoveryCoverage(mux)
 	mux.HandleFunc("GET /api/dashboard", func(w http.ResponseWriter, r *http.Request) {
 		v, err := s.Store.Dashboard(r.Context())
 		if err != nil {

@@ -46,7 +46,7 @@ func TestWebsitePreviewImportMCPAndMigration(t *testing.T) {
 	}
 	defer session.Close()
 	var version int
-	if err = store.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 8 {
+	if err = store.db.QueryRow("PRAGMA user_version").Scan(&version); err != nil || version != 9 {
 		t.Fatalf("schema=%d err=%v", version, err)
 	}
 	preview := callMCP[WebsitePreview](t, session, "preview_website", WebsitePreviewInput{WebsiteURL: "https://example.org/"})
@@ -180,7 +180,7 @@ func TestWebsiteSchemaFiveUpgradePreservesWorks(t *testing.T) {
 		t.Fatalf("migration corrupted prior work: %+v %v", found, err)
 	}
 	var v int
-	if err = upgraded.db.QueryRow("PRAGMA user_version").Scan(&v); err != nil || v != 8 {
+	if err = upgraded.db.QueryRow("PRAGMA user_version").Scan(&v); err != nil || v != 9 {
 		t.Fatalf("schema version %v %v", v, err)
 	}
 	sources, err := upgraded.WebsiteSources(context.Background())
