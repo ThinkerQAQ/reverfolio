@@ -31,3 +31,5 @@ jobs:
           node --check extension/ui/app.js
           python3 scripts/build_extension_ui.py
           git diff --exit-code -- extension/ui
+      - name: Check guided MCP connection states and retries
+        run: node scripts/check_mcp_guide.mjs

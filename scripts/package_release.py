@@ -24,6 +24,7 @@ subprocess.run(['node', 'scripts/check_download_ui.mjs'], cwd=ROOT, check=True)
 subprocess.run(['node', 'scripts/check_dashboard.mjs'], cwd=ROOT, check=True)
 subprocess.run(['node', 'scripts/check_propagation.mjs'], cwd=ROOT, check=True)
 subprocess.run(['node', 'scripts/check_native_host.mjs'], cwd=ROOT, check=True)
+subprocess.run(['node', 'scripts/check_mcp_guide.mjs'], cwd=ROOT, check=True)
 subprocess.run(['go', 'test', './...'], cwd=ROOT, check=True)
 subprocess.run(['python3', 'scripts/check_docs.py'], cwd=ROOT, check=True)
 # Ship actual dependency license texts, not only a notice pointing upstream.

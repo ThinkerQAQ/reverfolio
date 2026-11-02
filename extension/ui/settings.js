@@ -6,7 +6,7 @@
  * Leaf controls are bound only to Reverfolio's allowlisted settings API.
  */
 const settingTree = [
- {id:"mcp",name:["MCP 连接","MCP connections"],desc:["本地客户端和 ChatGPT Tunnel","Local clients and ChatGPT Tunnel"],children:[{id:"mcp-connection",name:["连接与服务管理","Connections and service"],desc:["配置、健康检查、启动与停止","Configuration, readiness, start and stop"],kind:"mcp-connection"}]},
+ {id:"mcp-connection",name:["MCP 连接","MCP connection"],desc:["按引导连接 ChatGPT 或本地 AI 客户端","Connect ChatGPT or a local AI client"],kind:"mcp-connection"},
  {id:"interface",name:["界面与语言","Interface & language"],desc:["界面语言、首页、布局","Language, dashboard and layout"],children:[
    {id:"ui-language",name:["界面语言","Interface language"],desc:["简体中文或 English（保存在 config.toml）","Simplified Chinese or English (saved to config.toml)"],kind:"language"},
    {id:"dashboard",name:["首页总览","Dashboard"],desc:["调整首页的展示方式","Control the overview layout"],children:[
@@ -216,7 +216,7 @@ function settingsIndexRows(){
  return settingTree.map(node=>
   '<button type="button" class="settings-category-card" data-action="settings-select" data-id="'+E(node.id)+'">'+
   '<span><strong>'+E(settingsLabel(node.name))+'</strong><small>'+E(settingsLabel(node.desc))+'</small></span>'+
-  '<span class="settings-category-meta">'+settingLeaves(node.children||[])+' <span class="settings-category-chevron">›</span></span></button>'
+  '<span class="settings-category-meta">'+(node.children?settingLeaves(node.children):'')+' <span class="settings-category-chevron">›</span></span></button>'
  ).join("");
 }
 function renderSettingsTree(){
@@ -234,13 +234,7 @@ function settingsRenderSidebar(){
 }
 async function settingsHandleAction(button){
  if(button.dataset.action.startsWith("settings-mcp-")){
-  const action=button.dataset.action.slice("settings-mcp-".length);
-  if(action==="copy"){await navigator.clipboard.writeText(JSON.stringify(state.mcpConnection?.local_config||{},null,2));notification(settingsLabel(["已复制","Copied"]));return;}
-  if(action!=="refresh"){
-   const tunnel_id=document.querySelector("#mcp-tunnel-id")?.value||"";
-   await act(async()=>{await api("/api/mcp-connection",{method:"POST",body:JSON.stringify({action,tunnel_id})});},settingsLabel(["操作已提交，请刷新检查状态；首次配置请在本机终端完成。","Action submitted. Refresh status; finish first setup in the local terminal."]));
-  }
-  try{state.mcpConnection=await api("/api/mcp-connection");render();}catch(err){notification(err.message,true);}return;
+  await mcpHandleAction(button.dataset.action.slice("settings-mcp-".length));return;
  }
  if(button.dataset.id==="mcp-connection"){try{state.mcpConnection=await api("/api/mcp-connection");}catch(err){notification(err.message,true);}}
 
@@ -294,13 +288,105 @@ async function settingsHandleForm(){
  });
 }
 
+const mcpUI={draftID:null,busy:"",error:"",deadline:0,timer:null,polling:false,advanced:false,pollError:false};
+function mcpActive(){return !!state.data&&state.view==="settings"&&state.settingsSelected==="mcp-connection";}
+function settingsMCPBeforeRender(){
+ const input=document.getElementById("mcp-tunnel-id");
+ if(input)mcpUI.draftID=input.value;
+ const advanced=document.getElementById("mcp-advanced");
+ if(advanced)mcpUI.advanced=advanced.open;
+}
+function settingsMCPAfterRender(){
+ clearTimeout(mcpUI.timer);mcpUI.timer=null;
+ if(mcpActive())mcpUI.timer=setTimeout(mcpPoll,4000);
+}
+async function mcpReadStatus(){
+ const previous=JSON.stringify(state.mcpConnection);
+ state.mcpConnection=await api("/api/mcp-connection");
+ let changed=previous!==JSON.stringify(state.mcpConnection);
+ if(mcpUI.pollError||state.mcpConnection.ready){if(mcpUI.error)changed=true;mcpUI.error="";mcpUI.pollError=false;}
+ if(mcpUI.busy==="waiting"){
+  if(state.mcpConnection.ready){mcpUI.busy="";mcpUI.error="";changed=true;}
+  else if(Date.now()>mcpUI.deadline){
+   mcpUI.busy="";mcpUI.error=settingsLabel(["连接尚未完成。首次配置请先完成本机窗口中的提示，再重试连接。","Connection is not ready. Finish the prompts in the local setup window, then retry."]);changed=true;
+  }
+ }
+ return changed;
+}
+async function mcpPoll(){
+ if(!mcpActive()||mcpUI.polling)return;
+ mcpUI.polling=true;
+ try{if(await mcpReadStatus())render();}
+ catch(err){
+  const message=settingsLabel(["无法读取连接状态：","Cannot read connection status: "])+String(err.message||err);
+  if(mcpUI.error!==message){mcpUI.error=message;mcpUI.pollError=true;render();}
+ }finally{mcpUI.polling=false;settingsMCPAfterRender();}
+}
+async function mcpHandleAction(action){
+ if(action==="copy"){
+  await navigator.clipboard.writeText(JSON.stringify(state.mcpConnection?.local_config||{},null,2));
+  notification(settingsLabel(["已复制","Copied"]));return;
+ }
+ if(mcpUI.busy)return;
+ mcpUI.error="";
+ try{
+  if(action==="refresh"){await mcpReadStatus();render();return;}
+  const c=state.mcpConnection||{};
+  const tunnel_id=(mcpUI.draftID??c.tunnel_id??"").trim();
+  if(action==="connect"&&!c.configured&&!/^tunnel_(?:[a-z0-9]{32}|[a-z0-9]{4}_[a-z0-9]{32})$/.test(tunnel_id)){
+   mcpUI.error=settingsLabel(["请粘贴 ChatGPT 提供的完整 Tunnel ID。","Paste the complete Tunnel ID provided by ChatGPT."]);render();return;
+  }
+  const post=action=>api("/api/mcp-connection",{method:"POST",body:JSON.stringify({action,tunnel_id})});
+  if(action==="connect"){
+   if(!c.client_installed){mcpUI.busy="preparing";render();await post("install-client");}
+   mcpUI.busy=c.configured?"connecting":"configuring";render();
+   await post(c.configured?"start":"setup");
+  }else{
+   mcpUI.busy=action==="stop"?"stopping":"connecting";render();await post(action);
+  }
+  mcpUI.busy=action==="stop"?"":"waiting";mcpUI.deadline=Date.now()+120000;
+  await mcpReadStatus();render();
+ }catch(err){mcpUI.busy="";mcpUI.error=String(err.message||err);render();}
+ finally{settingsMCPAfterRender();}
+}
 function mcpSettingsPanel(){
- const c=state.mcpConnection||{};
- const labels={ready:["Ready（控制平面检查通过）","Ready (control-plane check passed)"],client_missing:["未安装 Tunnel Client","Tunnel Client missing"],unconfigured:["未配置","Unconfigured"],stopped_or_unhealthy:["已配置，未通过健康检查","Configured; health check not passed"]};
- const button=(action,label)=>'<button type="button" class="btn" data-action="settings-mcp-'+action+'">'+E(settingsLabel(label))+'</button>';
- return '<p>'+E(settingsLabel(labels[c.state]||["请刷新连接状态","Refresh connection status"]))+'</p>'+
- '<div class="settings-field"><label>Tunnel ID<input id="mcp-tunnel-id" maxlength="80" value="'+E(c.tunnel_id||'')+'" placeholder="tunnel_…"></label></div>'+
- '<div class="btn-row">'+button("install-client",["安装官方客户端","Install official client"])+button("setup",["配置并启动","Configure and start"])+button("start",["启动","Start"])+button("stop",["停止","Stop"])+button("restart",["重启","Restart"])+button("refresh",["刷新状态","Refresh status"])+ '</div>'+
- '<p class="muted">'+E(settingsLabel(["首次凭据只在本机终端输入；已有凭据复用。Ready 表示 Tunnel 健康，不代表 ChatGPT 已完成授权。","First-time credentials stay in the local terminal; saved credentials are reused. Ready describes Tunnel health; ChatGPT authorization is separate."]))+'</p>'+
- '<h3>'+E(settingsLabel(["本地 MCP 客户端","Local MCP client"]))+'</h3><pre>'+E(JSON.stringify(c.local_config||{},null,2))+'</pre>'+button("copy",["复制连接配置","Copy configuration"]);
+ const c=state.mcpConnection||{},ready=!!c.ready,busy=!!mcpUI.busy;
+ const L=settingsLabel;
+ const button=(action,label,primary=false)=>'<button type="button" class="btn'+(primary?' btn-primary':'')+'" data-action="settings-mcp-'+action+'"'+(busy?' disabled':'')+'>'+E(L(label))+'</button>';
+ const phase={
+  preparing:["正在准备连接…","Preparing your connection…"],
+  configuring:["正在打开本机配置…","Opening local setup…"],
+  connecting:["正在连接…","Connecting…"],
+  waiting:["正在检查连接…","Checking the connection…"],
+  stopping:["正在断开连接…","Disconnecting…"]
+ };
+ let title,description;
+ if(busy){
+  title=phase[mcpUI.busy]||phase.waiting;
+  description=mcpUI.busy==="waiting"&&!c.configured
+   ?["首次连接请在本机配置窗口中输入运行密钥；已有凭据会自动复用。完成后本页会自动继续。","For a first connection, enter your runtime key in the local setup window. Saved credentials are reused. This page will continue automatically."]
+   :["请稍候，连接状态会自动更新。","Please wait. Connection status updates automatically."];
+ }else if(ready){
+  title=["本机连接已就绪","Your local connection is ready"];
+  description=["回到 ChatGPT，启用或刷新 Reverfolio 插件并完成授权，即可开始使用。","Return to ChatGPT, enable or refresh the Reverfolio plugin, and complete authorization."];
+ }else if(c.configured){
+  title=["连接已保存","Your connection is saved"];
+  description=["点击连接即可启动本机服务，无需重新填写配置。","Connect to start the local service. You do not need to enter the configuration again."];
+ }else{
+  title=["连接到 ChatGPT","Connect to ChatGPT"];
+  description=["在 ChatGPT 的自定义 MCP 连接中选择 Tunnel，将页面提供的 Tunnel ID 粘贴到下方。","Choose Tunnel when creating a custom MCP connection in ChatGPT, then paste the provided Tunnel ID below."];
+ }
+ const step=ready?3:(c.configured||busy?2:1);
+ const steps=[["填写连接信息","Connection details"],["启动本机连接","Start local connection"],["在 ChatGPT 中启用","Enable in ChatGPT"]];
+ const progress='<ol class="mcp-steps" aria-label="'+E(L(["连接步骤","Connection steps"]))+'">'+steps.map((label,i)=>'<li class="'+(i+1===step?'current':i+1<step?'done':'')+'"'+(i+1===step?' aria-current="step"':'')+'><span>'+(i+1<step?'✓':i+1)+'</span>'+E(L(label))+'</li>').join("")+'</ol>';
+ const input=!c.configured?'<label class="mcp-id-field" for="mcp-tunnel-id">Tunnel ID<input id="mcp-tunnel-id" autocomplete="off" spellcheck="false" maxlength="80" value="'+E(mcpUI.draftID??c.tunnel_id??"")+'" placeholder="tunnel_…"'+(busy?' disabled':'')+'></label>':"";
+ const action=(!ready||busy)?'<div class="mcp-main-action">'+button("connect",busy?phase[mcpUI.busy]:(mcpUI.error?["重试连接","Retry connection"]:c.configured?["连接","Connect"]:["连接 ChatGPT","Connect ChatGPT"]),true)+'</div>':"";
+ const advanced='<details id="mcp-advanced" class="mcp-advanced"'+(mcpUI.advanced?' open':'')+'><summary>'+E(L(["高级选项与本地客户端","Advanced options and local clients"]))+'</summary>'+
+  (c.tunnel_id?'<p class="muted">Tunnel ID: <code>'+E(c.tunnel_id)+'</code></p>':"")+
+  '<div class="btn-row">'+(c.configured?button("restart",["重新连接","Reconnect"])+button("stop",["断开连接","Disconnect"]):"")+button("refresh",["检查连接","Check connection"])+'</div>'+
+  '<h3>'+E(L(["用于本地 AI 客户端","For a local AI client"]))+'</h3><p class="muted">'+E(L(["仅在本机 AI 客户端需要 JSON 配置时使用。","Use this only if your local AI client requires JSON configuration."]))+'</p>'+
+  '<pre>'+E(JSON.stringify(c.local_config||{},null,2))+'</pre>'+button("copy",["复制本地配置","Copy local configuration"])+'</details>';
+ return '<div class="mcp-guide">'+progress+'<section class="mcp-connection-card'+(ready?' is-ready':'')+'" aria-busy="'+busy+'">'+
+ '<div class="mcp-state-symbol" aria-hidden="true">'+(ready?'✓':busy?'…':'↗')+'</div><h3>'+E(L(title))+'</h3><p class="mcp-description" role="status" aria-live="polite">'+E(L(description))+'</p>'+
+ input+(mcpUI.error?'<p class="mcp-error" role="alert">'+E(mcpUI.error)+'</p>':"")+action+'</section>'+advanced+'</div>';
 }
