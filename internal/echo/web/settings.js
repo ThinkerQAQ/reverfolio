@@ -352,6 +352,8 @@ async function mcpHandleAction(action){
 function mcpSettingsPanel(){
  const c=state.mcpConnection||{},ready=!!c.ready,busy=!!mcpUI.busy;
  const L=settingsLabel;
+ const chatGPTSettingsURL="https://chatgpt.com/settings/plugins-settings";
+ const chatGPTLink=(label,classes="")=>'<a class="'+classes+'" href="'+chatGPTSettingsURL+'" target="_blank" rel="noopener noreferrer">'+E(L(label))+'</a>';
  const button=(action,label,primary=false)=>'<button type="button" class="btn'+(primary?' btn-primary':'')+'" data-action="settings-mcp-'+action+'"'+(busy?' disabled':'')+'>'+E(L(label))+'</button>';
  const phase={
   preparing:["正在准备连接…","Preparing your connection…"],
@@ -368,7 +370,7 @@ function mcpSettingsPanel(){
    :["请稍候，连接状态会自动更新。","Please wait. Connection status updates automatically."];
  }else if(ready){
   title=["本机连接已就绪","Your local connection is ready"];
-  description=["回到 ChatGPT，启用或刷新 Reverfolio 插件并完成授权，即可开始使用。","Return to ChatGPT, enable or refresh the Reverfolio plugin, and complete authorization."];
+  description=["在插件设置中打开 Reverfolio，按提示启用或授权。已经连接过，可直接开始聊天。","Open Reverfolio in plugin settings to enable it or complete authorization. If already connected, start chatting."];
  }else if(c.configured){
   title=["连接已保存","Your connection is saved"];
   description=["点击连接即可启动本机服务，无需重新填写配置。","Connect to start the local service. You do not need to enter the configuration again."];
@@ -378,9 +380,9 @@ function mcpSettingsPanel(){
  }
  const step=ready?3:(c.configured||busy?2:1);
  const steps=[["填写连接信息","Connection details"],["启动本机连接","Start local connection"],["在 ChatGPT 中启用","Enable in ChatGPT"]];
- const progress='<ol class="mcp-steps" aria-label="'+E(L(["连接步骤","Connection steps"]))+'">'+steps.map((label,i)=>'<li class="'+(i+1===step?'current':i+1<step?'done':'')+'"'+(i+1===step?' aria-current="step"':'')+'><span>'+(i+1<step?'✓':i+1)+'</span>'+E(L(label))+'</li>').join("")+'</ol>';
+ const progress='<ol class="mcp-steps" aria-label="'+E(L(["连接步骤","Connection steps"]))+'">'+steps.map((label,i)=>'<li class="'+(i+1===step?'current':i+1<step?'done':'')+'"'+(i+1===step?' aria-current="step"':'')+'><span>'+(i+1<step?'✓':i+1)+'</span>'+(i===2?chatGPTLink(label):E(L(label)))+'</li>').join("")+'</ol>';
  const input=!c.configured?'<label class="mcp-id-field" for="mcp-tunnel-id">Tunnel ID<input id="mcp-tunnel-id" autocomplete="off" spellcheck="false" maxlength="80" value="'+E(mcpUI.draftID??c.tunnel_id??"")+'" placeholder="tunnel_…"'+(busy?' disabled':'')+'></label>':"";
- const action=(!ready||busy)?'<div class="mcp-main-action">'+button("connect",busy?phase[mcpUI.busy]:(mcpUI.error?["重试连接","Retry connection"]:c.configured?["连接","Connect"]:["连接 ChatGPT","Connect ChatGPT"]),true)+'</div>':"";
+ const action=(!ready||busy)?'<div class="mcp-main-action">'+button("connect",busy?phase[mcpUI.busy]:(mcpUI.error?["重试连接","Retry connection"]:c.configured?["连接","Connect"]:["连接 ChatGPT","Connect ChatGPT"]),true)+'</div>':'<div class="mcp-main-action">'+chatGPTLink(["打开 ChatGPT 插件设置","Open ChatGPT plugin settings"],"btn btn-primary")+'</div>';
  const advanced='<details id="mcp-advanced" class="mcp-advanced"'+(mcpUI.advanced?' open':'')+'><summary>'+E(L(["高级选项与本地客户端","Advanced options and local clients"]))+'</summary>'+
   (c.tunnel_id?'<p class="muted">Tunnel ID: <code>'+E(c.tunnel_id)+'</code></p>':"")+
   '<div class="btn-row">'+(c.configured?button("restart",["重新连接","Reconnect"])+button("stop",["断开连接","Disconnect"]):"")+button("refresh",["检查连接","Check connection"])+'</div>'+
