@@ -21,7 +21,8 @@ const win=read("cmd/reverfolio-host/launch_windows.go");
 assert.match(win,/createNoWindow\s*\|\s*createNewProcessGroup/);
 assert.match(win,/HideWindow:\s*true/);
 const launcher=read("scripts/windows/Start-Reverfolio-Hidden.vbs");
-assert.match(launcher,/shell\.Run command, 0, False/i);
+assert.match(launcher,/shell\.Run\(command, 0, True\)/i,"Watchdog should wait for each native host health probe");
+assert.match(launcher,/WScript\.Sleep 300000/i,"Watchdog should periodically verify the local service");
 assert.match(launcher,/--ensure-service/,"Native host reads the configured health endpoint before starting");
 for(const path of ["scripts/windows/Install-Reverfolio.ps1","scripts/windows/Register-ReverfolioNativeHost.ps1","scripts/windows/Run-Reverfolio.ps1","scripts/windows/Initialize-ReverfolioExtension.ps1"]){
  assert.ok(!/[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(read(path)),"Control character in Windows script: "+path);
