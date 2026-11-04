@@ -6,7 +6,6 @@
  * Leaf controls are bound only to Reverfolio's allowlisted settings API.
  */
 const settingTree = [
- {id:"mcp-connection",name:["MCP 连接","MCP connection"],desc:["按引导连接 ChatGPT 或本地 AI 客户端","Connect ChatGPT or a local AI client"],kind:"mcp-connection"},
  {id:"interface",name:["界面与语言","Interface & language"],desc:["界面语言、首页、布局","Language, dashboard and layout"],children:[
    {id:"ui-language",name:["界面语言","Interface language"],desc:["简体中文或 English（保存在 config.toml）","Simplified Chinese or English (saved to config.toml)"],kind:"language"},
    {id:"dashboard",name:["首页总览","Dashboard"],desc:["调整首页的展示方式","Control the overview layout"],children:[
@@ -64,6 +63,7 @@ const settingTree = [
    {id:"backup-location",name:["数据库备份","SQLite backup"],desc:["导出和恢复的安全说明","Export and restore guidance"],kind:"backup"}
  ]},
  {id:"system-settings",name:["运行环境","Runtime"],desc:["本地访问与独立部署","Local access and standalone deployment"],children:[
+  {id:"mcp-connection",name:["MCP 连接","MCP connection"],desc:["按引导连接 ChatGPT 或本地 AI 客户端","Connect ChatGPT or a local AI client"],kind:"mcp-connection"},
    {id:"startup-config",name:["高级启动配置","Advanced startup configuration"],desc:["监听地址、数据库；重启后生效","Listener and database; restart required"],fields:[
  {key:"server.listen",name:["本机监听地址","Loopback listener"],help:["仅允许回环 IP 与端口。保存同步扩展地址；重启服务后访问新地址，并重新加载扩展。","Loopback IP and port only. Saving synchronizes extension metadata. Restart the service, open the new address, and reload the extension."],type:"text",max:100},
  {key:"storage.database",name:["SQLite 数据库路径","SQLite database path"],help:["高级操作：仅可选择已存在的 Reverfolio SQLite 文件。相对路径以配置文件目录为准；不会移动或复制旧数据，重启后生效。","Advanced: select an existing Reverfolio SQLite file. Relative to the config directory. Does not move or copy data. Restart required."],type:"text",max:1000}]},
@@ -238,10 +238,6 @@ function settingsRenderSidebar(){
  const area=$("settings-tree");if(area)area.innerHTML=settingsIndexRows();
 }
 async function settingsHandleAction(button){
- if(button.dataset.action.startsWith("settings-mcp-")){
-  await mcpHandleAction(button.dataset.action.slice("settings-mcp-".length));return;
- }
- if(button.dataset.id==="mcp-connection"){try{state.mcpConnection=await api("/api/mcp-connection");}catch(err){notification(err.message,true);}}
 
  switch(button.dataset.action){
   case "settings-home":{
@@ -293,107 +289,290 @@ async function settingsHandleForm(){
  });
 }
 
-const mcpUI={draftID:null,busy:"",error:"",deadline:0,timer:null,polling:false,advanced:false,pollError:false};
 function mcpActive(){return !!state.data&&state.view==="settings"&&state.settingsSelected==="mcp-connection";}
-function settingsMCPBeforeRender(){
- const input=document.getElementById("mcp-tunnel-id");
- if(input)mcpUI.draftID=input.value;
- const advanced=document.getElementById("mcp-advanced");
- if(advanced)mcpUI.advanced=advanced.open;
-}
+function settingsMCPBeforeRender(){globalThis.ReverfolioMCPConnection?.capture();}
 function settingsMCPAfterRender(){
- clearTimeout(mcpUI.timer);mcpUI.timer=null;
- if(mcpActive())mcpUI.timer=setTimeout(mcpPoll,4000);
+ if(mcpActive())globalThis.ReverfolioMCPConnection?.init();
+ else globalThis.ReverfolioMCPConnection?.unmount();
 }
-async function mcpReadStatus(){
- const previous=JSON.stringify(state.mcpConnection);
- state.mcpConnection=await api("/api/mcp-connection");
- let changed=previous!==JSON.stringify(state.mcpConnection);
- if(mcpUI.pollError||state.mcpConnection.ready){if(mcpUI.error)changed=true;mcpUI.error="";mcpUI.pollError=false;}
- if(mcpUI.busy==="waiting"){
-  if(state.mcpConnection.ready){mcpUI.busy="";mcpUI.error="";changed=true;}
-  else if(Date.now()>mcpUI.deadline){
-   mcpUI.busy="";mcpUI.error=settingsLabel(["连接尚未完成。首次配置请先完成本机窗口中的提示，再重试连接。","Connection is not ready. Finish the prompts in the local setup window, then retry."]);changed=true;
-  }
- }
- return changed;
-}
-async function mcpPoll(){
- if(!mcpActive()||mcpUI.polling)return;
- mcpUI.polling=true;
- try{if(await mcpReadStatus())render();}
- catch(err){
-  const message=settingsLabel(["无法读取连接状态：","Cannot read connection status: "])+String(err.message||err);
-  if(mcpUI.error!==message){mcpUI.error=message;mcpUI.pollError=true;render();}
- }finally{mcpUI.polling=false;settingsMCPAfterRender();}
-}
-async function mcpHandleAction(action){
- if(action==="copy"){
-  await navigator.clipboard.writeText(JSON.stringify(state.mcpConnection?.local_config||{},null,2));
-  notification(settingsLabel(["已复制","Copied"]));return;
- }
- if(mcpUI.busy)return;
- mcpUI.error="";
- try{
-  if(action==="refresh"){await mcpReadStatus();render();return;}
-  const c=state.mcpConnection||{};
-  const tunnel_id=(mcpUI.draftID??c.tunnel_id??"").trim();
-  if(action==="connect"&&!c.configured&&!/^tunnel_(?:[a-z0-9]{32}|[a-z0-9]{4}_[a-z0-9]{32})$/.test(tunnel_id)){
-   mcpUI.error=settingsLabel(["请粘贴 ChatGPT 提供的完整 Tunnel ID。","Paste the complete Tunnel ID provided by ChatGPT."]);render();return;
-  }
-  const post=action=>api("/api/mcp-connection",{method:"POST",body:JSON.stringify({action,tunnel_id})});
-  if(action==="connect"){
-   if(!c.client_installed){mcpUI.busy="preparing";render();await post("install-client");}
-   mcpUI.busy=c.configured?"connecting":"configuring";render();
-   await post(c.configured?"start":"setup");
-  }else{
-   mcpUI.busy=action==="stop"?"stopping":"connecting";render();await post(action);
-  }
-  mcpUI.busy=action==="stop"?"":"waiting";mcpUI.deadline=Date.now()+120000;
-  await mcpReadStatus();render();
- }catch(err){mcpUI.busy="";mcpUI.error=String(err.message||err);render();}
- finally{settingsMCPAfterRender();}
-}
+const mcpTranslations={"本地服务运行中 · Tunnel 未连接": "Local service running · Tunnel disconnected", "本地服务正在运行，但 Tunnel 未连接。点击「连接 Tunnel」，等待就绪后再到 ChatGPT 管理插件。": "The local service is running. Connect the Tunnel and wait until ready before managing the plugin in ChatGPT.", "无法读取系统自启动设置，请检查系统权限或登录会话。": "Unable to read system startup settings. Check system permissions or your login session.", "Tunnel 自动连接": "Connect Tunnel automatically", "本地服务启动后自动连接 Tunnel，修改后重启当前服务生效。": "Connect the Tunnel when the local service starts. Restart the service to apply changes.", "连接 Tunnel": "Connect Tunnel", "断开 Tunnel": "Disconnect Tunnel", "Tunnel 已断开，本地服务仍运行。": "Tunnel disconnected. The local service is still running.", "Tunnel 连接请求已提交，正在检查状态。": "Tunnel connection requested. Checking status.", "已保存。重启服务后，新的自动连接设置生效。": "Saved. Restart the service to apply automatic connection settings.", "Tunnel 自动连接设置已保存。": "Tunnel automatic connection setting saved.", "正在检查…": "Checking…", "本地 Tunnel 服务": "Local Tunnel service", "保存连接配置后启动服务；服务运行时，重启可应用已保存的修改。": "Save your connection settings, then start the service. Restart applies saved changes.", "尚未保存": "Not saved", "下次登录系统时启动。保存不会立即启动或停止当前服务。": "Start at the next sign-in. Saving does not start or stop the current service.", "ChatGPT 插件": "ChatGPT plugin", "本地 Tunnel 就绪后，在 ChatGPT 中创建并启用插件。授权结果以 ChatGPT 为准。": "Once the local Tunnel is ready, create and enable the plugin in ChatGPT. Authorization is handled there.", "本地 MCP 客户端无需 Tunnel ID 或 Runtime API Key。": "Local MCP clients do not need a Tunnel ID or Runtime API Key.", "配置保存在本机，已保存的 API Key 不会返回此页面。": "Settings are kept locally. Saved API keys are never returned to this page.", "创建或管理 Tunnel": "Create or manage a Tunnel", "创建 Runtime API Key": "Create a Runtime API Key", "显示输入的密钥": "Show entered key", "隐藏输入的密钥": "Hide entered key", "已保存的修改等待重启生效。重启服务后再到 ChatGPT 中管理插件。": "Saved changes require a restart. Restart the service before managing the plugin in ChatGPT.", "本地 Tunnel 已就绪。请在 ChatGPT 中创建或管理插件，授权结果以 ChatGPT 为准。": "The local Tunnel is ready. Create or manage the plugin in ChatGPT; authorization is handled there.", "先启动本地 Tunnel 并等待就绪，再到 ChatGPT 中创建或管理插件。": "Start the local Tunnel and wait until it is ready before managing the plugin in ChatGPT.", "本地服务开机自启": "Start local service at login", "启动服务": "Start Service", "重启服务": "Restart Service", "本地 MCP 客户端（STDIO）": "Local MCP clients (STDIO)", "复制本地配置": "Copy local configuration", "打开 ChatGPT 插件设置": "Open ChatGPT plugin settings", "连接": "Connect", "创建": "Create", "保存": "Save", "刷新": "Refresh", "复制": "Copy", "失败": "Failed", "更新": "Update", "检测": "Detect", "状态": "Status", "设置": "Settings", "未配置": "Not configured", "已更新": "Updated", "运行中": "Running", "正在保存": "Saving", "启用": "Enabled", "等待": "Waiting", "连接状态": "Connection status", "未连接": "Disconnected", "保存失败，之前的配置已保留。": "Save failed. The previous configuration was retained."};
+Object.assign(mcpTranslations,{"保存超时；请核对 Tunnel ID 和 Runtime API Key。": "Save timed out. Check the Tunnel ID and Runtime API Key.", "停止服务": "Stop Service", "原有配置已确认，无需再次写入。": "The saved configuration is unchanged.", "已保存；可修改后再次保存": "Saved; edit and save to replace", "已保存；留空则复用": "Saved; leave blank to reuse", "已停止": "Stopped", "已提交配置校验；保存成功前不会启动服务。": "Validating configuration. Saving does not start the service.", "开机自启设置已更新，不会影响当前服务。": "Login startup updated. The current service is unchanged.", "操作已提交，正在刷新服务状态。": "Action submitted. Refreshing service status.", "本地配置已复制。": "Local configuration copied.", "检测到非手动填入的 Tunnel ID，已恢复原值。": "Automatic Tunnel ID input was rejected. The saved value was restored.", "正在启动 / 未就绪": "Starting / not ready", "等待重启": "Restart required", "请输入 Runtime API Key。": "Enter a Runtime API Key.", "请输入有效的非测试 Tunnel ID。": "Enter a valid, non-example Tunnel ID.", "配置已保存。": "Configuration saved."});
+globalThis.ReverfolioMCPText=text=>state.lang==="en"?(mcpTranslations[text]||text):text;
+const mcpPanelMarkup="<section id=\"mcpConnectionSettings\" class=\"mcp-setup\">\n          <div class=\"mcp-workflow\">\n            <div class=\"mcp-workflow-header\">\n              <span>连接状态</span>\n              <span id=\"mcpConnectionStatus\" class=\"mcp-status-chip\" role=\"status\" aria-live=\"polite\" data-kind=\"idle\">\n                <span class=\"mcp-status-dot\" aria-hidden=\"true\"></span>\n                <span id=\"mcpConnectionStatusText\">正在检查…</span>\n              </span>\n            </div>\n            <section class=\"mcp-flow-section\" aria-labelledby=\"mcpLocalTitle\">\n              <div class=\"mcp-section-heading\">\n                <span class=\"mcp-step\" aria-hidden=\"true\">01</span>\n                <div>\n                  <h3 id=\"mcpLocalTitle\">本地 Tunnel 服务</h3>\n                  <p>保存连接配置后启动服务；服务运行时，重启可应用已保存的修改。</p>\n                </div>\n              </div>\n              <div class=\"mcp-flow-body\">\n                <div class=\"mcp-field\">\n                  <div class=\"mcp-field-heading\">\n                    <label for=\"mcpTunnelID\">Tunnel ID</label>\n                    <a class=\"mcp-help\" href=\"https://platform.openai.com/settings/organization/tunnels\" target=\"_blank\" rel=\"noopener noreferrer\" title=\"创建或管理 Tunnel\" aria-label=\"创建或管理 Tunnel\">?</a>\n                  </div>\n                  <input id=\"mcpTunnelID\" name=\"reverfolio-tunnel-id\" type=\"text\" spellcheck=\"false\" autocomplete=\"off\" maxlength=\"80\" readonly>\n                  <small id=\"mcpTunnelHint\">尚未保存</small>\n                </div>\n                <div class=\"mcp-field\">\n                  <div class=\"mcp-field-heading\">\n                    <label for=\"mcpRuntimeKey\">Runtime API Key</label>\n                    <a class=\"mcp-help\" href=\"https://platform.openai.com/settings/organization/api-keys\" target=\"_blank\" rel=\"noopener noreferrer\" title=\"创建 Runtime API Key\" aria-label=\"创建 Runtime API Key\">?</a>\n                  </div>\n                  <div class=\"mcp-key-input\">\n                    <input id=\"mcpRuntimeKey\" name=\"reverfolio-tunnel-key\" type=\"password\" spellcheck=\"false\" autocomplete=\"new-password\" maxlength=\"512\" readonly>\n                    <button id=\"mcpKeyReveal\" class=\"mcp-reveal\" type=\"button\" disabled aria-pressed=\"false\" aria-label=\"显示输入的密钥\" title=\"显示输入的密钥\">\n                      <svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\" aria-hidden=\"true\">\n                        <path d=\"M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z\"/>\n                        <circle cx=\"12\" cy=\"12\" r=\"3\"/>\n                      </svg>\n                    </button>\n                  </div>\n                  <small id=\"mcpRuntimeHint\">尚未保存</small>\n                </div>\n                <label class=\"mcp-preference\" for=\"mcpAutoStart\">\n                  <input id=\"mcpAutoStart\" type=\"checkbox\" disabled>\n                  <span><strong>本地服务开机自启</strong><small>下次登录系统时启动。保存不会立即启动或停止当前服务。</small></span>\n                </label>\n                <small id=\"mcpStartupError\" class=\"mcp-startup-error\" role=\"status\" aria-live=\"polite\"></small>\n                <label class=\"mcp-preference mcp-auto-connect\" for=\"mcpAutoConnect\">\n                  <input id=\"mcpAutoConnect\" type=\"checkbox\" checked disabled>\n                  <span><strong>Tunnel 自动连接</strong><small>本地服务启动后自动连接 Tunnel，修改后重启当前服务生效。</small></span>\n                </label>\n                <div class=\"mcp-button-row\">\n                  <button id=\"mcpSave\" class=\"mcp-primary\" type=\"button\">保存</button>\n                  <button id=\"mcpConnect\" class=\"mcp-secondary\" type=\"button\" disabled>启动服务</button>\n                  <button id=\"mcpRestart\" class=\"mcp-secondary\" type=\"button\" disabled>重启服务</button>\n                </div>\n                <div class=\"mcp-tunnel-actions\">\n                  <button id=\"mcpTunnelToggle\" class=\"mcp-secondary\" type=\"button\" disabled>连接 Tunnel</button>\n                </div>\n                <p id=\"mcpConnectionMessage\" class=\"mcp-message\" role=\"status\" aria-live=\"polite\"></p>\n              </div>\n            </section>\n            <section class=\"mcp-flow-section mcp-plugin-panel\" aria-labelledby=\"mcpPluginTitle\">\n              <div class=\"mcp-section-heading\">\n                <span class=\"mcp-step\" aria-hidden=\"true\">02</span>\n                <div>\n                  <h3 id=\"mcpPluginTitle\">ChatGPT 插件</h3>\n                  <p id=\"mcpPluginDescription\">本地 Tunnel 就绪后，在 ChatGPT 中创建并启用插件。授权结果以 ChatGPT 为准。</p>\n                </div>\n              </div>\n              <div class=\"mcp-flow-body\">\n                <a class=\"mcp-plugin-link\" href=\"https://chatgpt.com/plugins\" target=\"_blank\" rel=\"noopener noreferrer\">\n                  打开 ChatGPT 插件设置\n                  <svg viewBox=\"0 0 24 24\" width=\"15\" height=\"15\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M14 5h5v5M19 5l-9 9M18 13v5H5V6h5\"/></svg>\n                </a>\n                <details class=\"mcp-setup-advanced\">\n                  <summary>本地 MCP 客户端（STDIO）</summary>\n                  <p>本地 MCP 客户端无需 Tunnel ID 或 Runtime API Key。</p>\n                  <pre id=\"mcpLocalConfig\" class=\"mcp-local-config\"></pre>\n                  <button id=\"mcpCopyConfig\" class=\"mcp-secondary\" type=\"button\">复制本地配置</button>\n                </details>\n              </div>\n            </section>\n          </div>\n          <p class=\"mcp-footer\">配置保存在本机，已保存的 API Key 不会返回此页面。</p>\n        </section>";
 function mcpSettingsPanel(){
- const c=state.mcpConnection||{},ready=!!c.ready,busy=!!mcpUI.busy;
- const L=settingsLabel;
- const chatGPTSettingsURL="https://chatgpt.com/settings/plugins-settings";
- const chatGPTLink=(label,classes="")=>'<a class="'+classes+'" href="'+chatGPTSettingsURL+'" target="_blank" rel="noopener noreferrer">'+E(L(label))+'</a>';
- const button=(action,label,primary=false)=>'<button type="button" class="btn'+(primary?' btn-primary':'')+'" data-action="settings-mcp-'+action+'"'+(busy?' disabled':'')+'>'+E(L(label))+'</button>';
- const phase={
-  preparing:["正在准备连接…","Preparing your connection…"],
-  configuring:["正在打开本机配置…","Opening local setup…"],
-  connecting:["正在连接…","Connecting…"],
-  waiting:["正在检查连接…","Checking the connection…"],
-  stopping:["正在断开连接…","Disconnecting…"]
- };
- let title,description;
- if(busy){
-  title=phase[mcpUI.busy]||phase.waiting;
-  description=mcpUI.busy==="waiting"&&!c.configured
-   ?["首次连接请在本机配置窗口中输入运行密钥；已有凭据会自动复用。完成后本页会自动继续。","For a first connection, enter your runtime key in the local setup window. Saved credentials are reused. This page will continue automatically."]
-   :["请稍候，连接状态会自动更新。","Please wait. Connection status updates automatically."];
- }else if(ready){
-  title=["本机连接已就绪","Your local connection is ready"];
-  description=["在插件设置中打开 Reverfolio，按提示启用或授权。已经连接过，可直接开始聊天。","Open Reverfolio in plugin settings to enable it or complete authorization. If already connected, start chatting."];
- }else if(c.configured){
-  title=["连接已保存","Your connection is saved"];
-  description=["点击连接即可启动本机服务，无需重新填写配置。","Connect to start the local service. You do not need to enter the configuration again."];
- }else{
-  title=["连接到 ChatGPT","Connect to ChatGPT"];
-  description=["在 ChatGPT 的自定义 MCP 连接中选择 Tunnel，将页面提供的 Tunnel ID 粘贴到下方。","Choose Tunnel when creating a custom MCP connection in ChatGPT, then paste the provided Tunnel ID below."];
- }
- const step=ready?3:(c.configured||busy?2:1);
- const steps=[["填写连接信息","Connection details"],["启动本机连接","Start local connection"],["在 ChatGPT 中启用","Enable in ChatGPT"]];
- const progress='<ol class="mcp-steps" aria-label="'+E(L(["连接步骤","Connection steps"]))+'">'+steps.map((label,i)=>'<li class="'+(i+1===step?'current':i+1<step?'done':'')+'"'+(i+1===step?' aria-current="step"':'')+'><span>'+(i+1<step?'✓':i+1)+'</span>'+(i===2?chatGPTLink(label):E(L(label)))+'</li>').join("")+'</ol>';
- const input=!c.configured?'<label class="mcp-id-field" for="mcp-tunnel-id">Tunnel ID<input id="mcp-tunnel-id" autocomplete="off" spellcheck="false" maxlength="80" value="'+E(mcpUI.draftID??c.tunnel_id??"")+'" placeholder="tunnel_…"'+(busy?' disabled':'')+'></label>':"";
- const action=(!ready||busy)?'<div class="mcp-main-action">'+button("connect",busy?phase[mcpUI.busy]:(mcpUI.error?["重试连接","Retry connection"]:c.configured?["连接","Connect"]:["连接 ChatGPT","Connect ChatGPT"]),true)+'</div>':'<div class="mcp-main-action">'+chatGPTLink(["打开 ChatGPT 插件设置","Open ChatGPT plugin settings"],"btn btn-primary")+'</div>';
- const advanced='<details id="mcp-advanced" class="mcp-advanced"'+(mcpUI.advanced?' open':'')+'><summary>'+E(L(["高级选项与本地客户端","Advanced options and local clients"]))+'</summary>'+
-  (c.tunnel_id?'<p class="muted">Tunnel ID: <code>'+E(c.tunnel_id)+'</code></p>':"")+
-  '<div class="btn-row">'+(c.configured?button("restart",["重新连接","Reconnect"])+button("stop",["断开连接","Disconnect"]):"")+button("refresh",["检查连接","Check connection"])+'</div>'+
-  '<h3>'+E(L(["用于本地 AI 客户端","For a local AI client"]))+'</h3><p class="muted">'+E(L(["仅在本机 AI 客户端需要 JSON 配置时使用。","Use this only if your local AI client requires JSON configuration."]))+'</p>'+
-  '<pre>'+E(JSON.stringify(c.local_config||{},null,2))+'</pre>'+button("copy",["复制本地配置","Copy local configuration"])+'</details>';
- return '<div class="mcp-guide">'+progress+'<section class="mcp-connection-card'+(ready?' is-ready':'')+'" aria-busy="'+busy+'">'+
- '<div class="mcp-state-symbol" aria-hidden="true">'+(ready?'✓':busy?'…':'↗')+'</div><h3>'+E(L(title))+'</h3><p class="mcp-description" role="status" aria-live="polite">'+E(L(description))+'</p>'+
- input+(mcpUI.error?'<p class="mcp-error" role="alert">'+E(mcpUI.error)+'</p>':"")+action+'</section>'+advanced+'</div>';
+ let markup=mcpPanelMarkup;
+ if(state.lang==="en")for(const [zh,en] of Object.entries(mcpTranslations).sort((a,b)=>b[0].length-a[0].length))markup=markup.split(zh).join(E(en));
+ return markup;
 }
+
+globalThis.ReverfolioMCPAPI={
+ errorMessage:error=>String(error?.message||error),
+ async send(type,input={}){
+  if(type==='reverfolio.mcp.connection.get')return {connection:await api('/api/mcp-connection')};
+  const payload={action:input.action};
+  if(input.action==='save')Object.assign(payload,{
+   tunnel_id:input.tunnelId,runtime_api_key:input.runtimeApiKey,reuse_key:input.reuseKey,
+   replace:input.replace,previous_tunnel_id:input.previousTunnelId
+  });
+  return api('/api/mcp-connection',{method:'POST',body:JSON.stringify(payload)});
+ }
+};
+'use strict';
+(function(root){
+ const PATTERN=/^tunnel_(?:[a-z0-9]{32}|[a-z0-9]{4}_[a-z0-9]{32})$/;
+ const EXAMPLE='tunnel_0123456789abcdef0123456789abcdef';
+ const $=id=>document.getElementById(id);
+ const t=text=>root.ReverfolioMCPText(text);
+ const state={status:{},busy:false,pending:null,editedID:false,editedKey:false,autoStart:false,autoKnown:false,initialized:false,stopPoll:null};
+ const validID=id=>PATTERN.test(id)&&id!==EXAMPLE;
+ const running=s=>Boolean(s.running||s.ready);
+ const controls=(s,{id,key,busy=false,pending=false}={})=>{
+  const changed=Boolean((id||'')!==(s.tunnel_id||'')||key);
+  const stored=Boolean(s.configured&&s.runtime_key_saved&&validID(s.tunnel_id));
+  const active=running(s);
+  return {
+   canSave:!busy&&!pending,
+   canStart:!active&&stored&&!changed&&!busy&&!pending,
+   canStop:active&&!busy&&!pending,
+   canRestart:active&&stored&&!changed&&!busy&&!pending,
+   canAutoStart:stored&&!changed&&!busy&&!pending,
+   changed,active,stored
+  };
+ };
+ function message(text,error=false) {
+  if(!$('mcpConnectionMessage'))return;
+  $('mcpConnectionMessage').textContent=text||'';
+  $('mcpConnectionMessage').className=error?'mcp-message error':'mcp-message';
+ }
+ function form() {
+  const input=$('mcpTunnelID'), key=$('mcpRuntimeKey');
+  return {id:input?.value?.trim()||'',key:key?.value?.trim()||'',busy:state.busy,pending:!!state.pending};
+ }
+ function show() {
+  if(!$('mcpConnectionSettings'))return;
+  const s=state.status,c=controls(s,form()),run=running(s);
+  $('mcpSave').disabled=!c.canSave;
+  $('mcpConnect').disabled=run?!c.canStop:!c.canStart;
+  $('mcpConnect').textContent=run?t('停止服务'):t('启动服务');
+  $('mcpRestart').disabled=!c.canRestart;
+  const connectPref=$('mcpAutoConnect');
+  if(connectPref){
+   connectPref.disabled=!c.canAutoStart||!s.configured;
+   connectPref.checked=s.tunnel_auto_connect!==false;
+  }
+  const toggle=$('mcpTunnelToggle');
+  if(toggle) {
+   const connecting=Boolean(s.tunnel_connecting||s.ready);
+   toggle.textContent=connecting?t('断开 Tunnel'):t('连接 Tunnel');
+   toggle.disabled=state.busy||!!state.pending||!run||(!connecting&&c.changed)||(!connecting&&s.restart_required);
+  }
+  if($('mcpAutoStart')) {
+   $('mcpAutoStart').disabled=!c.canAutoStart||!state.autoKnown;
+   $('mcpAutoStart').checked=state.autoStart;
+  }
+  let label=t('未配置'),kind='disabled';
+  if(state.pending){label=t('正在保存');kind='checking';}
+  else if(s.restart_required&&run){label=t('等待重启');kind='checking';}
+  else if(s.ready){label='Ready';kind='ok';}
+  else if(run&&!s.tunnel_connecting){label=t('本地服务运行中 · Tunnel 未连接');kind='disabled';}
+  else if(run){label=t('正在启动 / 未就绪');kind='checking';}
+  else if(s.configured){label=t('已停止');kind='disabled';}
+  $('mcpConnectionStatusText').textContent=label;
+  const statusChip=$('mcpConnectionStatus');
+  const chipKind=kind==='ok'?'ready':kind==='checking'?'pending':'idle';
+  if(statusChip.dataset) statusChip.dataset.kind=chipKind;
+  else if(statusChip.setAttribute) statusChip.setAttribute('data-kind',chipKind);
+  $('mcpPluginDescription').textContent=s.restart_required&&run
+    ? t('已保存的修改等待重启生效。重启服务后再到 ChatGPT 中管理插件。')
+    : s.ready
+      ? t('本地 Tunnel 已就绪。请在 ChatGPT 中创建或管理插件，授权结果以 ChatGPT 为准。')
+      : run&&!s.tunnel_connecting
+        ? t('本地服务正在运行，但 Tunnel 未连接。点击「连接 Tunnel」，等待就绪后再到 ChatGPT 管理插件。')
+        : t('先启动本地 Tunnel 并等待就绪，再到 ChatGPT 中创建或管理插件。');
+  $('mcpTunnelHint').textContent=s.configured?t('已保存；可修改后再次保存'):t('尚未保存');
+  $('mcpRuntimeHint').textContent=s.runtime_key_saved?t('已保存；留空则复用'):t('尚未保存');
+  const reveal=$('mcpKeyReveal');
+  if(reveal) {
+   reveal.disabled=!$('mcpRuntimeKey').value;
+   if(reveal.disabled) {
+    $('mcpRuntimeKey').type='password';
+    reveal.setAttribute?.('aria-pressed','false');
+    reveal.setAttribute?.('aria-label',t('显示输入的密钥'));
+   }
+  }
+ }
+ function intendedInput(el,value) {
+  if(!el)return;
+  el.value=value;
+  el.readOnly=true;
+  el.autocomplete='off';
+  el.setAttribute('data-lpignore','true');
+  el.setAttribute('data-1p-ignore','true');
+  el.setAttribute('data-bwignore','true');
+  const unlock=()=>{el.readOnly=false;};
+  for(const evt of ['keydown','pointerdown','paste'])el.addEventListener(evt,unlock);
+  el.addEventListener('focus',()=>{
+    const intended=el.id==='mcpTunnelID'
+      ? (state.editedID?el.value:(state.status.tunnel_id||''))
+      : (state.editedKey?el.value:'');
+    if(el.value!==intended)el.value=intended;
+  });
+  el.addEventListener('input',()=>{
+   if(document.activeElement!==el||el.matches?.(':-webkit-autofill')) {
+    el.value=value;return;
+   }
+   if(el.id==='mcpTunnelID')state.editedID=true;
+   else state.editedKey=true;
+   message('');
+   show();
+  });
+ }
+ async function refresh(){
+  if(state.busy)return;
+  try{
+   const result=await root.ReverfolioMCPAPI.send('reverfolio.mcp.connection.get');
+   const s=result.connection||{};
+   state.status=s;
+   if(!$('mcpConnectionSettings'))return;
+   if(!state.editedID&&document.activeElement!==$('mcpTunnelID'))$('mcpTunnelID').value=s.tunnel_id||'';
+   $('mcpRuntimeKey').placeholder=s.runtime_key_saved?'****************':'';
+   $('mcpLocalConfig').textContent=JSON.stringify(s.local_config||{},null,2);
+   const pending=state.pending;
+   if(pending){
+    if(s.setup_state==='failed'){state.pending=null;message(t('保存失败，之前的配置已保留。'),true);}
+    else if(s.setup_state==='succeeded'&&s.revision&&s.revision!==pending.revision&&s.tunnel_id===pending.id){
+     state.pending=null;
+     state.editedID=false;state.editedKey=false;
+     $('mcpTunnelID').value=s.tunnel_id;
+     $('mcpRuntimeKey').value='';
+     message(t('配置已保存。'));
+    }else if(Date.now()>pending.deadline){state.pending=null;message(t('保存超时；请核对 Tunnel ID 和 Runtime API Key。'),true);}
+   }
+   show();
+  }catch(e){message(root.ReverfolioMCPAPI.errorMessage(e),true);}
+ }
+ async function action(action){
+  if(state.busy||state.pending)return;
+  const s=state.status,c=controls(s,form());
+  if(action==='start'&&!c.canStart||action==='stop'&&!c.canStop||
+     action==='restart'&&!c.canRestart)return;
+  const id=$('mcpTunnelID').value.trim();
+  // Ignore silent password-manager injection: only user-initiated input may rotate the key.
+  const key=state.editedKey ? $('mcpRuntimeKey').value.trim() : '';
+  if(action==='save'&&!state.editedID&&id!==(s.tunnel_id||'')){
+   $('mcpTunnelID').value=s.tunnel_id||'';
+   message(t('检测到非手动填入的 Tunnel ID，已恢复原值。'),true);
+   show();return;
+  }
+  if(action==='save'){
+   if(!validID(id)){message(t('请输入有效的非测试 Tunnel ID。'),true);return;}
+   if(!key&&!s.runtime_key_saved){message(t('请输入 Runtime API Key。'),true);return;}
+   if(id===s.tunnel_id&&!key&&s.configured&&s.runtime_key_saved){
+    state.editedID=false;state.editedKey=false;$('mcpRuntimeKey').value='';
+    message(t('原有配置已确认，无需再次写入。'));
+    show();return;
+   }
+  }
+  state.busy=true;show();
+  try{
+   if(action==='save'&&!s.client_installed){
+    await root.ReverfolioMCPAPI.send('reverfolio.mcp.connection.action',{action:'install-client'});
+   }
+   await root.ReverfolioMCPAPI.send('reverfolio.mcp.connection.action',{
+    action,tunnelId:id,runtimeApiKey:action==='save'?key:'',
+    reuseKey:action==='save'&&!key,
+    replace:action==='save'&&!!s.configured,previousTunnelId:s.tunnel_id||''
+   });
+   if(action==='save'){
+    state.pending={id,revision:s.revision||'',deadline:Date.now()+120000};
+    if($('mcpRuntimeKey'))$('mcpRuntimeKey').value='';
+    message(t('已提交配置校验；保存成功前不会启动服务。'));
+   }else message(t('操作已提交，正在刷新服务状态。'));
+  }catch(e){message(root.ReverfolioMCPAPI.errorMessage(e),true);}
+  finally{state.busy=false;await refresh();}
+ }
+ async function autoStatus(){
+  try{
+   const r=await root.ReverfolioMCPAPI.send('reverfolio.mcp.connection.action',{action:'auto-status'});
+   state.autoStart=!!r.auto_start;state.autoKnown=true;
+    if($('mcpStartupError'))$('mcpStartupError').textContent='';
+  }catch(e){
+    state.autoKnown=false;
+    if($('mcpStartupError'))$('mcpStartupError').textContent=t('无法读取系统自启动设置，请检查系统权限或登录会话。');
+  }
+  show();
+ }
+   async function autoConnectChanged(){
+   if(state.busy||state.pending)return;
+   const c=controls(state.status,form());
+   if(!c.canAutoStart){show();return;}
+   const wanted=!!$('mcpAutoConnect').checked;
+   state.busy=true;show();
+   try {
+    await root.ReverfolioMCPAPI.send('reverfolio.mcp.connection.action',{action:wanted?'auto-connect-enable':'auto-connect-disable'});
+    message(state.status.running?t('已保存。重启服务后，新的自动连接设置生效。'):t('Tunnel 自动连接设置已保存。'));
+   }catch(e){message(root.ReverfolioMCPAPI.errorMessage(e),true);}
+   finally{state.busy=false;await refresh();}
+  }
+  async function tunnelChanged(){
+   const s=state.status;
+   if(state.busy||state.pending||!running(s))return;
+   const connecting=Boolean(s.tunnel_connecting||s.ready);
+   if(!connecting&&(!controls(s,form()).stored||controls(s,form()).changed||s.restart_required))return;
+   state.busy=true;show();
+   try {
+    await root.ReverfolioMCPAPI.send('reverfolio.mcp.connection.action',{action:connecting?'disconnect':'connect'});
+    message(connecting?t('Tunnel 已断开，本地服务仍运行。'):t('Tunnel 连接请求已提交，正在检查状态。'));
+   }catch(e){message(root.ReverfolioMCPAPI.errorMessage(e),true);}
+   finally{state.busy=false;await refresh();}
+  }
+async function autoChanged(){
+  if(state.busy||state.pending)return;
+  const c=controls(state.status,form());
+  if(!c.canAutoStart){show();return;}
+  const desired=$('mcpAutoStart').checked;
+  state.busy=true;show();
+  try{
+   const r=await root.ReverfolioMCPAPI.send('reverfolio.mcp.connection.action',{action:desired?'auto-enable':'auto-disable'});
+   state.autoStart=!!r.auto_start;
+   message(t('开机自启设置已更新，不会影响当前服务。'));
+  }catch(e){message(root.ReverfolioMCPAPI.errorMessage(e),true);}
+  finally{state.busy=false;show();}
+ }
+ function init(){
+  const panel=$('mcpConnectionSettings');
+  if(state.panel===panel)return;
+  state.stopPoll?.();state.panel=panel;state.initialized=true;
+  const advanced=panel.querySelector?.('details');if(advanced)advanced.open=!!state.advanced;
+  intendedInput($('mcpTunnelID'),state.editedID?state.draftID||'':state.status.tunnel_id||'');
+  intendedInput($('mcpRuntimeKey'),state.editedKey?state.draftKey||'':'');
+  $('mcpSave').addEventListener('click',()=>action('save'));
+  $('mcpConnect').addEventListener('click',()=>action(running(state.status)?'stop':'start'));
+  $('mcpRestart').addEventListener('click',()=>action('restart'));
+  $('mcpAutoStart')?.addEventListener('change',autoChanged);
+  $('mcpAutoConnect')?.addEventListener('change',autoConnectChanged);
+  $('mcpTunnelToggle')?.addEventListener('click',tunnelChanged);
+  $('mcpKeyReveal')?.addEventListener('click',()=>{
+   const input=$('mcpRuntimeKey'),reveal=$('mcpKeyReveal');
+   if(!input.value || reveal.disabled)return;
+   const showing=input.type==='password';
+   input.type=showing?'text':'password';
+   reveal.setAttribute('aria-pressed',String(showing));
+   reveal.setAttribute('aria-label',showing?t('隐藏输入的密钥'):t('显示输入的密钥'));
+   reveal.title=showing?t('隐藏输入的密钥'):t('显示输入的密钥');
+  });
+  $('mcpCopyConfig').addEventListener('click',async()=>{
+   try{await navigator.clipboard.writeText(JSON.stringify(state.status.local_config||{},null,2));message(t('本地配置已复制。'));}
+   catch(e){message(root.ReverfolioMCPAPI.errorMessage(e),true);}
+  });
+  const poll=root.setInterval(()=>{
+   if(mcpActive())refresh();
+  },4000);
+  state.stopPoll=()=>root.clearInterval(poll);
+  refresh();autoStatus();
+ }
+ root.ReverfolioMCPConnection={init,refresh,controls,validID,
+  capture(){if(!state.panel?.isConnected)return;state.advanced=!!state.panel.querySelector?.('details')?.open;state.draftID=$('mcpTunnelID').value;state.draftKey=$('mcpRuntimeKey').value;},
+  unmount(){state.stopPoll?.();state.panel=null;}
+ };
+})(globalThis);

@@ -1,0 +1,5 @@
+MCP lifecycle, connection workflow and tests adapted from ThinkerQAQ/SyndiRelay.
+Source: https://github.com/ThinkerQAQ/syndirelay/pull/29
+Commit: 01d99150cf8a1e15f7570c24f22fc9ce0d5caa2c
+License: MIT (included alongside this notice).
+Adaptations: Reverfolio configuration and STDIO command, HTTP routing, shared UI integration and branding.

@@ -62,6 +62,12 @@ func apiToken(path string) (string, error) {
 	return token, closeErr
 }
 func main() {
+	if len(os.Args) > 1 && (os.Args[1] == "mcp" || os.Args[1] == "tunnel-run") {
+		if err := runMCPCommand(os.Args[1:]); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 	addr := flag.String("listen", echo.DefaultConfig().Server.Listen, "loopback listen address")
 	dbPath := flag.String("db", "data/reverfolio.sqlite", "private SQLite database path")
 	restore := flag.String("restore", "", "restore a backup to a NEW -db path and exit")
@@ -96,6 +102,11 @@ func main() {
 			if _, statErr := os.Stat(candidate); statErr == nil {
 				*configPath = candidate
 			}
+		}
+	}
+	if *configPath != "" {
+		if err := echo.SetMCPConfigPath(*configPath); err != nil {
+			log.Fatal(err)
 		}
 	}
 	settings := echo.NewConfigManager(*configPath)

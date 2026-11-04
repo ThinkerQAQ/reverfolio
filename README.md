@@ -81,9 +81,9 @@ This connects your local installation to your own ChatGPT connection. Your accou
 
 1. Open [OpenAI Tunnel management](https://platform.openai.com/settings/organization/tunnels), select your organization, and create a Reverfolio Tunnel or reuse a dedicated one. Keep its Tunnel ID. Creation requires Tunnels Read + Manage; the Tunnel must match the intended ChatGPT workspace. Stop the previous installation's MCP runtime before reusing its Tunnel; do not run two clients for the same Tunnel.
 2. In that organization's [Runtime API keys](https://platform.openai.com/settings/organization/api-keys), create a restricted runtime key with Tunnels Read + Use, or reuse a suitable key. Do not run the service with an Admin API key.
-3. In Reverfolio, open **Settings → MCP connection**, paste the Tunnel ID and select **Connect ChatGPT**. The guide downloads and installs the official client if missing.
-4. Enter the prepared runtime key when prompted locally. Do not paste it into chat. Saved credentials are reused. Windows uses a local setup window; Linux/macOS use the terminal prompt for initial credentials.
-5. Wait for **Your local connection is ready**, then select **Open ChatGPT plugin settings**. For a new connection, add a custom MCP named Reverfolio, choose **Tunnel**, select the same Tunnel, and finish installation/authorization. For an existing connection, open its entry to enable or refresh it. See [ChatGPT plugin documentation](https://learn.chatgpt.com/docs/plugins) for interface and account restrictions.
+3. In Reverfolio, open **Settings → Runtime → MCP connection**, enter the Tunnel ID and Runtime API Key, then select **Save**. A missing official client is downloaded and verified automatically. Failed validation retains the previous configuration.
+4. Select **Start Service** and wait for **Ready**. Saving updates configuration; select **Restart Service** to apply changes to a running service. **Disconnect Tunnel** leaves the local Tunnel service running; **Stop Service** stops that process.
+5. Select **Open ChatGPT plugin settings**. Add a custom MCP named Reverfolio, choose **Tunnel**, select the same Tunnel and complete authorization, or enable/refresh your existing plugin entry.
 6. Select that connection in ChatGPT and send this read-only check:
 
 ```text
@@ -93,6 +93,21 @@ Do not collect or change data, and do not output credentials.
 ```
 
 Seeing the registered project confirms that ChatGPT reads this installation. Local readiness confirms tunnel health; it does not confirm ChatGPT authorization. Runtime key creation and permissions are described by the [official tunnel-client](https://github.com/openai/tunnel-client).
+
+**Start local service at login** controls next-login startup; **Connect Tunnel automatically** controls whether that service connects on start. These settings are independent. Enter credentials only in the local application. Windows protects saved keys with DPAPI; saved keys are never returned to the page. This implementation does not read the old script-managed MCP configuration; enter connection details again.
+
+The CLI shares the GUI management implementation. Run from the installation root (use `bin\reverfolio.exe` on Windows):
+
+```bash
+./bin/reverfolio mcp status
+./bin/reverfolio mcp start
+./bin/reverfolio mcp restart
+./bin/reverfolio mcp connect
+./bin/reverfolio mcp disconnect
+./bin/reverfolio mcp stop
+```
+
+`mcp configure` reads JSON containing `tunnel_id` and `runtime_api_key` from standard input; `reuse_key: true` reuses the saved key. Never pass keys as command-line arguments. Use `mcp auto-enable` / `auto-disable` for login startup and `mcp auto-connect-enable` / `auto-connect-disable` for automatic connection. Add `--config /path/to/config.toml` for a custom configuration.
 
 ### 2.5. Complete the first-use workflow
 
@@ -117,7 +132,7 @@ Configuration is stored in `config.toml` at the installation root; the database 
 
 | Need | Settings location | When it applies |
 | --- | --- | --- |
-| ChatGPT connection or local client configuration | MCP connection | Follow the connection check |
+| ChatGPT connection or local client configuration | Runtime → MCP connection | Save, then start or restart the Tunnel service |
 | Language, layout and overview sections | Interface & language | After saving |
 | GitHub credential source | Data sources → GitHub → GitHub authentication | Service restart |
 | Collection interval and download scope | Data sources → GitHub | Interval within one minute; display scope after saving |
@@ -196,7 +211,7 @@ An upstream merge proves contribution acceptance; reposts and directories prove 
 
 ### 4.5. Connect a local MCP client
 
-Open **Settings → MCP connection → Advanced options and local clients**, copy the generated JSON into your local AI client's MCP configuration and reconnect. It uses absolute paths for this installation, avoiding another person's directory layout.
+Open **Settings → Runtime → MCP connection → Local MCP clients (STDIO)**, copy the generated JSON into your local AI client's MCP configuration and reconnect. It uses absolute paths for this installation, avoiding another person's directory layout.
 
 Call `list_works` and `get_collection_status` to confirm it reads the same data. Local stdio needs no ChatGPT Tunnel and does not start a second collection scheduler. Writes need a unique `request_id`; reviews and event updates also require the expected version.
 
