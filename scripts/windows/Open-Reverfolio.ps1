@@ -3,7 +3,7 @@ $ErrorActionPreference = 'Stop'
 $Root = $PSScriptRoot
 & (Join-Path $Root 'Install-Reverfolio.ps1')
 $config = [System.IO.File]::ReadAllText((Join-Path $Root 'config.toml'))
-$match = [regex]::Match($config, '(?m)^listen\s*=\s*"(127\.0\.0\.1:\d+|\[::1\]:\d+)"')
+$match = [regex]::Match($config, '(?m)^\s*listen\s*=\s*"(127\.0\.0\.1:\d+|\[::1\]:\d+)"')
 if (!$match.Success) { throw 'Expected a loopback listen address in config.toml' }
 $url = 'http://' + $match.Groups[1].Value
 $ready = $false

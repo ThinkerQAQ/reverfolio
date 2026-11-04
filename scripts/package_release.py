@@ -62,8 +62,6 @@ for operating_system in ('windows', 'linux', 'darwin'):
             shutil.copy2(licenses, root / 'THIRD_PARTY_LICENSES.txt')
             (root / 'scripts').mkdir()
             shutil.copytree(ROOT / 'third_party', root / 'third_party')
-            for script in ('setup-mcp.sh', 'manage-mcp.sh', 'Setup-Reverfolio-MCP.ps1', 'Manage-Reverfolio-MCP.ps1'):
-                shutil.copy2(ROOT / 'scripts' / script, root / 'scripts' / script)
             if operating_system != 'windows':
                 shutil.copy2(ROOT / 'scripts/Open-Reverfolio.sh', root / 'Open-Reverfolio.sh')
             shutil.copy2(ROOT / 'scripts/publications_to_catalog.py', root / 'scripts/publications_to_catalog.py')

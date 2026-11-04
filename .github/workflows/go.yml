@@ -35,8 +35,8 @@ jobs:
       - name: Verify all resolved dependency licenses can be bundled
         run: python scripts/bundle_dependency_licenses.py --check
       - run: go build ./cmd/reverfolio
+      - name: Verify native Tunnel lifecycle with synthetic credentials
+        if: runner.os == 'Linux'
+        run: python scripts/test_native_mcp.py --binary ./reverfolio
       - name: Verify real MCP protocol and 39-tool contract with an isolated database
         run: python scripts/check_mcp_contract.py --fixture
-      - name: Check Windows MCP command survives tunnel-client shell parsing
-        if: runner.os == 'Windows'
-        run: python scripts/check_windows_mcp_command.py

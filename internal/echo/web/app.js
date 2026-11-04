@@ -768,7 +768,6 @@ document.addEventListener("input",e=>{
  if(e.target.id==="catalog-json"){state.catalogInput=e.target.value;state.catalogPreview=null;const button=document.querySelector('[data-action="apply-catalog"]');if(button)button.disabled=true;}
 
  if(e.target.matches("[data-filter]"))applyFilter(e.target);
- if(e.target.id==="mcp-tunnel-id")mcpUI.draftID=e.target.value;
  if(e.target.id==="settings-search"||e.target.dataset.settingKey)settingsHandleInput(e.target);
  if(e.target.id==="import-json"){state.preview=null;state.importInput=e.target.value;const b=document.querySelector('[data-action="apply-import"]');if(b)b.disabled=true;}
 });

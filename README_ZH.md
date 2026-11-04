@@ -21,48 +21,61 @@ Reverfolio 在本机整理这些记录：登记作品和发布链接，采集已
 
 以一个公开 GitHub 项目为例，先完成安装、登记和第一次采集。想让 ChatGPT 协助检索，再继续完成连接；浏览器扩展可稍后安装。
 
-### 2.1. 下载适合自己的构建
+### 2.1. ??
 
-打开 [Releases](https://github.com/ThinkerQAQ/reverfolio/releases)，根据操作系统和 CPU 架构选择文件。同一次安装使用同一个发布或预览构建中的程序、启动脚本与扩展。
+? [Releases](https://github.com/ThinkerQAQ/reverfolio/releases) ???????????????????????**???? Release ??????????????????????**???????????????????????????? Go ? Node.js?
 
-| 系统 | 选择与运行方式 |
-| --- | --- |
-| Windows | 优先选择对应架构的原生安装器 `.exe`；便携版为 `windows-amd64.zip` 或 `windows-arm64.zip` |
-| Linux | 选择 `linux-amd64.tar.gz` 或 `linux-arm64.tar.gz`，使用解压后的启动脚本 |
-| macOS | Apple Silicon 选择 `darwin-arm64.tar.gz`，Intel 选择 `darwin-amd64.tar.gz`，使用解压后的启动脚本 |
+#### 2.1.1. ????
 
-Windows 在「设置 → 系统 → 关于」查看架构，macOS 查看「关于本机」，Linux 执行 `uname -m`：`x86_64` 对应 amd64，`aarch64` 对应 arm64。直接使用发行包无需安装 Go、Node.js 或文章分发工具。
+**Windows?**??????? `.exe` ???????????????????????? **Reverfolio**??????????????????????????????????????? [4.1](#41-???????windows)?
 
-下载该构建附带的 SHA-256 清单，计算所选文件的哈希并与清单中**同一文件名**的记录比较：Windows 使用 `Get-FileHash`，Linux 使用 `sha256sum`，macOS 使用 `shasum -a 256`。结果不一致时重新下载。
+**Linux?**????????????? `.run` ???????????????????????????????? **Reverfolio**?
 
-### 2.2. 安装并打开工作台
+**macOS?**?? Release ?? `.dmg`??????????????????????? **Reverfolio**???????????????????????
 
-**Windows 原生安装器：**
+#### 2.1.2. ???
 
-1. 运行下载的安装器，选择固定安装目录。
-2. 阅读并确认许可证，然后开始安装。组件与快捷方式采用默认安排，无需逐项选择。
-3. 完成页保留 **Open Reverfolio**，点击完成。需要扩展时才勾选 **Set up the Chrome / Edge extension**，操作见 [4.1](#41-安装浏览器扩展windows)。
-4. 浏览器打开工作台后，确认「本地服务」显示「已连接」，左侧能看到「我的作品」。以后从开始菜单打开 Reverfolio 即可。
+??????? Qt Installer Framework ????????Windows ????????
 
-初始化会创建缺失的 `config.toml` 和本机数据目录，并准备扩展所需的本地授权与启动器；已有配置和数据会保留。普通使用无需手动填写本地 Token、配对码或注册 Native Messaging Host。
+```powershell
+$installer = (Get-ChildItem .\Reverfolio-v*-windows-amd64.exe | Select-Object -First 1).FullName
+Start-Process -FilePath $installer -ArgumentList '--accept-licenses --default-answer --confirm-command install' -Wait
+```
 
-**Windows 便携版：**完整解压到固定目录，不要在 ZIP 内运行。进入直接包含 `bin/`、`extension/`、`config.example.toml` 的安装根目录，打开 PowerShell 并运行：
+Linux ?????
+
+```bash
+chmod +x ./Reverfolio-v*-linux-amd64.run
+QT_QPA_PLATFORM=offscreen ./Reverfolio-v*-linux-amd64.run --accept-licenses --default-answer --confirm-command install
+```
+
+???????????????????Windows ?? `windows-amd64.zip`?? `windows-arm64.zip`????? `bin/` ? `Reverfolio/` ?????
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Open-Reverfolio.ps1
 ```
 
-启动器会初始化缺失配置、启动服务并打开实际配置的地址。
-
-**Linux/macOS 便携版：**完整解压，在解压后的 `Reverfolio/` 目录运行：
+Linux/macOS ??????? `linux-*.tar.gz` ? `darwin-*.tar.gz`?? `Reverfolio/` ?????
 
 ```bash
 bash ./Open-Reverfolio.sh
 ```
 
-脚本创建缺失配置、在后台启动本地服务并打开浏览器。Linux 需要 `curl` 和 `xdg-open`；macOS 使用系统的 `open`。未签名程序可能需要按系统提示确认来源并允许运行。Unix 便携版使用 Web UI，不要求 Windows 浏览器扩展。
+???????????????Linux ?? `curl` ? `xdg-open`?macOS ???? `open`?????? Release ??? `SHA256SUMS` ????????
 
-新配置的默认地址为 [http://127.0.0.1:19452](http://127.0.0.1:19452)。已有安装以 `config.toml` 的 `server.listen` 为准；启动器会打开该地址，不要另开一份配置或空数据库来解决连接问题。
+### 2.2. ??
+
+#### 2.2.1. ????
+
+???????????????????? Reverfolio??????????? `config.toml` ????????**?????????????????SQLite ?????**???????????????????????????????
+
+?????????????????????????????????????? ChatGPT ??????????? [2.4](#24-??-chatgpt??-ai-???) ?? MCP?**??????? Tunnel ID ? Runtime API Key**?
+
+#### 2.2.2. ????????
+
+??????????? `config.toml`??????? `Data/state.sqlite`???? [config.example.toml](config.example.toml)???????? [http://127.0.0.1:19452](http://127.0.0.1:19452)????????? `server.listen` ???????????????????????????????
+
+???????????????? `bin/reverfolio --config /path/to/config.toml`?Windows ?? `bin\reverfolio.exe`??MCP ?????????? [2.4](#24-??-chatgpt??-ai-???)?
 
 ### 2.3. 登记并采集第一个项目
 
@@ -81,9 +94,9 @@ bash ./Open-Reverfolio.sh
 
 1. 打开 [OpenAI Tunnel 管理](https://platform.openai.com/settings/organization/tunnels)，选对自己的组织，创建 Reverfolio Tunnel 或复用已有的专用 Tunnel，记下 Tunnel ID。创建需要 Tunnels Read + Manage 权限；Tunnel 与之后使用的 ChatGPT 工作区应匹配。复用旧 Tunnel 前先停止原安装的 MCP 进程，同一 Tunnel 不同时运行两份客户端。
 2. 打开同一组织的 [Runtime API keys](https://platform.openai.com/settings/organization/api-keys)，创建供该 Tunnel 运行的受限密钥，确保具有 Tunnels Read + Use 权限。已有合适的运行密钥可复用；不要使用 Admin API Key 运行服务。
-3. 回到 Reverfolio，打开「设置 → MCP 连接」，粘贴 Tunnel ID，点击「连接 ChatGPT」。缺少官方客户端时，引导会先下载并安装。
-4. 首次配置按本机窗口提示输入刚准备的运行密钥。密钥只在本机填写，不要粘贴进聊天；已有凭据会复用。Windows 使用本机配置窗口，Linux/macOS 的首次凭据配置按本机终端提示完成。
-5. 等待显示「本机连接已就绪」，点击「打开 ChatGPT 插件设置」。新连接选择新增自定义 MCP，名称填写 Reverfolio、连接方式选择 **Tunnel**，选择同一个 Tunnel 并完成安装/授权；已有连接则打开该条目启用或刷新。界面与账号限制见 [ChatGPT 插件说明](https://learn.chatgpt.com/docs/plugins)。
+3. 回到 Reverfolio，打开「设置 → 运行环境 → MCP 连接」，填写 Tunnel ID 和 Runtime API Key，点击「保存」。缺少官方客户端时会自动下载并校验；校验失败保留之前的配置。
+4. 点击「启动服务」，等待连接状态显示 **Ready**。保存只更新配置；服务运行时修改连接信息，需要点击「重启服务」生效。「断开 Tunnel」保留本地 Tunnel 服务运行，「停止服务」关闭该进程。
+5. 点击「打开 ChatGPT 插件设置」。新连接选择新增自定义 MCP，名称填写 Reverfolio、连接方式选择 **Tunnel**，选择同一个 Tunnel 并完成安装/授权；已有连接则打开该条目启用或刷新。
 6. 在 ChatGPT 中选择该连接，发送下面的只读验收请求：
 
 ```text
@@ -92,6 +105,21 @@ bash ./Open-Reverfolio.sh
 ```
 
 能读到刚登记的项目，才说明 ChatGPT 已连接到这份本机数据。「本机连接已就绪」只表示本地 Tunnel 健康，不代表 ChatGPT 已完成授权。运行密钥的创建与权限说明见 [官方 tunnel-client](https://github.com/openai/tunnel-client)。
+
+「本地服务开机自启」控制下次登录时启动 Tunnel 服务；「Tunnel 自动连接」控制该服务启动后是否连接 Tunnel，两项独立设置。密钥只在本机填写，Windows 使用 DPAPI 保存；已保存的密钥不会回显。新 MCP 实现不读取旧脚本方案的配置，需要重新填写连接信息。
+
+命令行与界面使用同一套管理逻辑。在安装根目录运行（Windows 使用 `bin\reverfolio.exe`）：
+
+```bash
+./bin/reverfolio mcp status
+./bin/reverfolio mcp start
+./bin/reverfolio mcp restart
+./bin/reverfolio mcp connect
+./bin/reverfolio mcp disconnect
+./bin/reverfolio mcp stop
+```
+
+`mcp configure` 从标准输入读取包含 `tunnel_id`、`runtime_api_key` 的 JSON；使用 `reuse_key: true` 可复用已保存的密钥。不要把密钥写进命令行参数。`mcp auto-enable` / `auto-disable` 管理登录自启，`mcp auto-connect-enable` / `auto-connect-disable` 管理自动连接。自定义配置路径使用 `--config /path/to/config.toml`。
 
 ### 2.5. 完成第一次使用
 
@@ -116,7 +144,7 @@ bash ./Open-Reverfolio.sh
 
 | 需求 | 设置入口 | 生效方式 |
 | --- | --- | --- |
-| 连接 ChatGPT、本地客户端配置 | MCP 连接 | 按页面引导检查连接 |
+| 连接 ChatGPT、本地客户端配置 | 运行环境 → MCP 连接 | 保存后启动或重启 Tunnel 服务 |
 | 语言、布局、首页模块 | 界面与语言 | 保存后生效 |
 | GitHub 凭据来源 | 数据采集 → GitHub → GitHub 授权方式 | 重启服务 |
 | 采集周期、下载统计口径 | 数据采集 → GitHub | 周期一分钟内应用，展示口径保存后应用 |
@@ -130,7 +158,7 @@ bash ./Open-Reverfolio.sh
 
 1. 在「设置 → 统计和备份 → 数据库备份」导出 SQLite 备份，另行保留 `config.toml` 与私有平台凭据。
 2. 停止这份安装的服务和 MCP 连接。Windows 可在任务管理器中按可执行文件路径确认对应的 `reverfolio.exe`；前台终端启动的服务使用 `Ctrl+C`。
-3. 原生安装器选择原安装目录；便携版替换程序文件，保留自己的配置、数据库及私有凭据。
+3. **原生安装器升级：**先通过安装目录的 `Reverfolio-Maintenance`（Windows 为 `Reverfolio-Maintenance.exe`）卸载旧程序，再运行新安装器，选择**原安装目录**。Qt 安装器不能直接覆盖已有的正式安装记录；卸载会保留 `config.toml`、`Data/` 和私有凭据。便携版只替换程序文件，保留上述数据。
 4. 从原安装入口重新打开，扩展用户在浏览器中重新加载扩展。确认作品、历史证据与设置仍在，再恢复 MCP 连接。
 
 恢复备份时，先在服务停止后将备份放到一个新的文件路径，再将 `storage.database` 指向该文件。也可使用 `reverfolio -restore BACKUP -db NEW_PATH`（Windows 为 `reverfolio.exe`），恢复目标必须不存在。不要把正在使用的 SQLite 文件直接覆盖。
@@ -193,7 +221,7 @@ AI 需要实际执行搜索、认领并按需续租任务，再关联候选证�
 
 ### 4.5. 连接本地 MCP 客户端
 
-在「设置 → MCP 连接 → 高级选项与本地客户端」复制应用生成的 JSON，粘贴到自己本机 AI 客户端的 MCP 配置并重新连接。生成内容使用当前安装的绝对路径，无需照抄其他人的目录。
+在「设置 → 运行环境 → MCP 连接 → 本地 MCP 客户端（STDIO）」复制应用生成的 JSON，粘贴到自己本机 AI 客户端的 MCP 配置并重新连接。生成内容使用当前安装的绝对路径，无需照抄其他人的目录。
 
 调用 `list_works`、`get_collection_status` 检查是否读到同一份数据。本地 stdio 连接不要求 ChatGPT Tunnel，也不会启动第二个定时采集器。写操作需要唯一 `request_id`；审核和事件更新等操作还需要预期版本号。
 
