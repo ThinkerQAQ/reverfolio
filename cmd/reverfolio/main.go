@@ -172,9 +172,13 @@ func main() {
 		out, err := exec.CommandContext(child, "gh", "auth", "token").Output()
 		cancel()
 		if err != nil {
-			log.Fatal("could not read signed-in GitHub CLI credential")
+			// GitHub authentication is optional for the local workspace.
+			// Report missing CLI credentials through collection results rather
+			// than preventing the UI and MCP service from starting.
+			log.Print("GitHub CLI credentials unavailable; authorized GitHub metrics will require authentication")
+		} else {
+			ghToken = strings.TrimSpace(string(out))
 		}
-		ghToken = strings.TrimSpace(string(out))
 	}
 	service := echo.Service{Store: store, GitHub: echo.GitHub{Token: ghToken}, Config: settings}
 	if !*stdio {

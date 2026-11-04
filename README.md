@@ -21,48 +21,61 @@ Reverfolio organizes these records locally. Register works and publication links
 
 Start with one public GitHub project: install Reverfolio, register the project and collect its first observation. Continue to ChatGPT setup if you want AI-assisted discovery. The browser extension can be installed later.
 
-### 2.1. Choose a build
+### 2.1. Install
 
-Open [Releases](https://github.com/ThinkerQAQ/reverfolio/releases) and choose your operating system and CPU architecture. Use the executable, launchers and extension from the same release or preview build.
+Download the package for your OS and architecture from [Releases](https://github.com/ThinkerQAQ/reverfolio/releases). Prefer a graphical installer. **If the current release does not yet include a native installer for your platform, use its portable archive instead.** Keep the application and extension on the same version. Release packages do not require Go or Node.js.
 
-| System | Package and entry point |
-| --- | --- |
-| Windows | Prefer the native `.exe` installer for your architecture; portable alternatives end in `windows-amd64.zip` or `windows-arm64.zip` |
-| Linux | Extract `linux-amd64.tar.gz` or `linux-arm64.tar.gz` and use the included launcher |
-| macOS | Use `darwin-arm64.tar.gz` for Apple Silicon or `darwin-amd64.tar.gz` for Intel, then use the included launcher |
+#### 2.1.1. Graphical interface
 
-Check Windows **Settings → System → About**, macOS **About This Mac**, or run `uname -m` on Linux: `x86_64` means amd64 and `aarch64` means arm64. Release packages require no Go, Node.js or publishing application.
+**Windows:** Run the `.exe` installer for your architecture, select the installation directory and complete the wizard. Open **Reverfolio** to launch the browser workspace. If you want the optional browser extension, select the extension setup guide on the finish page; see [4.1](#41-install-the-browser-extension-windows).
 
-Download the build's SHA-256 checksum file and compare your selected file against the entry for the **same filename**. Use `Get-FileHash` on Windows, `sha256sum` on Linux or `shasum -a 256` on macOS. Download again if the values differ.
+**Linux:** Run the `.run` installer for your architecture from a graphical desktop. If execution is blocked, allow the file to run as a program in its properties. Open **Reverfolio** when installation finishes.
 
-### 2.2. Install and open the workspace
+**macOS:** If a `.dmg` is included in the release, open it and run the installer application. Then open **Reverfolio**. Unsigned builds may require confirmation in system security settings.
 
-**Windows native installer:**
+#### 2.1.2. Command line
 
-1. Run the installer and choose a permanent installation directory.
-2. Read and accept the license, then install. Components and shortcuts use the default arrangement without separate selection pages.
-3. Leave **Open Reverfolio** selected on the finish page and finish. Select **Set up the Chrome / Edge extension** only if you want the optional extension; see [4.1](#41-install-the-browser-extension-windows).
-4. When the workspace opens in your browser, confirm **Local service → Connected** and **My works** in the sidebar. Use the Start menu entry to open Reverfolio again.
+Native installers also support Qt Installer Framework unattended installation. From the download directory on Windows:
 
-Initialization creates missing `config.toml` and local data files and prepares extension authorization and the native launcher. Existing configuration and data are retained. Normal local use requires no manual API token, pairing code or Native Messaging Host registration.
+```powershell
+$installer = (Get-ChildItem .\Reverfolio-v*-windows-amd64.exe | Select-Object -First 1).FullName
+Start-Process -FilePath $installer -ArgumentList '--accept-licenses --default-answer --confirm-command install' -Wait
+```
 
-**Windows portable package:** extract the entire ZIP to a permanent directory. Open PowerShell in the installation root containing `bin/`, `extension/` and `config.example.toml`, then run:
+On a Linux graphical desktop:
+
+```bash
+chmod +x ./Reverfolio-v*-linux-amd64.run
+QT_QPA_PLATFORM=offscreen ./Reverfolio-v*-linux-amd64.run --accept-licenses --default-answer --confirm-command install
+```
+
+If no native installer is available yet, use a portable archive. On Windows, extract `windows-amd64.zip` (or `windows-arm64.zip`) and run this from the extracted `Reverfolio/` directory containing `bin/`:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Open-Reverfolio.ps1
 ```
 
-The launcher initializes missing configuration, starts the service and opens its configured address. Do not run the application inside the ZIP.
-
-**Linux/macOS portable package:** extract the complete archive and run this in its `Reverfolio/` directory:
+On Linux or macOS, extract the matching `linux-*.tar.gz` or `darwin-*.tar.gz` and run this from `Reverfolio/`:
 
 ```bash
 bash ./Open-Reverfolio.sh
 ```
 
-The launcher creates missing configuration, starts the local service in the background and opens your browser. Linux needs `curl` and `xdg-open`; macOS uses its system `open` command. An unsigned application may require approval through the operating system after checking its source. Unix portable packages use the Web UI without requiring the Windows extension.
+Fully extract portable archives into a stable directory. Linux needs `curl` and `xdg-open`; macOS uses the system `open` command. Verify downloads against the release's `SHA256SUMS` file if provided.
 
-New configurations default to [http://127.0.0.1:19452](http://127.0.0.1:19452). Existing installations use `server.listen` from their own `config.toml`; the launcher opens that address. Do not create a separate configuration or empty database to recover a connection.
+### 2.2. Configuration
+
+#### 2.2.1. Graphical interface
+
+Open Reverfolio from its installed shortcut or portable launcher. On first run, it creates missing `config.toml` and local data files. **Reinstalling into the same directory retains existing configuration, SQLite data and credentials.** Confirm **Local service ? Connected** and check **My works** in the sidebar.
+
+Configure data sources, website statistics, language and other settings inside the workspace. If you want ChatGPT to call local tools, follow [2.4](#24-connect-chatgpt-when-you-need-ai-assistance) to set up MCP. **Normal workspace use does not require a Tunnel ID or Runtime API Key.**
+
+#### 2.2.2. Configuration file and CLI
+
+Configuration is stored in the installation root's `config.toml`; the default database is `Data/state.sqlite`. See [config.example.toml](config.example.toml). New installs listen at [http://127.0.0.1:19452](http://127.0.0.1:19452). Existing installs use their own `server.listen` value; do not create an empty second database when troubleshooting connectivity.
+
+For a custom configuration, run `bin/reverfolio --config /path/to/config.toml` (on Windows, `bin\reverfolio.exe`). See [2.4](#24-connect-chatgpt-when-you-need-ai-assistance) for MCP commands and safe credential input.
 
 ### 2.3. Register and collect your first project
 
@@ -146,7 +159,7 @@ Only loopback IPs are accepted for the listener. A port change synchronizes the 
 
 1. Export SQLite through **Settings → Statistics & backup → SQLite backup**. Separately retain `config.toml` and private provider credentials.
 2. Stop this installation's service and MCP connection. On Windows, use the executable path in Task Manager to identify its `reverfolio.exe`; for a foreground terminal process, use `Ctrl+C`.
-3. Point the native installer at the same installation directory. For a portable upgrade, replace application files while preserving your configuration, database and private credentials.
+3. **Native installer upgrade:** uninstall the old program using `Reverfolio-Maintenance` in the installation directory (`Reverfolio-Maintenance.exe` on Windows). Then run the new installer and select the **same directory**. Qt Installer Framework does not directly overwrite an existing registered installation; uninstallation retains `config.toml`, `Data/` and private credentials. For portable builds, replace program files while retaining that data.
 4. Reopen through the same launcher and reload the browser extension if installed. Confirm works, evidence history and settings before reconnecting MCP.
 
 Restore while the service is stopped: place the backup at a new file path and point `storage.database` at that file. Alternatively, run `reverfolio -restore BACKUP -db NEW_PATH` (`reverfolio.exe` on Windows); the restore destination must not already exist. Do not overwrite the live SQLite file.
