@@ -20,6 +20,7 @@ class InstallerTest(unittest.TestCase):
         (stage/"extension/icons").mkdir(parents=True)
         (stage/"extension/icons/icon128.png").write_bytes(b"fixture-icon")
         (stage/"extension/icons/reverfolio.ico").write_bytes(b"fixture-ico")
+        (stage/"extension/manifest.json").write_text('{"version":"1.2.3"}')
         return stage
 
     def test_layout_preserves_unmanaged_state(self):
@@ -36,6 +37,13 @@ class InstallerTest(unittest.TestCase):
             self.assertIn("Open-Reverfolio.ps1",script)
             self.assertIn("UserStartMenuProgramsPath",script)
             self.assertNotIn("addStopProcessForUpdateRequest",script)
+
+    def test_rejects_mismatched_extension_version(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=pathlib.Path(temp);stage=self.stage(root)
+            (stage/"extension/manifest.json").write_text('{"version":"0.0.1"}')
+            with self.assertRaises(ValueError):
+                installer.prepare(stage,root/"out","1.2.3","windows")
 
     def test_unix_launch_entries(self):
         for target in ("linux","darwin"):

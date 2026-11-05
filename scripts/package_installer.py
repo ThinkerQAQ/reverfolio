@@ -30,6 +30,9 @@ def xml(path, tag, values):
 def prepare(stage, destination, version, target):
     if not re.fullmatch(r"[0-9]+\.[0-9]+\.[0-9]+", version):
         raise ValueError("version must be major.minor.patch")
+    manifest = stage / "extension" / "manifest.json"
+    if not manifest.is_file() or json.loads(manifest.read_text(encoding="utf-8"))["version"] != version:
+        raise ValueError("installer/extension version mismatch or missing manifest")
     suffix = ".exe" if target == "windows" else ""
     for name in ("bin/reverfolio"+suffix, "config.example.toml", "LICENSE", "Open-Reverfolio.ps1" if target=="windows" else "Open-Reverfolio.sh"):
         if not (stage/name).is_file():

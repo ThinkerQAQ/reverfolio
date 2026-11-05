@@ -138,6 +138,10 @@ func ensure() nativeReply {
 	return nativeReply{Error: "service startup timed out; check the local config and port"}
 }
 func main() {
+	if len(os.Args) == 2 && os.Args[1] == "--version" {
+		fmt.Println(echo.CurrentVersion)
+		return
+	}
 	if len(os.Args) == 2 && os.Args[1] == "--ensure-service" {
 		if !ensure().OK {
 			os.Exit(1)

@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"flag"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -62,6 +63,10 @@ func apiToken(path string) (string, error) {
 	return token, closeErr
 }
 func main() {
+	if len(os.Args) == 2 && os.Args[1] == "--version" {
+		fmt.Println(echo.CurrentVersion)
+		return
+	}
 	if len(os.Args) > 1 && (os.Args[1] == "mcp" || os.Args[1] == "tunnel-run") {
 		if err := runMCPCommand(os.Args[1:]); err != nil {
 			log.Fatal(err)
