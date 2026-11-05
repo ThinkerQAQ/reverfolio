@@ -13,6 +13,7 @@ class InstallerTest(unittest.TestCase):
         stage=root/"stage"
         (stage/"bin").mkdir(parents=True)
         (stage/"bin/reverfolio.exe").write_bytes(b"fixture")
+        (stage/"bin/reverfolio-host.exe").write_bytes(b"fixture")
         (stage/"config.example.toml").write_text("version=1")
         (stage/"LICENSE").write_text("test")
         (stage/"Open-Reverfolio.ps1").write_text("test")
@@ -20,6 +21,7 @@ class InstallerTest(unittest.TestCase):
         (stage/"extension/icons").mkdir(parents=True)
         (stage/"extension/icons/icon128.png").write_bytes(b"fixture-icon")
         (stage/"extension/icons/reverfolio.ico").write_bytes(b"fixture-ico")
+        (stage/"extension/manifest.json").write_text('{"version":"1.2.3"}')
         return stage
 
     def test_layout_preserves_unmanaged_state(self):
@@ -33,9 +35,18 @@ class InstallerTest(unittest.TestCase):
             self.assertFalse((data/"config.toml").exists())
             self.assertFalse((data/"Data").exists())
             script=(root/"out/packages/com.thinkerqaq.reverfolio/meta/installscript.qs").read_text()
-            self.assertIn("Open-Reverfolio.ps1",script)
+            self.assertIn("reverfolio-host.exe",script)
+            self.assertIn("--open-ui",script)
+            self.assertNotIn("WindowsPowerShell",script)
             self.assertIn("UserStartMenuProgramsPath",script)
             self.assertNotIn("addStopProcessForUpdateRequest",script)
+
+    def test_rejects_mismatched_extension_version(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=pathlib.Path(temp);stage=self.stage(root)
+            (stage/"extension/manifest.json").write_text('{"version":"0.0.1"}')
+            with self.assertRaises(ValueError):
+                installer.prepare(stage,root/"out","1.2.3","windows")
 
     def test_unix_launch_entries(self):
         for target in ("linux","darwin"):
@@ -74,6 +85,27 @@ class InstallerTest(unittest.TestCase):
             checks={w.get("name"):w.findtext("property[@name='checked']/bool") for w in ui.findall(".//widget[@class='QCheckBox']")}
             self.assertEqual(checks,{"openAppCheckBox":"true","openExtensionCheckBox":"false"})
             self.assertTrue((root/"out/packages/com.thinkerqaq.reverfolio/data/scripts/Reverfolio-FirstRun.ps1").is_file())
+
+    def test_windows_installer_has_gui_subsystem(self):
+        with tempfile.TemporaryDirectory() as temp:
+            executable=pathlib.Path(temp)/"setup.exe"
+            data=bytearray(512)
+            data[:2]=b"MZ"
+            data[0x3c:0x40]=(0x80).to_bytes(4,"little")
+            data[0x80:0x84]=b"PE\0\0"
+            data[0x98:0x9a]=(0x20b).to_bytes(2,"little")
+            offset=0x98+68
+            data[offset:offset+2]=(3).to_bytes(2,"little")
+            original=bytes(data)+b"QTIFW_PAYLOAD"
+            executable.write_bytes(original)
+            installer.ensure_windows_gui_subsystem(executable)
+            modified=executable.read_bytes()
+            self.assertEqual(modified[offset:offset+2],(2).to_bytes(2,"little"))
+            self.assertEqual(modified[:offset]+modified[offset+2:],original[:offset]+original[offset+2:])
+            invalid=pathlib.Path(temp)/"invalid.exe"
+            invalid.write_bytes(b"not a PE file")
+            with self.assertRaises(ValueError):
+                installer.ensure_windows_gui_subsystem(invalid)
 
     def test_rejects_private_state_and_symlinks(self):
         for name in ("Data/state.sqlite","config.toml","scripts/runtime.env","extension/extension-access.key"):

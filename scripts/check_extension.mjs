@@ -11,7 +11,7 @@ const m=JSON.parse(readFileSync(path.join(ext,"manifest.json"),"utf8"));
 const read=(dir,file)=>readFileSync(path.join(dir,file),"utf8");
 assert.equal(m.manifest_version,3);
 assert.equal(m.name,"__MSG_extensionName__");
-assert.equal(m.version,"0.11.0");
+assert.equal(m.version,"0.11.2");
 assert.equal(m.short_name,"Reverfolio");
 assert.equal(m.action.default_popup,undefined,"No second launcher popup");
 assert.equal(m.side_panel.default_path,"ui/index.html");

@@ -15,6 +15,10 @@ DIST = ROOT / 'dist'
 if len(sys.argv) != 2 or not sys.argv[1].startswith('v') or sys.argv[1].count('.') != 2:
     raise SystemExit('Usage: python3 scripts/package_release.py v0.2.0')
 version = sys.argv[1]
+import json
+manifest_version=json.loads((ROOT / 'extension' / 'manifest.json').read_text())['version']
+if version.removeprefix('v') != manifest_version:
+    raise SystemExit(f'Release/extension mismatch: {version} != {manifest_version}')
 if DIST.exists() and any(DIST.iterdir()):
     raise SystemExit('Refusing to overwrite existing release artifacts in dist/')
 DIST.mkdir(exist_ok=True)
