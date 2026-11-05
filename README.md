@@ -37,9 +37,8 @@ Download the package for your OS and architecture from [Releases](https://github
 
 Native installers also support Qt Installer Framework unattended installation. From the download directory on Windows:
 
-```powershell
-$installer = (Get-ChildItem .\Reverfolio-v*-windows-amd64.exe | Select-Object -First 1).FullName
-Start-Process -FilePath $installer -ArgumentList '--accept-licenses --default-answer --confirm-command install' -Wait
+```cmd
+.\downloaded-installer.exe --accept-licenses --default-answer --confirm-command install
 ```
 
 On a Linux graphical desktop:
@@ -51,14 +50,14 @@ QT_QPA_PLATFORM=offscreen ./Reverfolio-v*-linux-amd64.run --accept-licenses --de
 
 If no native installer is available yet, use a portable archive. On Windows, extract `windows-amd64.zip` (or `windows-arm64.zip`) and run this from the extracted `Reverfolio/` directory containing `bin/`:
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Open-Reverfolio.ps1
+```cmd
+.ineverfolio-host.exe --open-ui
 ```
 
 On Linux or macOS, extract the matching `linux-*.tar.gz` or `darwin-*.tar.gz` and run this from `Reverfolio/`:
 
 ```bash
-bash ./Open-Reverfolio.sh
+./bin/reverfolio-host --open-ui
 ```
 
 Fully extract portable archives into a stable directory. Linux needs `curl` and `xdg-open`; macOS uses the system `open` command. Verify downloads against the release's `SHA256SUMS` file if provided.
@@ -245,9 +244,9 @@ test -f config.toml || cp config.example.toml config.toml
 ./bin/reverfolio --config ./config.toml --collect-interval 0
 ```
 
-Use these corresponding build, configuration and startup commands in Windows PowerShell:
+Use these corresponding build, configuration and startup commands in Windows CMD:
 
-```powershell
+```cmd
 go build -o bin/reverfolio.exe ./cmd/reverfolio
 if (!(Test-Path config.toml)) { Copy-Item config.example.toml config.toml }
 .\bin\reverfolio.exe --config .\config.toml --collect-interval 0

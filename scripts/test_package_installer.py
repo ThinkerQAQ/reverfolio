@@ -14,9 +14,9 @@ class InstallerTest(unittest.TestCase):
         (stage/"bin").mkdir(parents=True)
         (stage/"bin/reverfolio.exe").write_bytes(b"fixture")
         (stage/"bin/reverfolio-host.exe").write_bytes(b"fixture")
+        (stage/"bin/reverfolio-host").write_bytes(b"native-host")
         (stage/"config.example.toml").write_text("version=1")
         (stage/"LICENSE").write_text("test")
-        (stage/"Open-Reverfolio.sh").write_text("test")
         (stage/"extension/icons").mkdir(parents=True)
         (stage/"extension/icons/icon128.png").write_bytes(b"fixture-icon")
         (stage/"extension/icons/reverfolio.ico").write_bytes(b"fixture-ico")
@@ -59,7 +59,7 @@ class InstallerTest(unittest.TestCase):
                 else:
                     launcher=root/"out/packages/com.thinkerqaq.reverfolio/data/Reverfolio.app/Contents/MacOS/Reverfolio"
                     self.assertTrue(launcher.is_file())
-                    self.assertIn("Open-Reverfolio.sh",launcher.read_text())
+                    self.assertEqual(launcher.read_bytes(), b"native-host")
 
     def test_single_product_wizard_and_finish_choices(self):
         with tempfile.TemporaryDirectory() as temp:

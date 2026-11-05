@@ -50,20 +50,23 @@ for operating_system in ('windows', 'linux', 'darwin'):
             env.update(GOOS=operating_system, GOARCH=architecture, CGO_ENABLED='0')
             subprocess.run(['go', 'build', '-trimpath', '-ldflags=-s -w', '-o', str(binary), './cmd/reverfolio'],
                            cwd=ROOT, env=env, check=True)
+            if operating_system != 'windows':
+                subprocess.run(['go','build','-trimpath','-ldflags=-s -w',
+                                '-o',str(root/'bin/reverfolio-host'),'./cmd/reverfolio-host'],
+                               cwd=ROOT,env=env,check=True)
             if operating_system == 'windows':
                 # The browser launches the host in GUI subsystem mode, preventing
                 # a flashing console. It starts the separate service hidden.
                 host = root / 'bin' / 'reverfolio-host.exe'
                 subprocess.run(['go','build','-trimpath','-ldflags=-s -w -H=windowsgui',
                                 '-o',str(host),'./cmd/reverfolio-host'],cwd=ROOT,env=env,check=True)
-                shutil.copytree(ROOT / 'extension', root / 'extension')
+
+            shutil.copytree(ROOT / 'extension', root / 'extension')
             for name in ('config.example.toml', 'README.md', 'README_ZH.md', 'LICENSE'):
                 shutil.copy2(ROOT / name, root / name)
             shutil.copy2(licenses, root / 'THIRD_PARTY_LICENSES.txt')
             (root / 'scripts').mkdir()
             shutil.copytree(ROOT / 'third_party', root / 'third_party')
-            if operating_system != 'windows':
-                shutil.copy2(ROOT / 'scripts/Open-Reverfolio.sh', root / 'Open-Reverfolio.sh')
             shutil.copy2(ROOT / 'scripts/publications_to_catalog.py', root / 'scripts/publications_to_catalog.py')
             shutil.copy2(ROOT / 'scripts/check_mcp_contract.py', root / 'scripts/check_mcp_contract.py')
             prefix = 'Reverfolio-' + version + '-' + operating_system + '-' + architecture
