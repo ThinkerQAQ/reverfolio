@@ -16,7 +16,6 @@ class InstallerTest(unittest.TestCase):
         (stage/"bin/reverfolio-host.exe").write_bytes(b"fixture")
         (stage/"config.example.toml").write_text("version=1")
         (stage/"LICENSE").write_text("test")
-        (stage/"Open-Reverfolio.ps1").write_text("test")
         (stage/"Open-Reverfolio.sh").write_text("test")
         (stage/"extension/icons").mkdir(parents=True)
         (stage/"extension/icons/icon128.png").write_bytes(b"fixture-icon")
@@ -84,7 +83,7 @@ class InstallerTest(unittest.TestCase):
             ui=ET.parse(meta/"first-run.ui").getroot()
             checks={w.get("name"):w.findtext("property[@name='checked']/bool") for w in ui.findall(".//widget[@class='QCheckBox']")}
             self.assertEqual(checks,{"openAppCheckBox":"true","openExtensionCheckBox":"false"})
-            self.assertTrue((root/"out/packages/com.thinkerqaq.reverfolio/data/scripts/Reverfolio-FirstRun.ps1").is_file())
+            self.assertFalse(list((root/"out/packages/com.thinkerqaq.reverfolio/data").rglob("*.ps1")))
 
     def test_windows_installer_has_gui_subsystem(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -108,7 +107,7 @@ class InstallerTest(unittest.TestCase):
                 installer.ensure_windows_gui_subsystem(invalid)
 
     def test_rejects_private_state_and_symlinks(self):
-        for name in ("Data/state.sqlite","config.toml","scripts/runtime.env","extension/extension-access.key"):
+        for name in ("Data/state.sqlite","config.toml","scripts/runtime.env","extension/extension-access.key","scripts/legacy.ps1"):
             with self.subTest(name=name),tempfile.TemporaryDirectory() as temp:
                 root=pathlib.Path(temp);stage=self.stage(root)
                 secret=stage/name;secret.parent.mkdir(parents=True,exist_ok=True);secret.write_text("private")
