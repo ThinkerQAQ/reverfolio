@@ -16,9 +16,7 @@ ASSETS = pathlib.Path(__file__).with_name("installer")
 
 PAYLOAD = ("bin", "extension", "scripts", "third_party", "config.example.toml",
            "README.md", "README_ZH.md", "LICENSE", "THIRD_PARTY_LICENSES.txt",
-           "Start-Reverfolio.cmd", "Run-Reverfolio.ps1", "Install-Reverfolio.ps1",
-           "Initialize-ReverfolioExtension.ps1", "Register-ReverfolioNativeHost.ps1",
-           "Start-Reverfolio-Hidden.vbs", "Open-Reverfolio.ps1", "Open-Reverfolio.sh")
+           "Open-Reverfolio.sh")
 
 def xml(path, tag, values):
     node = ET.Element(tag)
@@ -34,7 +32,7 @@ def prepare(stage, destination, version, target):
     if not manifest.is_file() or json.loads(manifest.read_text(encoding="utf-8"))["version"] != version:
         raise ValueError("installer/extension version mismatch or missing manifest")
     suffix = ".exe" if target == "windows" else ""
-    required = ("bin/reverfolio"+suffix, "config.example.toml", "LICENSE", "Open-Reverfolio.ps1" if target=="windows" else "Open-Reverfolio.sh")
+    required = ("bin/reverfolio"+suffix, "config.example.toml", "LICENSE")
     if target=="windows":
         required += ("bin/reverfolio-host.exe",)
     for name in required:
@@ -44,6 +42,8 @@ def prepare(stage, destination, version, target):
     for path in stage.rglob("*"):
         if path.is_symlink():
             raise ValueError("symlink in release stage")
+        if path.is_file() and path.suffix.lower() in (".ps1", ".cmd", ".vbs"):
+            raise ValueError("legacy Windows script in distributable: " + str(path))
         if path.is_file() and (path.name.lower() in ("config.toml","api-token","extension-access.key","runtime.env","runtime-key.dpapi")
                               or path.suffix.lower() in (".sqlite",".db",".log",".har")
                               or any(part.lower() in ("data","backups") for part in path.relative_to(stage).parts)):
@@ -87,9 +87,6 @@ def prepare(stage, destination, version, target):
     shutil.copy2(logo, config/"reverfolio-window.png")
     shutil.copy2(ASSETS/"first-run.ui", meta/"first-run.ui")
     shutil.copy2(stage/"LICENSE", meta/"license.txt")
-    if target == "windows":
-        (data/"scripts").mkdir(exist_ok=True)
-        shutil.copy2(ASSETS/"first-run.ps1", data/"scripts/Reverfolio-FirstRun.ps1")
     xml(meta/"package.xml", "Package", {
         "DisplayName":"Reverfolio", "Description":"Local works and impact evidence",
         "Version":version, "ReleaseDate":datetime.date.today().isoformat(),
