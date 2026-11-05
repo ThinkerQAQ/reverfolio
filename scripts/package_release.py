@@ -57,10 +57,6 @@ for operating_system in ('windows', 'linux', 'darwin'):
                 subprocess.run(['go','build','-trimpath','-ldflags=-s -w -H=windowsgui',
                                 '-o',str(host),'./cmd/reverfolio-host'],cwd=ROOT,env=env,check=True)
                 shutil.copytree(ROOT / 'extension', root / 'extension')
-                for script in ('Start-Reverfolio.cmd', 'Run-Reverfolio.ps1',
-                               'Install-Reverfolio.ps1', 'Initialize-ReverfolioExtension.ps1',
-                               'Register-ReverfolioNativeHost.ps1','Start-Reverfolio-Hidden.vbs','Open-Reverfolio.ps1'):
-                    shutil.copy2(ROOT / 'scripts/windows' / script, root / script)
             for name in ('config.example.toml', 'README.md', 'README_ZH.md', 'LICENSE'):
                 shutil.copy2(ROOT / name, root / name)
             shutil.copy2(licenses, root / 'THIRD_PARTY_LICENSES.txt')
