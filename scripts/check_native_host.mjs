@@ -20,6 +20,11 @@ assert.match(native,/extensionOrigin\s+= "chrome-extension:\/\/khdciakflcmilakma
 const win=read("cmd/reverfolio-host/launch_windows.go");
 assert.match(win,/createNoWindow\s*\|\s*createNewProcessGroup/);
 assert.match(win,/HideWindow:\s*true/);
+assert.match(win,/func initializeWindowsInstall\(root string\)/,"Native launcher must initialize on first use");
+assert.match(win,/extension-access\.key/,"Existing extension key is kept in Data");
+assert.match(win,/registry\.CreateKey/,"Native host registry uses Go API, not PowerShell");
+assert.match(win,/--sync-extension-config/,"Extension endpoint must be synchronized natively");
+assert.doesNotMatch(win,/exec\.Command\(.*powershell/i,"Native startup must not launch PowerShell");
 const launcher=read("scripts/windows/Start-Reverfolio-Hidden.vbs");
 assert.match(launcher,/shell\.Run\(command, 0, True\)/i,"Watchdog should wait for each native host health probe");
 assert.match(launcher,/WScript\.Sleep 300000/i,"Watchdog should periodically verify the local service");

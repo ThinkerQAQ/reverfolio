@@ -187,6 +187,9 @@ func openHostGUI(action string) error {
 		return err
 	}
 	root := filepath.Dir(filepath.Dir(host))
+	if err := initializeWindowsInstall(root); err != nil {
+		return err
+	}
 	if action == "--guide-extension" {
 		folder := filepath.Join(root, "extension")
 		if _, err := os.Stat(folder); err != nil {

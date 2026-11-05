@@ -13,3 +13,5 @@ func configureDetached(cmd *exec.Cmd) {
 
 func shellOpen(target string) error { return exec.Command("xdg-open", target).Start() }
 func notifyLaunchError(err error)   {}
+
+func initializeWindowsInstall(root string) error { return nil }
