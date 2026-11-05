@@ -34,7 +34,10 @@ def prepare(stage, destination, version, target):
     if not manifest.is_file() or json.loads(manifest.read_text(encoding="utf-8"))["version"] != version:
         raise ValueError("installer/extension version mismatch or missing manifest")
     suffix = ".exe" if target == "windows" else ""
-    for name in ("bin/reverfolio"+suffix, "config.example.toml", "LICENSE", "Open-Reverfolio.ps1" if target=="windows" else "Open-Reverfolio.sh"):
+    required = ("bin/reverfolio"+suffix, "config.example.toml", "LICENSE", "Open-Reverfolio.ps1" if target=="windows" else "Open-Reverfolio.sh")
+    if target=="windows":
+        required += ("bin/reverfolio-host.exe",)
+    for name in required:
         if not (stage/name).is_file():
             raise ValueError("release is missing "+name)
     # Explicit allowlist. Even accidentally staged secrets must never enter an installer.
@@ -110,7 +113,7 @@ Component.prototype.createOperations = function() {
 """
     if target == "windows":
         script += '    component.addOperation("Mkdir", "@UserStartMenuProgramsPath@/Reverfolio");\n'
-        script += '    component.addOperation("CreateShortcut", installer.environmentVariable("SystemRoot") + "/System32/WindowsPowerShell/v1.0/powershell.exe", "@UserStartMenuProgramsPath@/Reverfolio/Reverfolio.lnk", ' + json.dumps('-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "@TargetDir@/Open-Reverfolio.ps1"') + ', "workingDirectory=@TargetDir@");\n'
+        script += '    component.addOperation("CreateShortcut", "@TargetDir@/bin/reverfolio-host.exe", "@UserStartMenuProgramsPath@/Reverfolio/Reverfolio.lnk", "--open-ui", "workingDirectory=@TargetDir@");\n'
         script += '    component.addOperation("CreateShortcut", "@TargetDir@/Reverfolio-Maintenance.exe", "@UserStartMenuProgramsPath@/Reverfolio/Uninstall Reverfolio.lnk");\n'
     elif target == "linux":
         entry = 'Type=Application\nName=Reverfolio\nExec=/bin/bash "@TargetDir@/Open-Reverfolio.sh"\nTerminal=false\nCategories=Utility;'

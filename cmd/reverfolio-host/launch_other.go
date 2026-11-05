@@ -10,3 +10,6 @@ import (
 func configureDetached(cmd *exec.Cmd) {
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 }
+
+func shellOpen(target string) error { return exec.Command("xdg-open", target).Start() }
+func notifyLaunchError(err error)   {}

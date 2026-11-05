@@ -13,6 +13,7 @@ class InstallerTest(unittest.TestCase):
         stage=root/"stage"
         (stage/"bin").mkdir(parents=True)
         (stage/"bin/reverfolio.exe").write_bytes(b"fixture")
+        (stage/"bin/reverfolio-host.exe").write_bytes(b"fixture")
         (stage/"config.example.toml").write_text("version=1")
         (stage/"LICENSE").write_text("test")
         (stage/"Open-Reverfolio.ps1").write_text("test")
@@ -34,7 +35,9 @@ class InstallerTest(unittest.TestCase):
             self.assertFalse((data/"config.toml").exists())
             self.assertFalse((data/"Data").exists())
             script=(root/"out/packages/com.thinkerqaq.reverfolio/meta/installscript.qs").read_text()
-            self.assertIn("Open-Reverfolio.ps1",script)
+            self.assertIn("reverfolio-host.exe",script)
+            self.assertIn("--open-ui",script)
+            self.assertNotIn("WindowsPowerShell",script)
             self.assertIn("UserStartMenuProgramsPath",script)
             self.assertNotIn("addStopProcessForUpdateRequest",script)
 

@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -138,6 +139,13 @@ func ensure() nativeReply {
 	return nativeReply{Error: "service startup timed out; check the local config and port"}
 }
 func main() {
+	if len(os.Args) == 2 && (os.Args[1] == "--open-ui" || os.Args[1] == "--guide-extension") {
+		if err := openHostGUI(os.Args[1]); err != nil {
+			notifyLaunchError(err)
+			os.Exit(1)
+		}
+		return
+	}
 	if len(os.Args) == 2 && os.Args[1] == "--version" {
 		fmt.Println(echo.CurrentVersion)
 		return
@@ -169,4 +177,62 @@ func main() {
 	}); err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, "native host request failed")
 	}
+}
+
+// openHostGUI uses a native GUI executable to avoid powershell.exe, cmd.exe,
+// or an intermediate console when launched from Qt IFW or the Start Menu.
+func openHostGUI(action string) error {
+	host, err := os.Executable()
+	if err != nil {
+		return err
+	}
+	root := filepath.Dir(filepath.Dir(host))
+	if action == "--guide-extension" {
+		folder := filepath.Join(root, "extension")
+		if _, err := os.Stat(folder); err != nil {
+			return err
+		}
+		if err := shellOpen(folder); err != nil {
+			return err
+		}
+		guide := filepath.Join(root, "README_ZH.md")
+		if _, err := os.Stat(guide); err == nil {
+			return shellOpen(guide)
+		}
+		return nil
+	}
+	if action != "--open-ui" {
+		return errors.New("unsupported GUI action")
+	}
+	cfg := filepath.Join(root, "config.toml")
+	if _, err := os.Stat(cfg); errors.Is(err, os.ErrNotExist) {
+		sample, readErr := os.ReadFile(filepath.Join(root, "config.example.toml"))
+		if readErr != nil {
+			return readErr
+		}
+		output, createErr := os.OpenFile(cfg, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
+		if errors.Is(createErr, os.ErrExist) {
+		} else if createErr != nil {
+			return createErr
+		} else {
+			if _, writeErr := output.Write(sample); writeErr != nil {
+				output.Close()
+				return writeErr
+			}
+			if closeErr := output.Close(); closeErr != nil {
+				return closeErr
+			}
+		}
+	} else if err != nil {
+		return err
+	}
+	status := ensure()
+	if !status.OK {
+		return fmt.Errorf("Reverfolio local service: %s", status.Error)
+	}
+	endpoint, err := healthURL(cfg)
+	if err != nil {
+		return err
+	}
+	return shellOpen(strings.TrimSuffix(endpoint, "/healthz"))
 }
