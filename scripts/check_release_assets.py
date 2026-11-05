@@ -36,7 +36,6 @@ def validate_members(names, read, archive, platform):
     }
     if platform.startswith('windows'):
         required |= {'Reverfolio/bin/reverfolio.exe', 'Reverfolio/bin/reverfolio-host.exe',
-                     'Reverfolio/Install-Reverfolio.ps1', 'Reverfolio/Start-Reverfolio.cmd',
                      'Reverfolio/extension/manifest.json', 'Reverfolio/extension/ui/app.js'}
     else:
         required.add('Reverfolio/bin/reverfolio')
@@ -49,6 +48,8 @@ def validate_members(names, read, archive, platform):
             raise AssertionError(f'{archive.name}: unexpected archive root: {name}')
         if '..' in chunks or 'Data' in chunks or 'data' in chunks:
             raise AssertionError(f'{archive.name}: suspicious/private path: {name}')
+        if name.lower().endswith(('.ps1', '.cmd', '.vbs')):
+            raise AssertionError(f'{archive.name}: legacy Windows script in release: {name}')
         if name.endswith(('config.toml', '.sqlite', '.sqlite3', '.db', '.secret', '.env')):
             raise AssertionError(f'{archive.name}: contains private config/data: {name}')
     text = read('Reverfolio/THIRD_PARTY_LICENSES.txt').decode('utf-8')
