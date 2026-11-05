@@ -75,6 +75,27 @@ class InstallerTest(unittest.TestCase):
             self.assertEqual(checks,{"openAppCheckBox":"true","openExtensionCheckBox":"false"})
             self.assertTrue((root/"out/packages/com.thinkerqaq.reverfolio/data/scripts/Reverfolio-FirstRun.ps1").is_file())
 
+    def test_windows_installer_has_gui_subsystem(self):
+        with tempfile.TemporaryDirectory() as temp:
+            executable=pathlib.Path(temp)/"setup.exe"
+            data=bytearray(512)
+            data[:2]=b"MZ"
+            data[0x3c:0x40]=(0x80).to_bytes(4,"little")
+            data[0x80:0x84]=b"PE\0\0"
+            data[0x98:0x9a]=(0x20b).to_bytes(2,"little")
+            offset=0x98+68
+            data[offset:offset+2]=(3).to_bytes(2,"little")
+            original=bytes(data)+b"QTIFW_PAYLOAD"
+            executable.write_bytes(original)
+            installer.ensure_windows_gui_subsystem(executable)
+            modified=executable.read_bytes()
+            self.assertEqual(modified[offset:offset+2],(2).to_bytes(2,"little"))
+            self.assertEqual(modified[:offset]+modified[offset+2:],original[:offset]+original[offset+2:])
+            invalid=pathlib.Path(temp)/"invalid.exe"
+            invalid.write_bytes(b"not a PE file")
+            with self.assertRaises(ValueError):
+                installer.ensure_windows_gui_subsystem(invalid)
+
     def test_rejects_private_state_and_symlinks(self):
         for name in ("Data/state.sqlite","config.toml","scripts/runtime.env","extension/extension-access.key"):
             with self.subTest(name=name),tempfile.TemporaryDirectory() as temp:

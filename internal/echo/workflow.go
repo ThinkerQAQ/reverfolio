@@ -236,7 +236,7 @@ func addTool[In any](server *mcp.Server, name, description string, readonly bool
 	})
 }
 func (s Service) MCPServer() *mcp.Server {
-	server := mcp.NewServer(&mcp.Implementation{Name: "Reverfolio", Version: "0.11.0"}, nil)
+	server := mcp.NewServer(&mcp.Implementation{Name: "Reverfolio", Version: "0.11.1"}, nil)
 	// API-only platform integration. API keys are entered into the LOCAL UI
 	// exclusively; never expose the secret-bearing connection action via MCP.
 	addTool(server, "list_platform_accounts", "Read connected creator accounts (never credentials) and permission readiness.", true, func(ctx context.Context, _ EmptyInput) (any, error) { return s.PlatformAccounts(ctx) })
