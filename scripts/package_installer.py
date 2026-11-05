@@ -16,7 +16,7 @@ ASSETS = pathlib.Path(__file__).with_name("installer")
 
 PAYLOAD = ("bin", "extension", "scripts", "third_party", "config.example.toml",
            "README.md", "README_ZH.md", "LICENSE", "THIRD_PARTY_LICENSES.txt",
-           "Open-Reverfolio.sh")
+           )
 
 def xml(path, tag, values):
     node = ET.Element(tag)
@@ -35,6 +35,8 @@ def prepare(stage, destination, version, target):
     required = ("bin/reverfolio"+suffix, "config.example.toml", "LICENSE")
     if target=="windows":
         required += ("bin/reverfolio-host.exe",)
+    else:
+        required += ("bin/reverfolio-host",)
     for name in required:
         if not (stage/name).is_file():
             raise ValueError("release is missing "+name)
@@ -113,14 +115,14 @@ Component.prototype.createOperations = function() {
         script += '    component.addOperation("CreateShortcut", "@TargetDir@/bin/reverfolio-host.exe", "@UserStartMenuProgramsPath@/Reverfolio/Reverfolio.lnk", "--open-ui", "workingDirectory=@TargetDir@");\n'
         script += '    component.addOperation("CreateShortcut", "@TargetDir@/Reverfolio-Maintenance.exe", "@UserStartMenuProgramsPath@/Reverfolio/Uninstall Reverfolio.lnk");\n'
     elif target == "linux":
-        entry = 'Type=Application\nName=Reverfolio\nExec=/bin/bash "@TargetDir@/Open-Reverfolio.sh"\nTerminal=false\nCategories=Utility;'
+        entry = 'Type=Application\nName=Reverfolio\nExec="@TargetDir@/bin/reverfolio-host" --open-ui\nTerminal=false\nCategories=Utility;'
         script += '    component.addOperation("CreateDesktopEntry", "reverfolio.desktop", ' + json.dumps(entry) + ');\n'
     else:
         app = data/"Reverfolio.app/Contents"
         (app/"MacOS").mkdir(parents=True)
         (app/"Info.plist").write_bytes(plistlib.dumps({"CFBundleName":"Reverfolio", "CFBundleIdentifier":"com.thinkerqaq.reverfolio", "CFBundleExecutable":"Reverfolio", "CFBundleVersion":version, "CFBundlePackageType":"APPL"}))
         launcher = app/"MacOS/Reverfolio"
-        launcher.write_text('#!/bin/bash\nset -euo pipefail\nroot="$(cd "$(dirname "$0")/../../.." && pwd)"\nexec /bin/bash "$root/Open-Reverfolio.sh"\n')
+        shutil.copy2(stage/"bin/reverfolio-host", launcher)
         launcher.chmod(0o755)
     script += "};\n"
     script += (ASSETS/"finish.qs").read_text(encoding="utf-8").replace("__PLATFORM__", target)

@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -81,7 +82,7 @@ func healthy() bool {
 	if err != nil {
 		return false
 	}
-	endpoint, err := healthURL(filepath.Join(filepath.Dir(filepath.Dir(exe)), "config.toml"))
+	endpoint, err := healthURL(filepath.Join(hostInstallRoot(exe), "config.toml"))
 	if err != nil {
 		return false
 	}
@@ -108,8 +109,12 @@ func ensure() nativeReply {
 	if err != nil {
 		return nativeReply{Error: "host executable unavailable"}
 	}
-	root := filepath.Dir(filepath.Dir(host))
-	exe := filepath.Join(root, "bin", "reverfolio.exe")
+	root := hostInstallRoot(host)
+	suffix := ""
+	if runtime.GOOS == "windows" {
+		suffix = ".exe"
+	}
+	exe := filepath.Join(root, "bin", "reverfolio"+suffix)
 	cfg := filepath.Join(root, "config.toml")
 	if _, err = os.Stat(exe); err != nil {
 		return nativeReply{Error: "Reverfolio executable not installed"}
@@ -186,7 +191,7 @@ func openHostGUI(action string) error {
 	if err != nil {
 		return err
 	}
-	root := filepath.Dir(filepath.Dir(host))
+	root := hostInstallRoot(host)
 	if err := initializeWindowsInstall(root); err != nil {
 		return err
 	}
@@ -238,4 +243,15 @@ func openHostGUI(action string) error {
 		return err
 	}
 	return shellOpen(strings.TrimSuffix(endpoint, "/healthz"))
+}
+
+// hostInstallRoot supports both the normal bin/ entrypoint and a native
+// macOS application bundle without launching any shell script.
+func hostInstallRoot(executable string) string {
+	directory := filepath.Dir(executable)
+	if filepath.Base(directory) == "MacOS" &&
+		filepath.Base(filepath.Dir(directory)) == "Contents" {
+		return filepath.Clean(filepath.Join(directory, "../../.."))
+	}
+	return filepath.Dir(directory)
 }

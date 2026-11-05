@@ -37,9 +37,8 @@ Reverfolio 在本机整理这些记录：登记作品和发布链接，采集已
 
 ??????? Qt Installer Framework ????????Windows ????????
 
-```powershell
-$installer = (Get-ChildItem .\Reverfolio-v*-windows-amd64.exe | Select-Object -First 1).FullName
-Start-Process -FilePath $installer -ArgumentList '--accept-licenses --default-answer --confirm-command install' -Wait
+```cmd
+.\downloaded-installer.exe --accept-licenses --default-answer --confirm-command install
 ```
 
 Linux ?????
@@ -51,14 +50,14 @@ QT_QPA_PLATFORM=offscreen ./Reverfolio-v*-linux-amd64.run --accept-licenses --de
 
 ???????????????????Windows ?? `windows-amd64.zip`?? `windows-arm64.zip`????? `bin/` ? `Reverfolio/` ?????
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\Open-Reverfolio.ps1
+```cmd
+.ineverfolio-host.exe --open-ui
 ```
 
 Linux/macOS ??????? `linux-*.tar.gz` ? `darwin-*.tar.gz`?? `Reverfolio/` ?????
 
 ```bash
-bash ./Open-Reverfolio.sh
+./bin/reverfolio-host --open-ui
 ```
 
 ???????????????Linux ?? `curl` ? `xdg-open`?macOS ???? `open`?????? Release ??? `SHA256SUMS` ????????
@@ -242,9 +241,9 @@ test -f config.toml || cp config.example.toml config.toml
 ./bin/reverfolio --config ./config.toml --collect-interval 0
 ```
 
-Windows PowerShell 使用以下对应命令完成编译、配置和启动：
+Windows CMD 使用以下对应命令完成编译、配置和启动：
 
-```powershell
+```cmd
 go build -o bin/reverfolio.exe ./cmd/reverfolio
 if (!(Test-Path config.toml)) { Copy-Item config.example.toml config.toml }
 .\bin\reverfolio.exe --config .\config.toml --collect-interval 0
