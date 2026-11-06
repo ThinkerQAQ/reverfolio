@@ -1,0 +1,67 @@
+name: Release Reverfolio native Windows installer
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: jurplel/install-qt-action@v4
+        with:
+          no-qt-binaries: 'true'
+          tools: tools_ifw
+      - name: Build verified portable release for six platforms
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/test_package_installer.py
+          python scripts/package_release.py "$GITHUB_REF_NAME"
+          python -c 'from glob import glob; import zipfile; p=glob("dist/Reverfolio-v*-windows-amd64.zip"); assert len(p)==1; zipfile.ZipFile(p[0]).extractall("stage")'
+      - name: Build native GUI Windows installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          python scripts/package_installer.py --stage stage/Reverfolio --version "$version" --os windows --output "dist/Reverfolio-Setup-v${version}-windows-amd64.exe"
+          python -c 'import glob,os; p=glob.glob("dist/Reverfolio-Setup-v*-windows-amd64.exe"); assert len(p)==1 and os.path.getsize(p[0])>1000000'
+          (cd dist && sha256sum Reverfolio-Setup-* > INSTALLER-SHA256SUMS && sha256sum -c INSTALLER-SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reverfolio-windows-installers
+          path: dist/*
+          if-no-files-found: error
+
+  publish:
+    needs: windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: reverfolio-windows-installers
+          path: dist
+      - name: Upload verified binaries and Windows installer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "dist/Reverfolio-Setup-${GITHUB_REF_NAME}-windows-amd64.exe"
+          gh release create "$GITHUB_REF_NAME" dist/* -R "$GITHUB_REPOSITORY" --verify-tag --title "Reverfolio $GITHUB_REF_NAME — Windows installer" --notes "Native Windows GUI installer and six platform portable bundles, with third-party license texts and SHA256 manifests. Historical releases retained."

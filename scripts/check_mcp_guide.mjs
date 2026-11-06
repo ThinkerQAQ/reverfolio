@@ -125,3 +125,15 @@ test('failed save leaves edited Tunnel ID available for retry',async()=>{
  assert.equal(elem('mcpSave').disabled,false);
  assert.match(elem('mcpConnectionMessage').textContent,/保存失败/);
 });
+
+// Installing an optional client must not require or submit credentials.
+test('MCP Tunnel Client installs on demand without saving a Tunnel ID or API Key',async()=>{
+ const {api,elem,saved,calls}=fakeUI();
+ saved.client_installed=false;
+ api.init();await new Promise(resolve=>setTimeout(resolve,10));
+ const button=elem('mcpInstallClient');
+ assert.equal(button.hidden,false);
+ await button.handlers.get('click')();
+ assert.equal(calls.filter(c=>c.args?.action==='install-client').length,1);
+ assert.equal(calls.filter(c=>c.args?.action==='save').length,0);
+});
